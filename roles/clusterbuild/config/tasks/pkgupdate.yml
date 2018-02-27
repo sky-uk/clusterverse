@@ -1,0 +1,36 @@
+---
+- name: upgrade all packages, reboot and wait
+  block:
+    - name: upgrade all packages (apt)
+      block:
+        - name: install aptitude (needed for the Debian upgrade)
+          apt:
+            name: aptitude
+        - name: run apt upgrade
+          apt:
+            upgrade: dist
+            force: true
+          register: apt_packages_update
+      when: ansible_os_family == 'Debian'
+
+    - name: upgrade all packages (yum)
+      yum:
+        name: "*"
+        state: latest
+      register: yum_packages_update
+      when: ansible_os_family == 'RedHat'
+
+    - block:
+      - name: reboot
+        become: yes
+        shell: sleep 2 && /sbin/shutdown -r now "Ansible system package upgraded" && sleep 5
+        async: 1
+        poll: 0
+
+      - set_fact: wait_host="{{ ansible_host }}"
+
+      - name: Wait for server to come back
+        local_action: wait_for host={{wait_host}} delay=10 port=22 state=started
+        become: false
+      when: apt_packages_update.changed or yum_packages_update.changed
+  when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and skip_package_upgrade is match("false"))

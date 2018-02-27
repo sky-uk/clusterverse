@@ -1,0 +1,74 @@
+---
+
+- name: Create AWS security group
+  ec2_group:
+    name: "{{ cluster_name }}-sg"
+    description: "{{ cluster_name }} rules"
+    region: "{{cluster_vars[clusterid].region}}"
+    vpc_id: "{{vpc_id}}"
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    tags:
+      Name: "{{ cluster_name }}-sg"
+      env: "{{ buildenv }}"
+    rules: "{{ cluster_vars[clusterid][buildenv].sg_rules }}"
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: new_aws_sg
+
+- name: Create EC2 instances
+  block:
+    - name: Create EC2 instances
+      ec2:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        key_name: "{{cluster_vars[clusterid][buildenv].key_name}}"
+        instance_type: "{{item.flavor}}"
+        image: "{{cluster_vars[clusterid].image}}"
+        vpc_subnet_id: "{{item.vpc_subnet_id}}"
+        assign_public_ip: "{{cluster_vars[clusterid].assign_public_ip}}"
+        group: "{{cluster_vars[clusterid][buildenv].security_groups + [new_aws_sg.group_name]}}"
+        wait: yes
+        region: "{{cluster_vars[clusterid].region}}"
+        instance_tags: '{"Name":"{{item.hostname}}", "type":"{{item.type}}", "env":"{{buildenv}}"}'
+        termination_protection: yes
+        volumes: "{{cluster_vars[clusterid][buildenv].volumes | default([])}}"
+        count_tag:
+            Name: "{{item.hostname}}"
+        exact_count: 1
+      with_items: "{{cluster_hosts_flat}}"
+      async: 7200
+      poll: 0
+      register: aws_instances
+
+    - name: Wait for aws instance creation to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: aws_jobs
+      until: aws_jobs.finished
+      retries: 300
+      with_items: "{{aws_instances.results}}"
+
+    # Can't use {{lookup('file', item.results_file)}} here, as it won't lookup outside the playbook directory, and this file is in the /tmp directory
+    - name: Get the async instance creation output into a variable
+      shell: "cat {{ item.results_file }}"
+      register: aws_instances_results_files
+      with_items: "{{ aws_instances.results }}"
+
+    - name: Append the file-results from aws instance creation to the aws_instances_results fact
+      set_fact:
+        aws_instances_results: "{{ aws_instances_results | default([]) + [res] }}"
+      vars:
+        res: "{{ item.stdout | from_json }}"
+      with_items: "{{ aws_instances_results_files.results }}"
+
+
+    - set_fact:
+        dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
+        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+      vars:
+        _dynamic_inventory_flat: "{{ aws_instances_results | json_query('[*].{type: tagged_instances[0].tags.type, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip}') }}"
+
+#    - debug: msg={{dynamic_inventory_flat}}
+#    - debug: msg={{dynamic_inventory_dict}}
