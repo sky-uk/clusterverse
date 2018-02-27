@@ -1,0 +1,19 @@
+---
+
+- name: Update packages (unless skip_package_upgrade is defined)
+  include_tasks: pkgupdate.yml
+  when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and skip_package_upgrade is match("false"))
+
+- name: Set hostname (e.g. AWS doesn't set it automatically)
+  hostname:
+    name: "{{inventory_hostname.split('.')[0]}}"
+
+- name: Create DNS records for EC2 hosts
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  include_tasks: infoblox_create_update_a.yml
+  vars:
+    - fqdn: "{{ item.hostname }}.{{cluster_vars[clusterid].dns_zone_external}}"
+    - ip: "{{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }}"
+  with_items: "{{ hostvars['localhost'].cluster_hosts_flat }}"

@@ -1,0 +1,37 @@
+---
+
+- name: Clean the cluster
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  roles:
+    - { role: clusterbuild/clean, when: (clean is defined and clean is match("true")) }
+  tags: clean
+
+- name: Deploy the cluster
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  roles:
+    - { role: clusterbuild/create }
+  tags: create
+
+- name: Install Python 2 if not present (Ubuntu 16 ships with python 3 only)
+  hosts: all
+  gather_facts: false
+  tasks:
+    - raw: bash -c "test -e /usr/bin/python || (apt -qqy update && apt install -qqy python-minimal)"
+      register: pyinst
+      changed_when: pyinst.stdout
+      retries: 10
+      delay: 3
+      until: pyinst.rc == 0
+  tags: python_install
+
+- name: Perform config on the cluster
+  hosts: all
+  roles:
+    - { role: clusterbuild/config }
+  tags: config

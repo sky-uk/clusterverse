@@ -1,0 +1,66 @@
+---
+cluster_vars:
+  aws_eu_west_1:
+    type: aws
+#    image: "ami-6e28b517" #Centos
+    image: "ami-8fd760f6"  #Ubuntu
+    region: "eu-west-1"
+    assign_public_ip: "no"
+    dns_zone: "{{cluster_name}}.{{buildenv}}.example.com"
+    dns_zone_external: "{{cluster_name}}.{{buildenv}}.example.com"
+    dev:
+      host_vars:
+        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "dev"
+      vpc_subnet_name_prefix: "dev-infrastructure-subnet"
+      key_name: "dev-key"
+      security_groups: ['dev-private-sg']
+      sg_rules:
+        - proto: "tcp"
+          ports: [80,443]
+          cidr_ip: 10.0.0.0/8
+        - proto: all
+          group_name:
+            - "dev-private-sg"
+#      volumes:
+#        - device_name: /dev/sdb
+#          volume_type: gp2
+#          volume_size: 20
+#          delete_on_termination: true
+    stage:
+      host_vars:
+        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "stage"
+      vpc_subnet_name_prefix: "stage-infrastructure-subnet"
+      key_name: "stage-key"
+      security_groups: ['stage-private-sg']
+      sg_rules:
+        - proto: "tcp"
+          ports: [80,443]
+          cidr_ip: 10.0.0.0/8
+        - proto: all
+          group_name:
+            - "stage-private-sg"
+    prod:
+      host_vars:
+        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "prod"
+      vpc_subnet_name_prefix: "prod-infrastructure-subnet"
+      key_name: "prod-key"
+      security_groups: ['prod-private-sg']
+      sg_rules:
+        - proto: "tcp"
+          ports: [80,443]
+          cidr_ip: 10.0.0.0/8
+        - proto: all
+          group_name:
+            - "prod-private-sg"

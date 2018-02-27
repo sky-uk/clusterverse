@@ -1,0 +1,60 @@
+---
+
+- name: Delete EC2 instaces
+  block:
+    - name: get existing instances
+      ec2_instance_facts :
+        filters:
+          "tag:Name": "{{item.hostname}}"
+          "instance-state-code": "16"           # Code 16 is 'running' (i.e. not a terminated VM).
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+      register: existing
+      delegate_to: localhost
+      with_items: "{{ cluster_hosts_flat }}"
+
+    - set_fact:
+        uids_to_del: "{{existing.results | json_query('[].instances[*].instance_id[]')}}"
+
+    - name: Remove EC2 instances termination protection
+      ec2:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars[clusterid].region }}"
+        state: running
+        termination_protection: "no"
+        instance_ids: "{{ uids_to_del }}"
+
+    - name: Delete EC2 instances
+      ec2:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars[clusterid].region }}"
+        state: "absent"
+        instance_ids: "{{ uids_to_del }}"
+        wait: true
+
+    - stat: path={{inventory_file}}
+      register: stat_inventory_file
+      when: inventory_file is defined
+
+    - set_fact:
+        new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
+
+    # Check the inventory_dir==playbook_dir, because the default inventory is /etc/ansible/hosts
+    - name: Create (empty) inventory file
+      copy:
+        content: ""
+        dest: "{{new_inventory_file}}"
+        force: yes
+
+
+- name: Delete security group
+  ec2_group:
+    name: "{{ cluster_name }}-sg"
+    region: "{{cluster_vars[clusterid].region}}"
+    vpc_id: "{{vpc_id}}"
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    state: absent

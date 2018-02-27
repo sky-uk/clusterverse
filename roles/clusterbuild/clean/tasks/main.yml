@@ -1,0 +1,4 @@
+---
+
+- include_tasks: aws.yml
+  when: cluster_vars[clusterid].type == "aws"

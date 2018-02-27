@@ -1,0 +1,17 @@
+---
+## Default user vars - in general to be provided by Jenkins
+clusterid: aws_eu_west_1          # Must be an index into cluster_vars in clusters.yml
+buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster.yml
+
+clustername_prefix: "test"        # Gives a customised name for identification purposes
+
+# The global {{cluster_name}} is prefixed with "{{clustername_prefix}}-" if clustername_prefix is defined
+cluster_name: "{{clustername_prefix}}{% if not clustername_prefix | regex_search('.*-$') %}-{% endif -%}{{buildenv}}"
+
+dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+
+infoblox:
+  server:
+  api_version:
+  username:
+  password:

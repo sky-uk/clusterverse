@@ -1,0 +1,5 @@
+inventory*
+*.retry
+.vscode*
+.idea*
+*.pyc
