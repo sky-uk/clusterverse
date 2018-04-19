@@ -16,6 +16,7 @@
               'type': hostttype,
               'hostname': cluster_name + '-' + hosttype_str + azname + number|string,
               'az_name': azname|string,
+              'dns_zone_external': cluster_name + '-' + hosttype_str + azname + number|string + "." + cluster_vars[clusterid].type + "." + cluster_vars[clusterid].region_short + azname|string + "." + hostttype + "." + buildenv + "." + cluster_vars[clusterid].dns_tld_external,
               'flavor': cluster_vars[clusterid][buildenv].host_vars[hostttype].flavor
               }]) -%}
           {%- endfor %}
