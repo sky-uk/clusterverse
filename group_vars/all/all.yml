@@ -1,7 +1,7 @@
 ---
 ## Default user vars - in general to be provided by Jenkins
-clusterid: aws_eu_west_1          # Must be an index into cluster_vars in clusters.yml
-buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster.yml
+clusterid: aws_eu_west_1          # Must be an index into cluster_vars in cluster_vars.yml
+buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster_vars.yml
 
 clustername_prefix: "test"        # Gives a customised name for identification purposes
 

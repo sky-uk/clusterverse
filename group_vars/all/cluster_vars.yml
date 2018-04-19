@@ -5,9 +5,10 @@ cluster_vars:
 #    image: "ami-6e28b517" #Centos
     image: "ami-8fd760f6"  #Ubuntu
     region: "eu-west-1"
+    region_short: "euw1"
     assign_public_ip: "no"
-    dns_zone: "{{cluster_name}}.{{buildenv}}.example.com"
-    dns_zone_external: "{{cluster_name}}.{{buildenv}}.example.com"
+#    dns_tld_internal: "example.com"
+    dns_tld_external: "example.com"
     dev:
       host_vars:
         # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
