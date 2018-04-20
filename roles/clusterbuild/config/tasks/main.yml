@@ -5,6 +5,7 @@
   when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and skip_package_upgrade is match("false"))
 
 - name: Set hostname (e.g. AWS doesn't set it automatically)
+  become: true
   hostname:
     name: "{{inventory_hostname.split('.')[0]}}"
 

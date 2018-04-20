@@ -4,9 +4,11 @@
     - name: upgrade all packages (apt)
       block:
         - name: install aptitude (needed for the Debian upgrade)
+          become: true
           apt:
             name: aptitude
         - name: run apt upgrade
+          become: true
           apt:
             upgrade: dist
             force: true
@@ -14,6 +16,7 @@
       when: ansible_os_family == 'Debian'
 
     - name: upgrade all packages (yum)
+      become: true
       yum:
         name: "*"
         state: latest

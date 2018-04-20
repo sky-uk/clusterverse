@@ -19,6 +19,7 @@ cluster_vars:
       vpc_subnet_name_prefix: "dev-infrastructure-subnet"
       key_name: "dev-key"
       security_groups: ['dev-private-sg']
+      termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
           ports: [80,443]
@@ -41,6 +42,7 @@ cluster_vars:
       vpc_subnet_name_prefix: "stage-infrastructure-subnet"
       key_name: "stage-key"
       security_groups: ['stage-private-sg']
+      termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
           ports: [80,443]
@@ -58,6 +60,7 @@ cluster_vars:
       vpc_subnet_name_prefix: "prod-infrastructure-subnet"
       key_name: "prod-key"
       security_groups: ['prod-private-sg']
+      termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
           ports: [80,443]

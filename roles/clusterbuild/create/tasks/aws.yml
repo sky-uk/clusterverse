@@ -32,7 +32,7 @@
         wait: yes
         region: "{{cluster_vars[clusterid].region}}"
         instance_tags: '{"Name":"{{item.hostname}}", "type":"{{item.type}}", "env":"{{buildenv}}"}'
-        termination_protection: yes
+        termination_protection: "{{cluster_vars[clusterid][buildenv].termination_protection}}"
         volumes: "{{cluster_vars[clusterid][buildenv].volumes | default([])}}"
         count_tag:
             Name: "{{item.hostname}}"
