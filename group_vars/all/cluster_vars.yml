@@ -1,14 +1,23 @@
 ---
+
+os_username: "{{ lookup('env','OS_USERNAME') }}"
+os_password: "{{ lookup('env','OS_PASSWORD') }}"
+gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
+gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
+
+
 cluster_vars:
   aws_eu_west_1:
     type: aws
-#    image: "ami-6e28b517" #Centos
-    image: "ami-8fd760f6"  #Ubuntu
+#    image: "ami-6e28b517" #Centos 7
+#    image: "ami-8fd760f6"  #Ubuntu 16.04
+    image: "ami-0b91bd72"  #Ubuntu 18.04
     region: "eu-west-1"
     region_short: "euw1"
     assign_public_ip: "no"
 #    dns_tld_internal: "example.com"
     dns_tld_external: "example.com"
+    dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
         # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
@@ -27,11 +36,7 @@ cluster_vars:
         - proto: all
           group_name:
             - "dev-private-sg"
-#      volumes:
-#        - device_name: /dev/sdb
-#          volume_type: gp2
-#          volume_size: 20
-#          delete_on_termination: true
+#      volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 20, "delete_on_termination": true}]
     stage:
       host_vars:
         # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
@@ -68,3 +73,51 @@ cluster_vars:
         - proto: all
           group_name:
             - "prod-private-sg"
+
+  m25_lsd_slo:
+    type: openstack
+    image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
+    region: "SLO"
+    region_short: "m25s"
+    dns_tld_internal: "example.com"
+    dns_server: "openstack"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    dev:
+      host_vars:
+        test: {count_per_az: 1, az: ["1", "2"], flavor: m1.1c.1g, rootvol_size: "10"}
+    prod:
+      host_vars:
+        test: {count_per_az: 1, az: ["1", "2"], flavor: m1.1c.1g, rootvol_size: "10"}
+    cloud_provider: "external"
+    network: "k8s_dev"
+    lb:
+      app_lb: "keepalived"
+      apiserver_lb: "keepalived"
+      voyager: true
+    security_group: "wide-open"
+    key_name: "{{os_username}}"
+    floating_ip_pools: "vlan3321"
+    OS_AUTH_URL:
+    OS_TENANT_ID:
+    OS_TENANT_NAME:
+    OS_PROJECT_NAME:
+
+  gce_eu_west1:
+    type: gce
+    region: "europe-west1"
+    region_short: "euw1"
+    dns_tld_internal: "c.{{gcp_credentials_json.project_id}}.internal"
+    dns_tld_external: "example.com"
+    dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    dev:
+      host_vars:
+        test: {count_per_az: 1, az: ["b", "c", "d"], flavor: f1-micro, rootvol_size: "10"}
+    cloud_provider: "gce"
+    credentials_file: "{{ gcp_credentials_file }}"
+    service_account_email: "{{gcp_credentials_json.client_email}}"
+    project_id: "{{gcp_credentials_json.project_id}}"
+    #image: "centos-7"
+    image: "ubuntu-1804"
+    preemptible: "false"
+    ip_forward: "true"
+    external_ip: "ephemeral"
+    ext_firewall_src_range: []

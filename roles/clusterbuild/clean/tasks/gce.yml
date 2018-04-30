@@ -1,0 +1,69 @@
+---
+
+- name: Delete GCE VMs asynchronously
+  gce:
+    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+    project_id: "{{cluster_vars[clusterid].project_id}}"
+    zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+    instance_names: "{{item.hostname}}"
+    state: "deleted"
+  register: gce_instances
+  with_items: "{{cluster_hosts_flat}}"
+  async: 7200
+  poll: 0
+
+- name: Wait for gce instance deletion to complete
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: gce_jobs
+  until: gce_jobs.finished
+  retries: 300
+  with_items: "{{gce_instances.results}}"
+
+- stat: path={{inventory_file}}
+  register: stat_inventory_file
+  when: inventory_file is defined
+
+- set_fact:
+    new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
+
+# Check the inventory_dir==playbook_dir, because the default inventory is /etc/ansible/hosts
+- name: Create (empty) inventory file
+  copy:
+    content: ""
+    dest: "{{new_inventory_file}}"
+    force: yes
+
+
+- name: "Delete {{cluster_name}}-allow-internal network firewall"
+  gce_net:
+    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+    project_id: "{{cluster_vars[clusterid].project_id}}"
+    name: "{{ cluster_name }}"
+    fwname: "{{cluster_name}}-allow-internal"
+    state: "deleted"
+  become: false
+
+- name: "Delete {{cluster_name}}-allow-external network firewall"
+  gce_net:
+    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+    project_id: "{{cluster_vars[clusterid].project_id}}"
+    name: "{{ cluster_name }}"
+    fwname: "{{cluster_name}}-allow-external"
+    state: "deleted"
+  become: false
+
+## Can't delete the network because it automatically creates dependent routes, which we can't delete.
+# - name: Delete k8s host network
+#   gce_net:
+#     service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+#     credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+#     project_id: "{{cluster_vars[clusterid].project_id}}"
+#     name: "{{ cluster_name }}"
+#     subnet_name: "{{ cluster_name }}"
+#     region: "{{ cluster_vars[clusterid].region }}"
+#     mode: auto
+#     state: "deleted"

@@ -1,0 +1,36 @@
+---
+
+- name: Delete Openstack VMs asynchronously
+  os_server:
+    auth_type: password
+    auth:
+      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      username: "{{os_username}}"
+      password: "{{os_password}}"
+    name: "{{item.hostname}}"
+    region_name: "{{cluster_vars[clusterid].region}}"
+    state: absent
+  register: openstack_instances
+  with_items: "{{cluster_hosts_flat}}"
+  async: 7200
+  poll: 0
+
+- name: Wait for Openstack instance deletion to complete
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: openstack_jobs
+  until: openstack_jobs.finished
+  retries: 300
+  with_items: "{{openstack_instances.results}}"
+
+- name: Delete DNS entries from openstack
+  include_tasks: openstack_dns.yml
+  vars:
+    - fqdn: "{{ outer_item.fqdn }}"
+  loop_control:
+    loop_var: outer_item
+  with_items: "{{ cluster_hosts_flat }}"
+  when: cluster_vars[clusterid].type == "openstack" and cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_tld_external is defined and cluster_vars[clusterid].dns_tld_external != ""

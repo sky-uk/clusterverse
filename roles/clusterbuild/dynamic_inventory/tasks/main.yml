@@ -16,7 +16,7 @@
               'type': hostttype,
               'hostname': cluster_name + '-' + hosttype_str + azname + number|string,
               'az_name': azname|string,
-              'dns_zone_external': cluster_name + '-' + hosttype_str + azname + number|string + "." + cluster_vars[clusterid].type + "." + cluster_vars[clusterid].region_short + azname|string + "." + hostttype + "." + buildenv + "." + cluster_vars[clusterid].dns_tld_external,
+              'fqdn': cluster_name + '-' + hosttype_str + azname + number|string + "." + cluster_vars[clusterid].type + "." + cluster_vars[clusterid].region_short + azname|string + "." + app_class + "." + buildenv + "." + cluster_vars[clusterid].dns_tld_external,
               'flavor': cluster_vars[clusterid][buildenv].host_vars[hostttype].flavor
               }]) -%}
           {%- endfor %}
@@ -26,5 +26,31 @@
 
 #- debug: msg={{cluster_hosts_flat}}
 
+- name: get other hosts
+  set_fact:
+    other_hosts: "{{ (hostvars[ansible_play_hosts[0]].cluster_hosts_flat | json_query('[].hostname') + ['localhost']) | unique | symmetric_difference(ansible_play_hosts) }}"
+  run_once: true
+
+- name: set the cluster_hosts_flat variable on all other hosts
+  set_fact:
+    cluster_hosts_flat: "{{hostvars[ansible_play_hosts[0]].cluster_hosts_flat}}"
+    cacheable: true
+  delegate_to: "{{item}}"
+  run_once: true
+  with_items: "{{ other_hosts }}"
+
 - include_tasks: aws.yml
   when: cluster_vars[clusterid].type == "aws"
+
+- include_tasks: openstack.yml
+  when: cluster_vars[clusterid].type == "openstack"
+
+- include_tasks: gce.yml
+  when: cluster_vars[clusterid].type == "gce"
+
+#- debug: msg={{cluster_hosts_flat}}
+
+#- set_fact:
+#    cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hostname')}}"
+#
+#- debug: msg={{cluster_hosts_dict}}

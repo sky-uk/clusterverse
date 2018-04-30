@@ -50,25 +50,11 @@
       retries: 300
       with_items: "{{aws_instances.results}}"
 
-    # Can't use {{lookup('file', item.results_file)}} here, as it won't lookup outside the playbook directory, and this file is in the /tmp directory
-    - name: Get the async instance creation output into a variable
-      shell: "cat {{ item.results_file }}"
-      register: aws_instances_results_files
-      with_items: "{{ aws_instances.results }}"
-
-    - name: Append the file-results from aws instance creation to the aws_instances_results fact
-      set_fact:
-        aws_instances_results: "{{ aws_instances_results | default([]) + [res] }}"
-      vars:
-        res: "{{ item.stdout | from_json }}"
-      with_items: "{{ aws_instances_results_files.results }}"
-
-
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
         dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
       vars:
-        _dynamic_inventory_flat: "{{ aws_instances_results | json_query('[*].{type: tagged_instances[0].tags.type, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip}') }}"
+        _dynamic_inventory_flat: "{{ aws_jobs.results | json_query('[*].{type: tagged_instances[0].tags.type, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, inventory_ip: tagged_instances[0].private_ip}') }}"
 
 #    - debug: msg={{dynamic_inventory_flat}}
 #    - debug: msg={{dynamic_inventory_dict}}

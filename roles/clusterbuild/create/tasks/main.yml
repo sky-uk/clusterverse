@@ -3,6 +3,16 @@
 - include_tasks: aws.yml
   when: cluster_vars[clusterid].type == "aws"
 
+- include_tasks: openstack.yml
+  when: cluster_vars[clusterid].type == "openstack"
+
+- include_tasks: gce.yml
+  when: cluster_vars[clusterid].type == "gce"
+
+- include_tasks: vmware.yml
+  when: cluster_vars[clusterid].type == "vmware"
+
+
 - stat: path={{inventory_file}}
   register: stat_inventory_file
   when: inventory_file is defined
@@ -16,7 +26,7 @@
       {% for key in dynamic_inventory_dict.keys() -%}
       [{{ key }}]
       {% for value in dynamic_inventory_dict[key] %}
-      {{ value | json_query('hostname')}} ansible_host={{ value | json_query('private_ip')}}
+      {{ value | json_query('hostname')}} ansible_host={{ value | json_query('inventory_ip')}}
       {% endfor %}
 
       {% endfor %}
@@ -33,15 +43,15 @@
   add_host:
     name: "{{ item.hostname }}"
     groups: "{{ item.type }},{{ cluster_name }}"
-    ansible_host: "{{ item.private_ip }}"
+    ansible_host: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 
 - name: Wait for port 22 to become open and contain "OpenSSH". (Do this instead of wait_for_connection, because wait_for_connection needs python2 installed remotely - not the case for Ubuntu)
   wait_for:
     port: 22
-    host: "{{ item.private_ip }}"
+    host: "{{ item.inventory_ip }}"
     search_regex: OpenSSH
     delay: 1
-  with_items: "{{ aws_instances_results | json_query('[*].{private_ip: instances[0].private_ip || tagged_instances[0].private_ip}')}}"
+  with_items: "{{ dynamic_inventory_flat }}"
   connection: local

@@ -1,2 +1,2 @@
 dependencies:
-  - { role: dynamic_inventory }
+  - role: 'dynamic_inventory'

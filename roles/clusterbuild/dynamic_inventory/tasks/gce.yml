@@ -1,0 +1,10 @@
+---
+
+- name: Update cluster_hosts_flat with rootvol_size
+  set_fact:
+    cluster_hosts_flat:  |
+      {% set res = cluster_hosts_flat -%}
+      {%- for host in res -%}
+        {%- set _dummy = host.update({'rootvol_size': cluster_vars[clusterid][buildenv].host_vars[host.type].rootvol_size | string}) -%}
+        {%- endfor %}
+      {{ res }}
