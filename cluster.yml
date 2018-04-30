@@ -1,5 +1,19 @@
 ---
 
+- name: Preflight check
+  hosts: localhost:all
+  connection: local
+  gather_facts: false
+  tasks:
+    - assert: { that: "ansible_version.full is version_compare('2.5.2', '==')", msg: "Ansible 2.5.2 required (v2.5.1 has a bug, and doesn't work.)" }
+    - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
+    - assert: { that: "clusterid is defined and cluster_vars[clusterid] is defined", msg: "Please define clusterid" }
+    - assert: { that: "buildenv is defined and cluster_vars[clusterid][buildenv] is defined", msg: "Please define buildenv" }
+
+    - assert: { that: "(cluster_vars[clusterid].service_account_email is defined)" }
+      when: cluster_vars[clusterid].type == "gce"
+  tags: always
+
 - name: Clean the cluster
   hosts: localhost
   connection: local
@@ -18,7 +32,7 @@
     - { role: clusterbuild/create }
   tags: create
 
-- name: Install Python 2 if not present (Ubuntu 16 ships with python 3 only)
+- name: Install Python 2 if not present (Ubuntu >16 ships with python 3 only)
   hosts: all
   become: true
   gather_facts: false
@@ -33,6 +47,7 @@
 
 - name: Perform config on the cluster
   hosts: all
+  become: true
   roles:
     - { role: clusterbuild/config }
   tags: config

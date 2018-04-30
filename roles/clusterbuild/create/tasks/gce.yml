@@ -1,0 +1,78 @@
+---
+
+- name: Create GCE network
+  block:
+    - name: Create GCE host network
+      gce_net:
+        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        name: "{{ cluster_name }}"
+        mode: auto
+
+    - name: Create GCE host internal network firewall
+      gce_net:
+        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        name: "{{ cluster_name }}"
+        fwname: "{{cluster_name}}-allow-internal"
+        target_tags: "{{cluster_name}}-allow-internal"
+        allowed: tcp;udp;icmp
+        src_range: ['10.128.0.0/9']
+
+    - name: Create GCE host external network firewall
+      gce_net:
+        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        name: "{{ cluster_name }}"
+        fwname: "{{cluster_name}}-allow-external"
+        target_tags: "{{cluster_name}}-allow-external"
+    #    allowed: tcp:22;tcp:80;tcp:443;tcp:8080;tcp:9090;tcp:8090;tcp:150;icmp
+        allowed: tcp;udp;icmp
+        src_range: "{{cluster_vars[clusterid].ext_firewall_src_range}}"
+
+
+- name: Create GCE VMs asynchronously
+  block:
+    - name: Create GCE VMs asynchronously
+      gce:
+        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        instance_names: "{{item.hostname}}"
+        machine_type: "{{item.flavor}}"
+        disk_size: "{{item.rootvol_size}}"
+        persistent_boot_disk: true
+        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        image: "{{cluster_vars[clusterid].image}}"
+        preemptible: "{{cluster_vars[clusterid].preemptible}}"
+        network: "{{cluster_name}}"
+        subnetwork: "{{cluster_name}}"
+        ip_forward: "{{cluster_vars[clusterid].ip_forward}}"
+        external_ip: "{{cluster_vars[clusterid].external_ip}}"
+        #metadata: {type: "{{item.type}}", startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"}
+        tags:
+          - "{{cluster_name}}-allow-internal"
+          - "{{cluster_name}}-allow-external"
+      register: gce_instances
+      run_once: true
+      with_items: "{{cluster_hosts_flat}}"
+      async: 7200
+      poll: 0
+
+    - name: Wait for gce instance creation to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: gce_jobs
+      until: gce_jobs.finished
+      retries: 300
+      with_items: "{{gce_instances.results}}"
+
+    - set_fact:
+        dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
+        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+      vars:
+        _dynamic_inventory_flat: "{{ gce_jobs.results | json_query('[*].{type: instance_data[0].metadata.type, hostname: instance_data[0].name, private_ip: instance_data[0].private_ip, public_ip: instance_data[0].public_ip, inventory_ip: instance_data[0].public_ip}') }}"
+

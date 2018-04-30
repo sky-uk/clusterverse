@@ -1,0 +1,79 @@
+---
+
+## Note: turn auto_ip off, and attach the floating IPs separately, because sometimes, the auto_ip fails, and the task, and thus entire playbook fails.
+- name: Create Openstack instances
+  os_server:
+    state: present
+    auth_type: password
+    auth:
+      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      username: "{{os_username}}"
+      password: "{{os_password}}"
+    name: "{{item.hostname}}"
+    flavor: "{{item.flavor}}"
+    volume_size: "{{item.rootvol_size}}"
+    meta: {type: "{{item.type}}"}
+    image: "{{cluster_vars[clusterid].image}}"
+    region_name: "{{cluster_vars[clusterid].region}}"
+    timeout: 200
+    security_groups: "{{cluster_vars[clusterid].security_group}}"
+    key_name: "{{cluster_vars[clusterid].key_name}}"
+    network: "{{cluster_vars[clusterid].network}}"
+    auto_ip: no
+  register: os_instances
+  run_once: true
+  with_items: "{{cluster_hosts_flat}}"
+  async: 7200
+  poll: 0
+
+- name: Wait for Openstack instances creation to complete
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: os_instances_jobs
+  until: os_instances_jobs.finished
+  retries: 300
+  with_items: "{{os_instances.results}}"
+
+#- debug: msg={{os_instances_jobs.results}}
+
+- name: Attach floating IP to instances
+  os_floating_ip:
+    state: present
+    auth_type: password
+    auth:
+      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      username: "{{os_username}}"
+      password: "{{os_password}}"
+    network: "{{cluster_vars[clusterid].floating_ip_pools}}"
+    server: "{{item.hostname}}"
+    reuse: yes
+    wait: yes
+  register: os_ips
+  run_once: true
+  with_items: "{{cluster_hosts_flat}}"
+  async: 7200
+  poll: 0
+
+- name: Wait for floating IP attaches to complete
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: os_ips_jobs
+  until: os_ips_jobs.finished
+  retries: 300
+  with_items: "{{os_ips.results}}"
+
+#- debug: msg={{os_ips_jobs.results}}
+
+- set_fact:
+    dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
+    dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+  vars:
+    _dynamic_inventory_flat: "{{ os_ips_jobs.results | json_query('[*].{type: item.item.type, hostname: item.item.hostname, private_ip: floating_ip.fixed_ip_address, public_ip: floating_ip.floating_ip_address, inventory_ip: floating_ip.floating_ip_address}') }}"
+
+#- debug: msg={{dynamic_inventory_flat}}

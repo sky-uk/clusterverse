@@ -25,6 +25,7 @@
         state: running
         termination_protection: "no"
         instance_ids: "{{ uids_to_del }}"
+      when: uids_to_del
 
     - name: Delete EC2 instances
       ec2:
@@ -34,20 +35,7 @@
         state: "absent"
         instance_ids: "{{ uids_to_del }}"
         wait: true
-
-    - stat: path={{inventory_file}}
-      register: stat_inventory_file
-      when: inventory_file is defined
-
-    - set_fact:
-        new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
-
-    # Check the inventory_dir==playbook_dir, because the default inventory is /etc/ansible/hosts
-    - name: Create (empty) inventory file
-      copy:
-        content: ""
-        dest: "{{new_inventory_file}}"
-        force: yes
+      when: uids_to_del
 
 
 - name: Delete security group

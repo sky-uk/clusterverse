@@ -1549,7 +1549,7 @@ def _create_ptr_record_model(name, address, view, comment, ttl=None, ext_attr=No
     return model
 
 
-def _create_a_record_model(name, address, view, comment, ttl=None):
+def _create_a_record_model(name, address, view, comment, ttl=None, extattrs={}):
     """
     Creates a JSON model of an A record with the given properties, using the same keys as used by the WAPI.
     :param name: the domain name
@@ -1564,6 +1564,7 @@ def _create_a_record_model(name, address, view, comment, ttl=None):
         _IPV4_ADDRESS_PROPERTY: address,
         _COMMENT_PROPERTY: comment,
         _VIEW_PROPERTY: view,
+        _EXT_ATTR_PROPERTY: extattrs,
         _USE_TTL_PROPERTY: ttl is not None
     }
     if ttl is not None:
@@ -1890,13 +1891,12 @@ def main():
 
             # Validation
             set_a_records = infoblox.get_a_record(name)
-            assert len(set_a_records) == len(
-                addresses) == len(desired_a_records)
+            assert len(set_a_records) == len(addresses) == len(desired_a_records)
             for a_record in set_a_records:
                 assert _are_records_equivalent(
                     desired_a_records[a_record[_IPV4_ADDRESS_PROPERTY]], a_record)
 
-            module.exit_json(changed=True, result=set_a_records)
+            module.exit_json(changed=True, result=[set_a_records, desired_a_records])
 
     elif action == "add_host":
         network_ref = None
