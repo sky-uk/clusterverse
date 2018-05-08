@@ -2,7 +2,7 @@
 This project provides a template Ansible playbook to create (cloud) infrastructure. 
 
 ## Requirements
-Ansible 2.5.2 is required on the localhost (v2.4.0, 2.4.2, 2.5.1 contain [bug](https://github.com/ansible/ansible/issues/33433), [bug](https://github.com/ansible/ansible/pull/38302) that causes a failure)
+Ansible >=2.5.2 is required on the localhost (v2.4.0, 2.4.2, 2.5.1 contain [bug](https://github.com/ansible/ansible/issues/33433), [bug](https://github.com/ansible/ansible/pull/38302) that causes a failure)
 
 ## Variables to suit your project
 
@@ -12,7 +12,8 @@ Ansible 2.5.2 is required on the localhost (v2.4.0, 2.4.2, 2.5.1 contain [bug](h
 clusterid: aws_eu_west_1          # Must be an index into cluster_vars in cluster_vars.yml
 buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster_vars.yml
 app_class: "test"                 # The class of application - applies to the fqdn
-clustername_prefix: "qwerty"      # Gives a customised name for identification purposes
+clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) 
+dns_tld_external: "example.com"   # Top-level domain (above the level defined per clusterid)
 ```
 
 #### cluster_vars.yml:
@@ -21,9 +22,9 @@ clustername_prefix: "qwerty"      # Gives a customised name for identification p
     type: aws
     image: "ami-0b91bd72"  #Ubuntu 18.04
     region: "eu-west-1"
-    region_short: "euw1"
     assign_public_ip: "no"
-    dns_tld_external: "example.com"
+    dns_zone_internal: "eu-west-1.compute.internal"
+    dns_zone_external: "{%- if dns_tld_external -%}  aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
@@ -82,6 +83,18 @@ export OS_PASSWORD='<yourpass>'
   - aws-cli
   - boto3
 
+Dependencies can be managed via Pipenv:
+````
+pipenv install
+````
+Will create a Python virtual environment with dependencies specified in the Pipfile
+
+To active it, simply enter:
+````
+pipenv shell
+````
+
+
 In order to access credentials encrypted by Ansible-Vault, the `VAULT_PASSORD` environment variable needs to be added to your ~/.bashrc (or exported at runtime):
 ```
 export VAULT_PASSORD=password
@@ -109,15 +122,13 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 ### Extra variables:
 + `-e buildenv=<environment>`  -  dev/ stage/ prod supported
 + `-e clusterid=<aws_eu_west_1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml` 
++ `-e dns_tld_external="example.com"` - specify the external DNS TLD if not defined in `group_vars/all.yml`
 + `-e clean=true` - Deletes all existing VMs and security groups before creating
 + `-e skip_package_upgrade=true` - Does not upgrade the OS packages (saves a lot of time during debugging)
++ `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter)
 
 ### Tags
 - clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line) 
 - create: Creates only EC2 VMs, based on the host_vars values in group_vars/all/cluster.yml  
 - config: Updates packages, sets hostname, adds hosts to DNS
 
-
-## Warning
-
-This is a work in progress project and not production ready (yet)

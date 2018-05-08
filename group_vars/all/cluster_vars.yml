@@ -1,5 +1,5 @@
 ---
-
+# Openstack and Google Cloud credentials lookup
 os_username: "{{ lookup('env','OS_USERNAME') }}"
 os_password: "{{ lookup('env','OS_PASSWORD') }}"
 gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
@@ -13,10 +13,9 @@ cluster_vars:
 #    image: "ami-8fd760f6"  #Ubuntu 16.04
     image: "ami-0b91bd72"  #Ubuntu 18.04
     region: "eu-west-1"
-    region_short: "euw1"
     assign_public_ip: "no"
-#    dns_tld_internal: "example.com"
-    dns_tld_external: "example.com"
+    dns_zone_internal: "eu-west-1.compute.internal"
+    dns_zone_external: "{%- if dns_tld_external -%}  aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
@@ -31,11 +30,14 @@ cluster_vars:
       termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
-          ports: [80,443]
-          cidr_ip: 10.0.0.0/8
-        - proto: all
+          ports: [19100]
           group_name:
             - "dev-private-sg"
+          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the dev-private-sg group"
+        - proto: all
+          group_name:
+            - "{{ cluster_name }}-sg"
+          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
 #      volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 20, "delete_on_termination": true}]
     stage:
       host_vars:
@@ -50,11 +52,14 @@ cluster_vars:
       termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
-          ports: [80,443]
-          cidr_ip: 10.0.0.0/8
-        - proto: all
+          ports: [19100]
           group_name:
             - "stage-private-sg"
+          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the stage-private-sg group"
+        - proto: all
+          group_name:
+            - "{{ cluster_name }}-sg"
+          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
     prod:
       host_vars:
         # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
@@ -68,31 +73,50 @@ cluster_vars:
       termination_protection: "yes"
       sg_rules:
         - proto: "tcp"
-          ports: [80,443]
-          cidr_ip: 10.0.0.0/8
-        - proto: all
+          ports: [19100]
           group_name:
             - "prod-private-sg"
+          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the prod-private-sg group"
+        - proto: all
+          group_name:
+            - "{{ cluster_name }}-sg"
+          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
+    tools:
+      host_vars:
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "tools"
+      vpc_subnet_name_prefix: "tools-infrastructure-subnet"
+      key_name: "tools-key"
+      security_groups: ['tools-private-sg']
+      termination_protection: "yes"
+      sg_rules:
+        - proto: "tcp"
+          ports: [19100]
+          group_name:
+            - "tools-private-sg"
+          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the tools-private-sg group"
+        - proto: all
+          group_name:
+            - "{{ cluster_name }}-sg"
+          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
 
   m25_lsd_slo:
     type: openstack
     image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
     region: "SLO"
-    region_short: "m25s"
-    dns_tld_internal: "example.com"
+#    dns_zone_internal: ""
+    dns_zone_external: "{%- if dns_tld_external -%}  os_m25s.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
     dns_server: "openstack"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
-        test: {count_per_az: 1, az: ["1", "2"], flavor: m1.1c.1g, rootvol_size: "10"}
+        test: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
     prod:
       host_vars:
-        test: {count_per_az: 1, az: ["1", "2"], flavor: m1.1c.1g, rootvol_size: "10"}
+        test: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
     cloud_provider: "external"
     network: "k8s_dev"
-    lb:
-      app_lb: "keepalived"
-      apiserver_lb: "keepalived"
-      voyager: true
     security_group: "wide-open"
     key_name: "{{os_username}}"
     floating_ip_pools: "vlan3321"
@@ -104,9 +128,8 @@ cluster_vars:
   gce_eu_west1:
     type: gce
     region: "europe-west1"
-    region_short: "euw1"
-    dns_tld_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-    dns_tld_external: "example.com"
+    dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
+    dns_zone_external: "{%- if dns_tld_external -%}  gce_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:

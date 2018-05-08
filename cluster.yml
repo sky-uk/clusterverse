@@ -9,6 +9,7 @@
     - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
     - assert: { that: "clusterid is defined and cluster_vars[clusterid] is defined", msg: "Please define clusterid" }
     - assert: { that: "buildenv is defined and cluster_vars[clusterid][buildenv] is defined", msg: "Please define buildenv" }
+    - assert: { that: "clustername_prefix is defined and clustername_prefix != ''", msg: "Please define clustername_prefix" }
 
     - assert: { that: "(cluster_vars[clusterid].service_account_email is defined)" }
       when: cluster_vars[clusterid].type == "gce"
@@ -47,7 +48,7 @@
 
 - name: Perform config on the cluster
   hosts: all
-  become: true
+  become: false
   roles:
     - { role: clusterbuild/config }
   tags: config

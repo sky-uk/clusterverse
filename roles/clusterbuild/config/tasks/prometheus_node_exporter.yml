@@ -1,0 +1,33 @@
+---
+- name: prometheus node_exporter | download release archive from github.com
+  become: yes
+  unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{prometheus_node_exporter_version}}/node_exporter-{{prometheus_node_exporter_version}}.linux-amd64.tar.gz"
+    dest: /opt
+    remote_src: yes
+
+- name: prometheus node_exporter | add node_exporter user
+  become: yes
+  user:
+    name: node_exporter
+    comment: prometheus node_exporter deamon
+    shell: /bin/false
+    system: yes
+    append: yes
+
+- name: prometheus node_exporter | install systemd service file
+  become: yes
+  template:
+    src: "etc/systemd/system/prometheus_node_exporter.service.j2"
+    dest: "/etc/systemd/system/prometheus_node_exporter.service"
+
+- name: prometheus node_exporter | force systemd to reread configs
+  become: yes
+  systemd: daemon_reload=yes
+
+- name: prometheus node_exporter | enable and start service
+  become: yes
+  service:
+    name: prometheus_node_exporter
+    state: started
+    enabled: True
