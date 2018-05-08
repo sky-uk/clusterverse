@@ -29,8 +29,8 @@
 - name: Delete DNS entries from openstack
   include_tasks: openstack_dns.yml
   vars:
-    - fqdn: "{{ outer_item.fqdn }}"
+    - fqdn: "{{outer_item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
   loop_control:
     loop_var: outer_item
   with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].type == "openstack" and cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_tld_external is defined and cluster_vars[clusterid].dns_tld_external != ""
+  when: cluster_vars[clusterid].type == "openstack" and cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""

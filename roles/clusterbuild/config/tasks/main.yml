@@ -1,6 +1,7 @@
 ---
 
 - name: Disable requiretty in sudoers to enable pipelining
+  become: yes
   lineinfile:
     dest: /etc/sudoers
     regexp: '(^Defaults requiretty)$'
@@ -10,13 +11,18 @@
     ansible_ssh_pipelining: no
 
 - name: Add hostname to hosts (gives hostname resolution without calling out to DNS.  Needed on Ubuntu.)
+  become: yes
   lineinfile:
     path: /etc/hosts
     regexp: '^{{ansible_default_ipv4.address}}'
-    line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}'
+    line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}.{{cluster_vars[clusterid].dns_zone_external}} {{inventory_hostname}}'
 #    regexp: '^127\.0\.1\.1'
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"
+
+- name: install prometheus node exporter daemon
+  include_tasks: prometheus_node_exporter.yml
+  when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install is match("true"))
 
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml
@@ -34,6 +40,7 @@
         path: /etc/cloud/cloud.cfg
         line: 'preserve_hostname: true'
         insertbefore: '^cloud_init_modules:'
+      become: true
 
     - name: remove domain info from hostname
       lineinfile:
@@ -41,16 +48,17 @@
         regexp: '^(.*?)\..*'
         line: '\1'
         backrefs: yes
+      become: true
 
     - name: Apply openstack DNS (if dns_server=openstack and dns.tld_external is set)
       include_tasks: dns_openstack_create_update_a.yml
       vars:
-        - fqdn: "{{ outer_item.fqdn }}"
+        - fqdn: "{{outer_item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
         - ip: "{{ hostvars[outer_item.hostname]['ansible_host'] }}"
       with_items: "{{ cluster_hosts_flat }}"
       loop_control:
         loop_var: outer_item
-      when: cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_tld_external is defined and cluster_vars[clusterid].dns_tld_external != ""
+      when: cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
   when: cluster_vars[clusterid].type == "openstack"
 
 #- name: debug cluster_hosts_flat localhost
@@ -64,14 +72,14 @@
     username: "{{ infoblox.username }}"
     password: "{{ infoblox.password }}"
     action: set_a_record
-    name: "{{ item.fqdn }}"
+    name: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
     address: "{{ hostvars[item.hostname]['ansible_host'] }}"
     ttl: 60
   delegate_to: localhost
   run_once: true
   become: false
   with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].dns_server=="infoblox" and (cluster_vars[clusterid].dns_tld_external is defined and cluster_vars[clusterid].dns_tld_external != "")
+  when: cluster_vars[clusterid].dns_server=="infoblox" and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
 
 ## Fails to overwrite previous records
 #- name: Create/ Update DNS host records in Infoblox (if applicable)
