@@ -7,19 +7,23 @@
   become: true
   with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
 
-- name: autodisks | Create ext4 filesystem from attached EBS volume
-  filesystem:
-    fstype: ext4
-    dev: "{{item.host_dev_name}}"
-    force: no
-  become: true
-  with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
+- name: autodisks | Check mountpoint
+  shell: lsblk -o NAME,FSTYPE -dsn  | awk '$2 == "" {print $1}'
+  register: mountpoint_result
 
-- name: autodisks | Mount created filesytem
-  mount:
-    path: "{{item.mountpoint}}"
-    src: "{{item.host_dev_name}}"
-    fstype: ext4
-    state: mounted
-  become: true
-  with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
+- block:
+  - name: autodisks | Create ext4 filesystem from attached EBS volume
+    become: yes
+    filesystem:
+      fstype: ext4
+      dev: "/dev/{{ mountpoint_result.stdout }}"
+      force: no
+
+  - name: autodisks | Mount created filesytem to /elasticsearch
+    become: yes
+    mount:
+      path: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[].mountpoint\") }}"
+      src: "/dev/{{ mountpoint_result.stdout }}"
+      fstype: ext4
+      state: mounted
+  when: mountpoint_result.stdout != ""

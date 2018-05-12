@@ -20,7 +20,7 @@ prometheus_node_exporter_version: 0.15.2        # Version of prometheus node_exp
 prometheus_set_unset_maintenance_mode: true     # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.
 
 filebeat_install: true
-filebeat_version: 6.3.0
+filebeat_version: 6.5.1
 
 pkgupdate: "onCreate"    # 'always' or 'onCreate'
 reboot_on_package_upgrade: false
