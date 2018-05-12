@@ -23,7 +23,7 @@ cluster_vars:
     ...
     <buildenv>:
       ...
-      host_vars:
+      hosttype_vars:
         <hosttype>: {...}
 ```
 
