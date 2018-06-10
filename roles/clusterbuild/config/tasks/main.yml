@@ -24,6 +24,10 @@
   include_tasks: prometheus_node_exporter.yml
   when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install is match("true"))
 
+- name: Install Elastic Filebeat 
+  include_tasks: filebeat.yml
+  when: (filebeat_install is defined and filebeat_install is match("true"))
+
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml
   when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and skip_package_upgrade is match("false"))
