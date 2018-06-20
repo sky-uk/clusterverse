@@ -19,6 +19,9 @@ prometheus_node_exporter_version: 0.15.2  #Version of prometheus node_exporter t
 filebeat_install: true
 filebeat_version: 6.2.4
 
+reboot_on_package_upgrade: false
+
+# Infoblox Service API user credentials and configurations
 infoblox:
   server:
   api_version:

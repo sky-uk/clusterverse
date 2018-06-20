@@ -1,0 +1,10 @@
+---
+
+- name: Delete GCE VM
+  gce:
+    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
+    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
+    project_id: "{{cluster_vars[clusterid].project_id}}"
+    zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.az_name}}"
+    instance_names: "{{host_to_del.hostname}}"
+    state: "deleted"

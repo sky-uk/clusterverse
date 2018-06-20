@@ -1,0 +1,22 @@
+---
+
+- name: Redeploy (destroy and reprovision one at a time).
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: get cluster_hosts_flat
+      include_role:
+        name: clusterbuild/cluster_hosts
+      delegate_to: localhost
+      run_once: true
+
+    - name: Run redeploy per host.  Delete one at a time, then reprovision.
+      include_role:
+        name: clusterbuild/redeploy
+      with_items: "{{ cluster_hosts_flat }}"
+      loop_control:
+        loop_var: host_to_del
+      vars:
+        mainclusteryml: "cluster.yml"
