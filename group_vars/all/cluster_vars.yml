@@ -9,7 +9,7 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 cluster_vars:
   aws_eu_west_1:
     type: aws
-#    image: "ami-6e28b517" #Centos 7
+#    image: "ami-3548444c" #Centos 7 (1805_1)
 #    image: "ami-8fd760f6"  #Ubuntu 16.04
     image: "ami-0b91bd72"  #Ubuntu 18.04
     region: "eu-west-1"
@@ -19,88 +19,92 @@ cluster_vars:
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
-        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "dev"
       vpc_subnet_name_prefix: "dev-infrastructure-subnet"
       key_name: "dev-key"
-      security_groups: ['dev-private-sg']
       termination_protection: "yes"
-      sg_rules:
+      secgroups_existing: []
+      secgroup_new:
         - proto: "tcp"
-          ports: [19100]
-          group_name:
-            - "dev-private-sg"
-          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the dev-private-sg group"
+          ports: [22]
+          cidr_ip: 10.0.0.0/8
+          rule_desc: "SSH Access"
+        - proto: "tcp"
+          ports: ["{{prometheus_node_exporter_port}}"]
+          group_name: ["dev-private-sg"]
+          rule_desc: "Prometheus instances attached to dev-private-sg can access the exporter port(s)."
         - proto: all
-          group_name:
-            - "{{ cluster_name }}-sg"
-          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
-#      volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 20, "delete_on_termination": true}]
+          group_name: ["{{ cluster_name }}-sg"]
+          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     stage:
       host_vars:
-        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "stage"
       vpc_subnet_name_prefix: "stage-infrastructure-subnet"
       key_name: "stage-key"
-      security_groups: ['stage-private-sg']
       termination_protection: "yes"
-      sg_rules:
+      secgroups_existing: []
+      secgroup_new:
         - proto: "tcp"
-          ports: [19100]
-          group_name:
-            - "stage-private-sg"
-          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the stage-private-sg group"
+          ports: [22]
+          cidr_ip: 10.0.0.0/8
+          rule_desc: "SSH Access"
+        - proto: "tcp"
+          ports: ["{{prometheus_node_exporter_port}}"]
+          group_name: ["stage-private-sg"]
+          rule_desc: "Prometheus instances attached to stage-private-sg can access the exporter port(s)."
         - proto: all
-          group_name:
-            - "{{ cluster_name }}-sg"
-          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
+          group_name: ["{{ cluster_name }}-sg"]
+          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     prod:
       host_vars:
-        # application role (eg: etcd, nginx):{ number of instances, availability zones, type of instances}  example testdb: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.medium } #
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "prod"
       vpc_subnet_name_prefix: "prod-infrastructure-subnet"
       key_name: "prod-key"
-      security_groups: ['prod-private-sg']
       termination_protection: "yes"
-      sg_rules:
+      secgroups_existing: []
+      secgroup_new:
         - proto: "tcp"
-          ports: [19100]
-          group_name:
-            - "prod-private-sg"
-          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the prod-private-sg group"
+          ports: [22]
+          cidr_ip: 10.0.0.0/8
+          rule_desc: "SSH Access"
+        - proto: "tcp"
+          ports: ["{{prometheus_node_exporter_port}}"]
+          group_name: ["prod-private-sg"]
+          rule_desc: "Prometheus instances attached to prod-private-sg can access the exporter port(s)."
         - proto: all
-          group_name:
-            - "{{ cluster_name }}-sg"
-          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
+          group_name: ["{{ cluster_name }}-sg"]
+          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     tools:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "tools"
       vpc_subnet_name_prefix: "tools-infrastructure-subnet"
       key_name: "tools-key"
-      security_groups: ['tools-private-sg']
       termination_protection: "yes"
-      sg_rules:
+      secgroups_existing: []
+      secgroup_new:
         - proto: "tcp"
-          ports: [19100]
-          group_name:
-            - "tools-private-sg"
-          rule_desc: "{{ cluster_name }} rules for prometheus: anything attached to the tools-private-sg group"
+          ports: [22]
+          cidr_ip: 10.0.0.0/8
+          rule_desc: "SSH Access"
+        - proto: "tcp"
+          ports: ["{{prometheus_node_exporter_port}}"]
+          group_name: ["tools-private-sg"]
+          rule_desc: "Prometheus instances attached to tools-private-sg can access the exporter port(s)."
         - proto: all
-          group_name:
-            - "{{ cluster_name }}-sg"
-          rule_desc: "{{ cluster_name }} rules allowing all access to VMs attached to the {{ cluster_name }}-sg group"
+          group_name: ["{{ cluster_name }}-sg"]
+          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
 
   m25_lsd_slo:
     type: openstack
@@ -133,7 +137,7 @@ cluster_vars:
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     dev:
       host_vars:
-        test: {count_per_az: 1, az: ["b", "c", "d"], flavor: f1-micro, rootvol_size: "10"}
+        test: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10"}
     cloud_provider: "gce"
     credentials_file: "{{ gcp_credentials_file }}"
     service_account_email: "{{gcp_credentials_json.client_email}}"

@@ -11,7 +11,7 @@
     tags:
       Name: "{{ cluster_name }}-sg"
       env: "{{ buildenv }}"
-    rules: "{{ cluster_vars[clusterid][buildenv].sg_rules }}"
+    rules: "{{ cluster_vars[clusterid][buildenv].secgroup_new }}"
     rules_egress:
       - proto: all
         cidr_ip: 0.0.0.0/0
@@ -23,17 +23,17 @@
       ec2:
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
         key_name: "{{cluster_vars[clusterid][buildenv].key_name}}"
         instance_type: "{{item.flavor}}"
         image: "{{cluster_vars[clusterid].image}}"
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         assign_public_ip: "{{cluster_vars[clusterid].assign_public_ip}}"
-        group: "{{cluster_vars[clusterid][buildenv].security_groups + [new_aws_sg.group_name]}}"
+        group: "{{cluster_vars[clusterid][buildenv].secgroups_existing + [new_aws_sg.group_name]}}"
         wait: yes
-        region: "{{cluster_vars[clusterid].region}}"
         instance_tags: '{"Name":"{{item.hostname}}", "type":"{{item.type}}", "env":"{{buildenv}}"}'
         termination_protection: "{{cluster_vars[clusterid][buildenv].termination_protection}}"
-        volumes: "{{cluster_vars[clusterid][buildenv].volumes | default([])}}"
+        volumes: "{{cluster_vars[clusterid][buildenv].host_vars[item.type].ephemeral_volumes | default([])}}"
         count_tag:
             Name: "{{item.hostname}}"
         exact_count: 1
@@ -49,6 +49,37 @@
       until: aws_jobs.finished
       retries: 300
       with_items: "{{aws_instances.results}}"
+
+    - debug: msg={{aws_jobs.results}}
+
+    - name: Extract EBS volume data so we can tag the disks
+      set_fact:
+        ebsdata: |
+          {% set res = [] -%}
+          {%- for host in aws_jobs.results -%}
+            {%- for devkey in host.tagged_instances[0].block_device_mapping.keys()-%}
+            {% set _dummy = res.extend([{
+              'hostname': host.tagged_instances[0].tags.Name,
+              'ec2_id': host.tagged_instances[0].id,
+              'device_name': devkey.encode("utf-8"),
+              'volume_id': host.tagged_instances[0].block_device_mapping[devkey.encode("utf-8")].volume_id
+              }]) -%}
+            {%- endfor %}
+          {%- endfor %}
+          {{ res }}
+
+    - debug: msg={{ebsdata}}
+
+    - name: set the ec2 volume name tag
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{item.volume_id}}"
+        tags:
+          Name: "{{ item.hostname }}--{{item.device_name | regex_replace('^.*\\/(.*)', '\\1')}}"
+      with_items: "{{ebsdata}}"
+
 
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"

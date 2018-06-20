@@ -20,17 +20,25 @@
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"
 
+- name: Create /var/log/journal
+  become: true
+  file:
+    path: "/var/log/journal"
+    state: directory
+    mode: 0755
+  when: (static_journal is defined and static_journal|bool)
+
 - name: install prometheus node exporter daemon
   include_tasks: prometheus_node_exporter.yml
-  when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install is match("true"))
+  when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install|bool)
 
-- name: Install Elastic Filebeat 
+- name: Install elastic filebeat
   include_tasks: filebeat.yml
-  when: (filebeat_install is defined and filebeat_install is match("true"))
+  when: (filebeat_install is defined and filebeat_install|bool)
 
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml
-  when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and skip_package_upgrade is match("false"))
+  when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and not skip_package_upgrade|bool)
 
 - name: Set hostname (e.g. AWS doesn't set it automatically)
   become: true

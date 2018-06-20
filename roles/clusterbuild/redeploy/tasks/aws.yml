@@ -1,23 +1,22 @@
 ---
 
-- name: Delete EC2 instaces
+- name: Delete EC2 instance
   block:
-    - name: get existing instance facts
+    - name: get existing instance
       ec2_instance_facts:
         filters:
-          "tag:Name": "{{item.hostname}}"
+          "tag:Name": "{{host_to_del.hostname}}"
           "instance-state-code": "16"           # Code 16 is 'running' (i.e. not a terminated VM).
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
         region: "{{cluster_vars[clusterid].region}}"
       register: existing
       delegate_to: localhost
-      with_items: "{{ cluster_hosts_flat }}"
 
     - set_fact:
-        uids_to_del: "{{existing.results | json_query('[].instances[*].instance_id[]')}}"
+        uids_to_del: "{{existing.instances | json_query('[].instance_id[]')}}"
 
-    - name: Remove EC2 instances termination protection
+    - name: Remove EC2 instance termination protection
       ec2:
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
@@ -27,7 +26,7 @@
         instance_ids: "{{ uids_to_del }}"
       when: uids_to_del
 
-    - name: Delete EC2 instances
+    - name: Delete EC2 instance
       ec2:
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
@@ -36,13 +35,3 @@
         instance_ids: "{{ uids_to_del }}"
         wait: true
       when: uids_to_del
-
-
-- name: Delete security group
-  ec2_group:
-    name: "{{ cluster_name }}-sg"
-    region: "{{cluster_vars[clusterid].region}}"
-    vpc_id: "{{vpc_id}}"
-    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-    state: absent

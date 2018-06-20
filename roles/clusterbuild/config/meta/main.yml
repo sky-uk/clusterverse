@@ -1,5 +1,5 @@
 dependencies:
-  - role: 'dynamic_inventory'
+  - role: 'cluster_hosts'
 
   - role: openstack_prereq
     when: cluster_vars[clusterid].type == "openstack"

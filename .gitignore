@@ -1,4 +1,4 @@
-inventory*
+inventory_*
 *.retry
 .vscode*
 .idea*

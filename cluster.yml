@@ -5,7 +5,7 @@
   connection: local
   gather_facts: false
   tasks:
-    - assert: { that: "ansible_version.full is version_compare('2.5.2', '==')", msg: "Ansible 2.5.2 required (v2.5.1 has a bug, and doesn't work.)" }
+    - assert: { that: "ansible_version.full is version_compare('2.5.3', '>=')", msg: "Ansible >=2.5.3 required due to bugs in older versions." }
     - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
     - assert: { that: "clusterid is defined and cluster_vars[clusterid] is defined", msg: "Please define clusterid" }
     - assert: { that: "buildenv is defined and cluster_vars[clusterid][buildenv] is defined", msg: "Please define buildenv" }
@@ -21,8 +21,9 @@
   become: false
   gather_facts: false
   roles:
-    - { role: clusterbuild/clean, when: (clean is defined and clean is match("true")) }
-  tags: clean
+    - role: clusterbuild/clean
+      when: clean is defined and clean|bool
+  tags: clusterbuild_clean
 
 - name: Deploy the cluster
   hosts: localhost
@@ -30,8 +31,8 @@
   become: false
   gather_facts: false
   roles:
-    - { role: clusterbuild/create }
-  tags: create
+    - role: clusterbuild/create
+  tags: clusterbuild_create
 
 - name: Install Python 2 if not present (Ubuntu >16 ships with python 3 only)
   hosts: all
@@ -42,7 +43,6 @@
       register: pyinst
       changed_when: pyinst.stdout
       retries: 10
-      delay: 3
       until: pyinst.rc == 0
   tags: python_install
 
@@ -50,5 +50,5 @@
   hosts: all
   become: false
   roles:
-    - { role: clusterbuild/config }
-  tags: config
+    - role: clusterbuild/config
+  tags: clusterbuild_config

@@ -19,7 +19,7 @@
     image: "{{cluster_vars[clusterid].image}}"
     region_name: "{{cluster_vars[clusterid].region}}"
     timeout: 200
-    security_groups: "{{cluster_vars[clusterid].security_group}}"
+    security_groups: "{{cluster_vars[clusterid].secgroups_existing}}"
     key_name: "{{cluster_vars[clusterid].key_name}}"
     network: "{{cluster_vars[clusterid].network}}"
     auto_ip: no

@@ -1,8 +1,7 @@
 ---
 
-- name: Filebeat | Download and install Filebeat from Elastic.co
+- name: Filebeat | Download and install filebeat from elastic.co
   become: yes
   apt:
     deb: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-amd64.deb"
-
 
