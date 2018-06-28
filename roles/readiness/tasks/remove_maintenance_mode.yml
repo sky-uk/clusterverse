@@ -1,0 +1,25 @@
+
+- name: get ec2_remote_facts
+  ec2_remote_facts:
+    filters:
+      "tag:Name": "{{inventory_hostname}}"
+      "tag:env": "{{buildenv}}"
+    aws_access_key: "{{ cluster_vars[clusterid][buildenv].aws_access_key }}"
+    aws_secret_key: "{{ cluster_vars[clusterid][buildenv].aws_secret_key }}"
+    region: "{{cluster_vars[clusterid].region}}"
+  delegate_to: localhost
+  register: ec2_facts
+
+- name: get instance id
+  set_fact:
+    instance_id: "{{ (ec2_facts.instances|map(attribute='id')|list)[0] }}"
+
+- name: set maintenance_mode to false
+  ec2_tag:
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    region: "{{cluster_vars[clusterid].region}}"
+    resource: "{{instance_id}}"
+    tags:
+      maintenance_mode: "false"
+  delegate_to: localhost

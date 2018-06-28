@@ -15,6 +15,7 @@ cluster_name: "{{clustername_prefix}}{% if not clustername_prefix | regex_search
 prometheus_node_exporter_install: true    #Whether to install the prometheus node_exporter tool
 prometheus_node_exporter_port: 19100      #Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
 prometheus_node_exporter_version: 0.15.2  #Version of prometheus node_exporter tool to install
+maintenance_mode_on_creation: true
 
 filebeat_install: true
 filebeat_version: 6.2.4

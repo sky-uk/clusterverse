@@ -1,0 +1,3 @@
+---
+- include_tasks: remove_maintenance_mode.yml
+  when: (maintenance_mode is defined and maintenance_mode|bool) 

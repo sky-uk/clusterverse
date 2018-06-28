@@ -52,3 +52,9 @@
   roles:
     - role: clusterbuild/config
   tags: clusterbuild_config
+
+- name: readiness
+  hosts: all
+  roles:
+    - role: readiness
+  tags: readiness
