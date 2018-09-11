@@ -9,102 +9,73 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 cluster_vars:
   aws_eu_west_1:
     type: aws
-#    image: "ami-3548444c" #Centos 7 (1805_1)
-#    image: "ami-8fd760f6"  #Ubuntu 16.04
-    image: "ami-0b91bd72"  #Ubuntu 18.04
+#    image: "ami-3548444c"            #CentOS Linux 7 x86_64 HVM EBS ENA 1805_01-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-77ec9308.4
+#    image: "ami-0181f8d9b6f098ec4"  #ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-20180814
+    image: "ami-0ee06eb8d6eebcde0"  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20180823
     region: "eu-west-1"
     assign_public_ip: "no"
     dns_zone_internal: "eu-west-1.compute.internal"
     dns_zone_external: "{%- if dns_tld_external -%}  aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
     dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    instance_profile_name: "vpc_lock_{{buildenv}}"
+    secgroups_existing: []
+    secgroup_new:
+      - proto: "tcp"
+        ports: [22]
+        cidr_ip: 10.0.0.0/8
+        rule_desc: "SSH Access"
+      - proto: "tcp"
+        ports: ["{{prometheus_node_exporter_port}}"]
+        group_name: ["{{buildenv}}-private-sg"]
+        rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
+      - proto: all
+        group_name: ["{{ cluster_name }}-sg"]
+        rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     dev:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
-      vpc_name: "dev"
-      vpc_subnet_name_prefix: "dev-infrastructure-subnet"
-      key_name: "dev-key"
+      vpc_name: "{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
+      key_name: "{{buildenv}}-key"
       termination_protection: "yes"
-      secgroups_existing: []
-      secgroup_new:
-        - proto: "tcp"
-          ports: [22]
-          cidr_ip: 10.0.0.0/8
-          rule_desc: "SSH Access"
-        - proto: "tcp"
-          ports: ["{{prometheus_node_exporter_port}}"]
-          group_name: ["dev-private-sg"]
-          rule_desc: "Prometheus instances attached to dev-private-sg can access the exporter port(s)."
-        - proto: all
-          group_name: ["{{ cluster_name }}-sg"]
-          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     stage:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
-      vpc_name: "stage"
-      vpc_subnet_name_prefix: "stage-infrastructure-subnet"
-      key_name: "stage-key"
+      vpc_name: "{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
+      key_name: "{{buildenv}}-key"
       termination_protection: "yes"
-      secgroups_existing: []
-      secgroup_new:
-        - proto: "tcp"
-          ports: [22]
-          cidr_ip: 10.0.0.0/8
-          rule_desc: "SSH Access"
-        - proto: "tcp"
-          ports: ["{{prometheus_node_exporter_port}}"]
-          group_name: ["stage-private-sg"]
-          rule_desc: "Prometheus instances attached to stage-private-sg can access the exporter port(s)."
-        - proto: all
-          group_name: ["{{ cluster_name }}-sg"]
-          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     prod:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
-      vpc_name: "prod"
-      vpc_subnet_name_prefix: "prod-infrastructure-subnet"
-      key_name: "prod-key"
+      vpc_name: "{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
+      key_name: "{{buildenv}}-key"
       termination_protection: "yes"
-      secgroups_existing: []
-      secgroup_new:
-        - proto: "tcp"
-          ports: [22]
-          cidr_ip: 10.0.0.0/8
-          rule_desc: "SSH Access"
-        - proto: "tcp"
-          ports: ["{{prometheus_node_exporter_port}}"]
-          group_name: ["prod-private-sg"]
-          rule_desc: "Prometheus instances attached to prod-private-sg can access the exporter port(s)."
-        - proto: all
-          group_name: ["{{ cluster_name }}-sg"]
-          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     tools:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
-      vpc_name: "tools"
-      vpc_subnet_name_prefix: "tools-infrastructure-subnet"
-      key_name: "tools-key"
+      vpc_name: "{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
+      key_name: "{{buildenv}}-key"
       termination_protection: "yes"
-      secgroups_existing: []
-      secgroup_new:
-        - proto: "tcp"
-          ports: [22]
-          cidr_ip: 10.0.0.0/8
-          rule_desc: "SSH Access"
-        - proto: "tcp"
-          ports: ["{{prometheus_node_exporter_port}}"]
-          group_name: ["tools-private-sg"]
-          rule_desc: "Prometheus instances attached to tools-private-sg can access the exporter port(s)."
-        - proto: all
-          group_name: ["{{ cluster_name }}-sg"]
-          rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+    sandbox:
+      host_vars:
+        test: {count_per_az: 1, az: ["a", "b", "c"], flavor: t2.micro, ephemeral_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-scratch-subnet"
+      key_name: "{{buildenv}}-key"
+      termination_protection: "yes"
 
   m25_lsd_slo:
     type: openstack

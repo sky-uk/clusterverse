@@ -1,0 +1,4 @@
+---
+
+- include_tasks: remove_maintenance_mode.yml
+  when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)

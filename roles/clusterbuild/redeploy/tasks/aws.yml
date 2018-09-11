@@ -6,12 +6,13 @@
       ec2_instance_facts:
         filters:
           "tag:Name": "{{host_to_del.hostname}}"
-          "instance-state-code": "16"           # Code 16 is 'running' (i.e. not a terminated VM).
+          "instance-state-name": ["running", "stopped"]
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
         region: "{{cluster_vars[clusterid].region}}"
       register: existing
       delegate_to: localhost
+      run_once: true
 
     - set_fact:
         uids_to_del: "{{existing.instances | json_query('[].instance_id[]')}}"
@@ -25,6 +26,20 @@
         termination_protection: "no"
         instance_ids: "{{ uids_to_del }}"
       when: uids_to_del
+      delegate_to: localhost
+      run_once: true
+
+    - name: set maintenance_mode to true
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{ item }}"
+        tags:
+          maintenance_mode: "true"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ uids_to_del }}"
 
     - name: Delete EC2 instance
       ec2:
@@ -35,3 +50,5 @@
         instance_ids: "{{ uids_to_del }}"
         wait: true
       when: uids_to_del
+      delegate_to: localhost
+      run_once: true

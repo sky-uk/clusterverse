@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+import os
+import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--vault-id", type=str)
+args = parser.parse_args()
+
+if args.vault_id is None or args.vault_id == "None" or args.vault_id == "default" or args.vault_id == "all":
+    envvar_vault_pass = "VAULT_PASSWORD_ALL"
+else:
+    # envvar_vault_pass = "VAULT_PASSWORD_" + args.vault_id.upper()
+    envvar_vault_pass = "VAULT_PASSWORD_BUILDENV"
+
+if os.getenv(envvar_vault_pass) is not None:
+    print os.environ[envvar_vault_pass]
+else:
+    print "ERROR: '" + envvar_vault_pass + "' is not set in environment"
+    sys.exit(1)

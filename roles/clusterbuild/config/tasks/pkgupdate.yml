@@ -36,4 +36,4 @@
           local_action: wait_for host={{wait_host}} delay=10 port=22 state=started
           become: false
       when: (reboot_on_package_upgrade is defined and reboot_on_package_upgrade|bool) and (apt_packages_update.changed or yum_packages_update.changed)
-  when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and not skip_package_upgrade|bool)
+  when: pkgupdate is defined and (pkgupdate == 'always' or (pkgupdate == 'onCreate' and inventory_hostname in (hostvars['localhost'].cluster_hosts_flat_created | json_query('[].hostname'))))

@@ -5,7 +5,7 @@
   connection: local
   gather_facts: false
   tasks:
-    - assert: { that: "ansible_version.full is version_compare('2.5.3', '>=')", msg: "Ansible >=2.5.3 required due to bugs in older versions." }
+    - assert: { that: "ansible_version.full is version_compare('2.6.2', '>=')", msg: "Ansible >=2.6.2 required due to bugs in older versions." }
     - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
     - assert: { that: "clusterid is defined and cluster_vars[clusterid] is defined", msg: "Please define clusterid" }
     - assert: { that: "buildenv is defined and cluster_vars[clusterid][buildenv] is defined", msg: "Please define buildenv" }
@@ -39,7 +39,7 @@
   become: true
   gather_facts: false
   tasks:
-    - raw: bash -c "test -e /usr/bin/python || (apt -qqy update && apt install -qqy python-minimal)"
+    - raw: timeout 90s bash -c "test -e /usr/bin/python || (apt -qqy update && apt install -qqy python-minimal)"
       register: pyinst
       changed_when: pyinst.stdout
       retries: 10
@@ -53,8 +53,15 @@
     - role: clusterbuild/config
   tags: clusterbuild_config
 
-- name: readiness
+
+## ...
+## Application roles
+## ...
+
+
+- name: Perform cluster readiness operations (e.g. remove maintenance_mode tag from VMs).
   hosts: all
   roles:
-    - role: readiness
-  tags: readiness
+    - role: clusterbuild/readiness
+  tags: clusterbuild_readiness
+
