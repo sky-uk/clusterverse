@@ -3,4 +3,6 @@ inventory_*
 .vscode*
 .idea*
 .DS_Store
+venv
 *.pyc
+Pipfile.lock

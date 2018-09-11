@@ -8,3 +8,5 @@
     zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.az_name}}"
     instance_names: "{{host_to_del.hostname}}"
     state: "deleted"
+  delegate_to: localhost
+  run_once: true

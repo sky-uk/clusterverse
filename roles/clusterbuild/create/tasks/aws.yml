@@ -11,11 +11,12 @@
     tags:
       Name: "{{ cluster_name }}-sg"
       env: "{{ buildenv }}"
-    rules: "{{ cluster_vars[clusterid][buildenv].secgroup_new }}"
+    rules: "{{ cluster_vars[clusterid].secgroup_new }}"
     rules_egress:
       - proto: all
         cidr_ip: 0.0.0.0/0
   register: new_aws_sg
+  when: cluster_vars[clusterid].secgroup_new | length > 0
 
 - name: Create EC2 instances
   block:
@@ -26,16 +27,17 @@
         region: "{{cluster_vars[clusterid].region}}"
         key_name: "{{cluster_vars[clusterid][buildenv].key_name}}"
         instance_type: "{{item.flavor}}"
+        instance_profile_name: "{{cluster_vars[clusterid].instance_profile_name}}"
         image: "{{cluster_vars[clusterid].image}}"
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         assign_public_ip: "{{cluster_vars[clusterid].assign_public_ip}}"
-        group: "{{cluster_vars[clusterid][buildenv].secgroups_existing + [new_aws_sg.group_name]}}"
+        group: "{{ cluster_vars[clusterid].secgroups_existing }}  {%- if cluster_vars[clusterid].secgroup_new | length > 0 -%} + {{ ([new_aws_sg.group_name | default()] | default())}} {%- endif -%}"
         wait: yes
-        instance_tags: '{"Name":"{{item.hostname}}", "type":"{{item.type}}", "env":"{{buildenv}}", "maintenance_mode":"{{maintenance_mode_on_creation}}"}'
+        instance_tags: '{"Name":"{{item.hostname}}", "type":"{{item.type}}", "env":"{{buildenv}}", "maintenance_mode":"{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"}'
         termination_protection: "{{cluster_vars[clusterid][buildenv].termination_protection}}"
         volumes: "{{cluster_vars[clusterid][buildenv].host_vars[item.type].ephemeral_volumes | default([])}}"
         count_tag:
-            Name: "{{item.hostname}}"
+          Name: "{{item.hostname}}"
         exact_count: 1
       with_items: "{{cluster_hosts_flat}}"
       async: 7200
@@ -50,7 +52,27 @@
       retries: 300
       with_items: "{{aws_instances.results}}"
 
-    - debug: msg={{aws_jobs.results}}
+#    - debug: msg={{aws_jobs.results}}
+
+    - name: set a fact containing newly-created hosts
+      set_fact:
+        cluster_hosts_flat_created: "{{ aws_jobs.results | json_query(\"[?changed==`true`].item.item\") }}"
+      delegate_to: localhost
+      run_once: true
+
+
+    - name: force set maintenance_mode to true (when prometheus_set_unset_maintenance_mode)
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{ item }}"
+        tags:
+          maintenance_mode: "true"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ aws_jobs.results | json_query('[].tagged_instances[0].id')}}"
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
 
     - name: Extract EBS volume data so we can tag the disks
       set_fact:
@@ -68,7 +90,7 @@
           {%- endfor %}
           {{ res }}
 
-    - debug: msg={{ebsdata}}
+#    - debug: msg={{ebsdata}}
 
     - name: set the ec2 volume name tag
       ec2_tag:
