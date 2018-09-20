@@ -29,3 +29,9 @@ infoblox:
   api_version:
   username:
   password:
+
+
+bind9:
+  server:
+  key_name:
+  key_secret:
