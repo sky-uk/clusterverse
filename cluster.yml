@@ -15,6 +15,7 @@
       when: cluster_vars[clusterid].type == "gce"
   tags: always
 
+
 - name: Clean the cluster
   hosts: localhost
   connection: local

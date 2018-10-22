@@ -18,14 +18,17 @@ dns_tld_external: "example.com" # Top-level domain (above the level defined per 
 
 #### cluster_vars.yml:
 ```
+cluster_vars:
   aws_eu_west_1:
     type: aws
-    image: "ami-0b91bd72"  #Ubuntu 18.04
+#    image: "ami-3548444c"            #CentOS Linux 7 x86_64 HVM EBS ENA 1805_01-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-77ec9308.4
+#    image: "ami-00b36349b3dba2ec3"  #ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-20181012
+    image: "ami-0aebeb281fdee5054"  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20181012
     region: "eu-west-1"
     assign_public_ip: "no"
     dns_zone_internal: "eu-west-1.compute.internal"
     dns_zone_external: "{%- if dns_tld_external -%}  aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
-    dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    dns_server: "nsupdate"    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     instance_profile_name: "vpc_lock_{{buildenv}}"
     secgroups_existing: []
     secgroup_new:
@@ -38,11 +41,11 @@ dns_tld_external: "example.com" # Top-level domain (above the level defined per 
         group_name: ["{{buildenv}}-private-sg"]
         rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
       - proto: all
-        group_name: ["{{ cluster_name }}-sg"]
+        group_name: ["{{cluster_name}}-sg"]
         rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     dev:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -120,6 +123,8 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=dev -e clusterid=m25_lsd_slo -e clean=true -e skip_package_upgrade=true
 ```
 
+
+
 ### Extra variables:
 + `-e buildenv=<environment>`  -  dev/ stage/ prod supported
 + `-e clusterid=<aws_eu_west_1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml` 
@@ -132,7 +137,7 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 + `-e filebeat_install=false` - Does not install filebeat
 
 ### Tags
-- clusterbuild_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line) 
+- clusterbuild_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
 - clusterbuild_create: Creates only EC2 VMs, based on the host_vars values in group_vars/all/cluster.yml  
 - clusterbuild_config: Updates packages, sets hostname, adds hosts to DNS
 
@@ -143,4 +148,7 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 + This playbook enables a basic rolling redeployment of the cluster - e.g. if it is desired to upgrade each node without downtime.
   + This assumes a resilient deployment (it can tolerate one node being removed from the cluster).
 + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
+
+### Extra variables:
++ `-e canary=['start', 'finish', 'none']`  -  Specify whether to start or finish a canary deploy, or 'none' deploy
 
