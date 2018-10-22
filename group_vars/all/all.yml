@@ -35,3 +35,4 @@ bind9:
   server:
   key_name:
   key_secret:
+  key_private:

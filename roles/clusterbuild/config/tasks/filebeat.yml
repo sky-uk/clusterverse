@@ -4,4 +4,6 @@
   become: yes
   apt:
     deb: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-amd64.deb"
-
+  register: apt_jobs
+  until: apt_jobs is success
+  retries: 5

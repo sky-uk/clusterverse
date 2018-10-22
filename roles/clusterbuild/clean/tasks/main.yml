@@ -29,6 +29,7 @@
     record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
   with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
 ## Can't use this unless we use the same creation (which doesn't work properly)
 #- name: Delete DNS entries from infoblox
 #  nios_host_record:

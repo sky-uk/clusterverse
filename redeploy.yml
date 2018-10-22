@@ -6,7 +6,7 @@
   gather_facts: false
   tasks:
     - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
-    - assert: { that: "canary is not defined or (canary is defined and canary in ['start', 'finish'])", msg: "If canary is defined, it must be 'start' or 'finish'" }
+    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
   tags: always
 
 - name: Redeploy (destroy and reprovision one at a time).
@@ -15,30 +15,8 @@
   become: false
   gather_facts: false
   tasks:
-    - name: get cluster_hosts_flat
-      include_role:
-        name: clusterbuild/cluster_hosts
-
-    - name: set hosts_to_del if canary==start
-      set_fact: hosts_to_del={{cluster_hosts_flat[:1]}}
-      when: (canary is defined and canary=="start")
-
-    - name: set hosts_to_del if canary==finish
-      set_fact: hosts_to_del={{cluster_hosts_flat[1:]}}
-      when: (canary is defined and canary=="finish")
-
-    - name: set hosts_to_del if canary is unset
-      set_fact: hosts_to_del={{cluster_hosts_flat}}
-      when: (canary is not defined)
-
-    - debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_del | json_query('[].hostname') | join(', ')}}]"
-      when: (canary is defined)
-
-    - name: Run redeploy per host.  Delete one at a time, then reprovision.
+    - name: Run redeploy.
       include_role:
         name: clusterbuild/redeploy
-      with_items: "{{ hosts_to_del }}"
-      loop_control:
-        loop_var: host_to_del
       vars:
         mainclusteryml: "cluster.yml"
