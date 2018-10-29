@@ -76,7 +76,7 @@ cluster_vars:
       vpc_name: "{{buildenv}}"
       vpc_subnet_name_prefix: "{{buildenv}}-scratch-subnet"
       key_name: "{{buildenv}}-key"
-      termination_protection: "yes"
+      termination_protection: "no"
 
   m25_lsd_slo:
     type: openstack

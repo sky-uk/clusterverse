@@ -1,5 +1,5 @@
 # clusterverse
-This project provides an Ansible playbook to provision (cloud) infrastructure. 
+This project provides an Ansible playbook to provision (cloud) infrastructure.
 
 ## Requirements
 Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://github.com/ansible/ansible/issues/33433), [bug](https://github.com/ansible/ansible/pull/38302), [bug](https://github.com/ansible/ansible/issues/38656) that cause a failures)
@@ -12,7 +12,7 @@ Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://
 clusterid:                        # Must be an index into cluster_vars in cluster_vars.yml
 buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster_vars.yml
 app_class: "test"                 # The class of application - applies to the fqdn
-clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) 
+clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
 dns_tld_external: "example.com" # Top-level domain (above the level defined per clusterid)
 ```
 
@@ -61,7 +61,7 @@ cluster_vars:
 - Already created Subnets
 
 ### GCP
-- Create a gloud account.
+- Create a gcloud account.
 - Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.  This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/all/clusters.yml`.  You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
 - Add your public key to `Compute Engine` / `Metadata/ SSH Keys`.  Add a username to the end of the key - this is used as your login username for this certificate.  Your private key should either be passwordless, or you need some password caching agent running.
 - You need to edit your "Google Compute Engine API / In-use IP addresses" to at least 16.  This is found in `IAM & Admin` / `Quotas`  
@@ -127,7 +127,7 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 ### Extra variables:
 + `-e buildenv=<environment>`  -  dev/ stage/ prod supported
-+ `-e clusterid=<aws_eu_west_1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml` 
++ `-e clusterid=<aws_eu_west_1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml`
 + `-e dns_tld_external="example.com"` - specify the external DNS TLD if not defined in `group_vars/all.yml`
 + `-e clean=true` - Deletes all existing VMs and security groups before creating
 + `-e skip_package_upgrade=true` - Does not upgrade the OS packages (saves a lot of time during debugging)
@@ -135,6 +135,7 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 + `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e filebeat_install=false` - Does not install filebeat
++ `-e myhosttypes="bind-master,bind-slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
 
 ### Tags
 - clusterbuild_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
@@ -151,4 +152,3 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 ### Extra variables:
 + `-e canary=['start', 'finish', 'none']`  -  Specify whether to start or finish a canary deploy, or 'none' deploy
-
