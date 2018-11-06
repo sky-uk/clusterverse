@@ -1,62 +1,103 @@
 ---
 
-- name: Create GCE network
+- name: Create GCP network and subnetwork (if -e create_gce_network=true)
   block:
-    - name: Create GCE host network
-      gce_net:
-        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
-        name: "{{ cluster_name }}"
-        mode: auto
+    - name: Create GCP host network (if -e create_gce_network=true)
+      gcp_compute_network:
+        name: "{{cluster_vars[clusterid][buildenv].vpc_network_name}}"
+        auto_create_subnetworks: "{%- if cluster_vars[clusterid][buildenv].vpc_subnet_name is defined and cluster_vars[clusterid][buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+      register: _gcp_compute_network
 
-    - name: Create GCE host internal network firewall
-      gce_net:
-        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
-        name: "{{ cluster_name }}"
-        fwname: "{{cluster_name}}-allow-internal"
-        target_tags: "{{cluster_name}}-allow-internal"
-        allowed: tcp;udp;icmp
-        src_range: ['10.128.0.0/9']
-
-    - name: Create GCE host external network firewall
-      gce_net:
-        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
-        name: "{{ cluster_name }}"
-        fwname: "{{cluster_name}}-allow-external"
-        target_tags: "{{cluster_name}}-allow-external"
-    #    allowed: tcp:22;tcp:80;tcp:443;tcp:8080;tcp:9090;tcp:8090;tcp:150;icmp
-        allowed: tcp;udp;icmp
-        src_range: "{{cluster_vars[clusterid].ext_firewall_src_range}}"
+    - name: Create GCP host subnetwork (if -e create_gce_network=true)
+      gcp_compute_subnetwork:
+        name: "{{cluster_vars[clusterid][buildenv].vpc_subnet_name}}"
+        network: "{{_gcp_compute_network}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+      register: _gcp_compute_subnetwork
+      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+  when: create_gce_network is defined and create_gce_network|bool
 
 
-- name: Create GCE VMs asynchronously
+- name: Create GCP firewalls
   block:
-    - name: Create GCE VMs asynchronously
-      gce:
-        service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-        credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
-        instance_names: "{{item.hostname}}"
+    - name: GCP network facts
+      gcp_compute_network_facts:
+        filters:
+          - "name = {{cluster_vars[clusterid][buildenv].vpc_network_name}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      register: gcp_compute_network_facts
+
+    - name: "Assert that {{cluster_vars[clusterid][buildenv].vpc_network_name}} network exists"
+      assert: { that: "gcp_compute_network_facts['items'] | length > 0", msg: "The {{cluster_vars[clusterid][buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
+
+    - name: GCP subnetwork facts
+      gcp_compute_subnetwork_facts:
+        filters:
+          - "name = {{cluster_vars[clusterid][buildenv].vpc_subnet_name}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      register: gcp_compute_subnetwork_facts
+      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+
+    - name: "Assert that {{cluster_vars[clusterid][buildenv].vpc_subnet_name}} subnet exists"
+      assert: { that: "gcp_compute_subnetwork_facts['items'] | length > 0", msg: "The {{cluster_vars[clusterid][buildenv].vpc_subnet_name}} subnet must exist" }
+      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+
+    - name: Create GCP cluster firewalls
+      gcp_compute_firewall:
+        name: "{{ item.name }}"
+        target_tags: "{{cluster_vars[clusterid].network_fw_tags}}"
+        allowed: "{{ item.allowed }}"
+        description: "{{ item.description }}"
+        source_ranges: "{{ item.source_ranges | default([]) }}"
+        source_tags: "{{ item.source_tags | default([]) }}"
+        network: "{{gcp_compute_network_facts['items'][0].selfLink}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+      with_items: "{{ cluster_vars[clusterid].firewall_rules }}"
+
+
+- name: Create GCP VMs asynchronously
+  block:
+    - name: Create GCP VMs asynchronously
+      gcp_compute_instance:
+        name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
-        disk_size: "{{item.rootvol_size}}"
-        persistent_boot_disk: true
+        disks: "{{_host_disks}}"
+        metadata:
+          type: "{{item.type}}"
+          env: "{{buildenv}}"
+          cluster_name: "{{cluster_name}}"
+          maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
+          startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
+        network_interfaces:
+          - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
+            subnetwork: "{{ gcp_compute_subnetwork_facts['items'][0] | default({}) }}"
+            access_configs: [{name: "External NAT", type: "ONE_TO_ONE_NAT"}]
         zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-        image: "{{cluster_vars[clusterid].image}}"
-        preemptible: "{{cluster_vars[clusterid].preemptible}}"
-        network: "{{cluster_name}}"
-        subnetwork: "{{cluster_name}}"
-        ip_forward: "{{cluster_vars[clusterid].ip_forward}}"
-        external_ip: "{{cluster_vars[clusterid].external_ip}}"
-        #metadata: {type: "{{item.type}}", startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"}
-        tags:
-          - "{{cluster_name}}-allow-internal"
-          - "{{cluster_name}}-allow-external"
-      register: gce_instances
+        can_ip_forward : "{{cluster_vars[clusterid].ip_forward}}"
+        scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[clusterid][buildenv].preemptible}}" }
+        state: present
+        tags: { items: "{{cluster_vars[clusterid].network_fw_tags}}" }
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+      vars:
+        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars[clusterid].image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
+        _autodisks: "{{cluster_vars[clusterid][buildenv].host_vars[item.type].auto_volumes | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,name]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,name]), disk_size_gb: disk_size_gb}} \") }}"
+        _host_disks: "{{[_bootdisk] + _autodisks}}"
+      register: gcp_compute_instance
       run_once: true
       with_items: "{{cluster_hosts_flat}}"
       async: 7200
@@ -67,12 +108,28 @@
         jid: "{{ item.ansible_job_id }}"
       register: gce_jobs
       until: gce_jobs.finished
+      delay: 3
       retries: 300
-      with_items: "{{gce_instances.results}}"
+      with_items: "{{gcp_compute_instance.results}}"
+
+    # Need this because the gcp_compute_instance module does not return all the facts if the instance is already existing (only if newly created)
+    # Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
+    - name: Get GCP instance facts
+      gcp_compute_instance_facts:
+        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        filters:
+          - "name = {{item.hostname}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      with_items: "{{cluster_hosts_flat}}"
+      register: gcp_compute_instance_facts
+
+#    - debug: msg={{gcp_compute_instance_facts}}
 
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
         dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
       vars:
-        _dynamic_inventory_flat: "{{ gce_jobs.results | json_query('[*].{type: instance_data[0].metadata.type, hostname: instance_data[0].name, private_ip: instance_data[0].private_ip, public_ip: instance_data[0].public_ip, inventory_ip: instance_data[0].public_ip}') }}"
-
+        _dynamic_inventory_flat: "{{ gcp_compute_instance_facts.results | json_query(\"[*].items[].{type: metadata.items[?key==`type`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}\") }}"

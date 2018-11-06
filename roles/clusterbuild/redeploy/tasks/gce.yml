@@ -1,12 +1,12 @@
 ---
 
 - name: Delete GCE VM
-  gce:
-    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-    project_id: "{{cluster_vars[clusterid].project_id}}"
+  gcp_compute_instance:
+    name: "{{host_to_del.hostname}}"
+    project: "{{cluster_vars[clusterid].project_id}}"
     zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.az_name}}"
-    instance_names: "{{host_to_del.hostname}}"
-    state: "deleted"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    state: "absent"
   delegate_to: localhost
   run_once: true

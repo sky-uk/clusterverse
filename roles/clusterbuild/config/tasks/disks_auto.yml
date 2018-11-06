@@ -1,0 +1,25 @@
+---
+
+- name: autodisks | Create mountpoint directory
+  file:
+    path: "{{item.mountpoint}}"
+    state: directory
+  become: true
+  with_items: "{{ cluster_vars[clusterid][buildenv].host_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
+
+- name: autodisks | Create ext4 filesystem from attached EBS volume
+  filesystem:
+    fstype: ext4
+    dev: "{{item.host_dev_name}}"
+    force: no
+  become: true
+  with_items: "{{ cluster_vars[clusterid][buildenv].host_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
+
+- name: autodisks | Mount created filesytem
+  mount:
+    path: "{{item.mountpoint}}"
+    src: "{{item.host_dev_name}}"
+    fstype: ext4
+    state: mounted
+  become: true
+  with_items: "{{ cluster_vars[clusterid][buildenv].host_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"

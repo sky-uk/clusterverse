@@ -20,3 +20,4 @@
         name: clusterbuild/redeploy
       vars:
         mainclusteryml: "cluster.yml"
+        predeleterole: ""

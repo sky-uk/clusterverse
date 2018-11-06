@@ -1,14 +1,14 @@
 ---
 
 - name: Delete GCE VMs asynchronously
-  gce:
-    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-    project_id: "{{cluster_vars[clusterid].project_id}}"
+  gcp_compute_instance:
+    name: "{{item.hostname}}"
+    project: "{{cluster_vars[clusterid].project_id}}"
     zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-    instance_names: "{{item.hostname}}"
-    state: "deleted"
-  register: gce_instances
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    state: "absent"
+  register: gcp_compute_instance
   with_items: "{{cluster_hosts_flat}}"
   async: 7200
   poll: 0
@@ -16,40 +16,25 @@
 - name: Wait for gce instance deletion to complete
   async_status:
     jid: "{{ item.ansible_job_id }}"
-  register: gce_jobs
-  until: gce_jobs.finished
+  register: gcp_jobs
+  until: gcp_jobs.finished
   retries: 300
-  with_items: "{{gce_instances.results}}"
+  with_items: "{{gcp_compute_instance.results}}"
 
+- name: Delete GCP cluster firewalls
+  gcp_compute_firewall:
+    name: "{{ item.name }}"
+    state: "absent"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    project: "{{cluster_vars[clusterid].project_id}}"
+  with_items: "{{ cluster_vars[clusterid].firewall_rules }}"
 
-- name: "Delete {{cluster_name}}-allow-internal network firewall"
-  gce_net:
-    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-    project_id: "{{cluster_vars[clusterid].project_id}}"
-    name: "{{ cluster_name }}"
-    fwname: "{{cluster_name}}-allow-internal"
-    state: "deleted"
-  become: false
-
-- name: "Delete {{cluster_name}}-allow-external network firewall"
-  gce_net:
-    service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-    credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-    project_id: "{{cluster_vars[clusterid].project_id}}"
-    name: "{{ cluster_name }}"
-    fwname: "{{cluster_name}}-allow-external"
-    state: "deleted"
-  become: false
-
-## Can't delete the network because it automatically creates dependent routes, which we can't delete.
-# - name: Delete k8s host network
-#   gce_net:
-#     service_account_email: "{{cluster_vars[clusterid].service_account_email}}"
-#     credentials_file: "{{cluster_vars[clusterid].credentials_file}}"
-#     project_id: "{{cluster_vars[clusterid].project_id}}"
-#     name: "{{ cluster_name }}"
-#     subnet_name: "{{ cluster_name }}"
-#     region: "{{ cluster_vars[clusterid].region }}"
-#     mode: auto
-#     state: "deleted"
+- name: Delete the GCP network (if -e create_gce_network=true)
+  gcp_compute_network:
+    name: "{{cluster_vars[clusterid][buildenv].vpc_network_name}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    project: "{{cluster_vars[clusterid].project_id}}"
+    state: absent
+  when: create_gce_network is defined and create_gce_network|bool

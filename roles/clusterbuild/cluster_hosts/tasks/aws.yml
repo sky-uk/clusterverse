@@ -39,5 +39,5 @@
       {% set res = cluster_hosts_flat -%}
       {%- for host in res -%}
         {%- set _dummy = host.update({'vpc_subnet_id': subnet_ids_per_az[host.az_name][0].subnet_id | string}) -%}
-        {%- endfor %}
+      {%- endfor %}
       {{ res }}

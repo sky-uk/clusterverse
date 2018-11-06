@@ -33,7 +33,7 @@ cluster_vars:
         rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     dev:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", host_dev_name: "/dev/nvme1n1", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -42,7 +42,7 @@ cluster_vars:
       termination_protection: "yes"
     stage:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", host_dev_name: "/dev/nvme1n1", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -51,7 +51,7 @@ cluster_vars:
       termination_protection: "yes"
     prod:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", host_dev_name: "/dev/nvme1n1", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -60,7 +60,7 @@ cluster_vars:
       termination_protection: "yes"
     tools:
       host_vars:
-        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: [{"device_name": "/dev/sdb", mountpoint: "/dev/xvdb", "volume_type": "gp2", "volume_size": 2, "delete_on_termination": true}]}
+        test: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", host_dev_name: "/dev/nvme1n1", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -69,14 +69,52 @@ cluster_vars:
       termination_protection: "yes"
     sandbox:
       host_vars:
-        data: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: []}
-        query: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, ephemeral_volumes: []}
+        data: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, auto_volumes: [{"device_name": "/dev/sdb", host_dev_name: "/dev/xvdb", mountpoint: "/mnt/data", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        query: {count_per_az: 1, az: ["a", "b"], flavor: t2.micro, auto_volumes: []}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
       vpc_subnet_name_prefix: "{{buildenv}}-scratch-subnet"
       key_name: "{{buildenv}}-key"
       termination_protection: "no"
+
+  gce_eu_west1:
+    type: gce
+    image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20181029"
+#    image: "projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20181030"
+    region: "europe-west1"
+    dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
+    dns_zone_external: "{%- if dns_tld_external -%}  gce_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
+    dns_server: ""    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    project_id: "{{gcp_credentials_json.project_id}}"
+    ip_forward: "true"
+    external_ip: "ephemeral"
+    network_fw_tags: ["{{cluster_name}}-nwtag"]
+    firewall_rules:
+#      - name: "{{cluster_name}}-extssh"
+#        allowed:
+#          - ip_protocol: "tcp"
+#            ports: [22]
+#        source_ranges: []
+#        description: "External SSH Access"
+      - name: "{{cluster_name}}-intssh"
+        allowed:
+          - ip_protocol: "tcp"
+            ports: [22]
+        source_ranges: ['10.0.0.0/8']
+        description: "Internal SSH Access"
+      - name: "{{cluster_name}}-nwtag"
+        allowed:
+          - ip_protocol: "all"
+        source_tags: ["{{cluster_name}}-nwtag"]
+        description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
+    sandbox:
+      host_vars:
+        data: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{"auto_delete": true, "interface": "SCSI", "disk_size_gb": 2, name: "cbdata", "host_dev_name": "/dev/sdb", mountpoint: "/mnt/data"}] }
+        query: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
+      vpc_network_name: "{{buildenv}}"
+      vpc_subnet_name: ""
+      preemptible: "false"
 
   m25_lsd_slo:
     type: openstack
@@ -91,7 +129,6 @@ cluster_vars:
     prod:
       host_vars:
         test: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
-    cloud_provider: "external"
     network: "k8s_dev"
     security_group: "wide-open"
     key_name: "{{os_username}}"
@@ -100,23 +137,3 @@ cluster_vars:
     OS_TENANT_ID:
     OS_TENANT_NAME:
     OS_PROJECT_NAME:
-
-  gce_eu_west1:
-    type: gce
-    region: "europe-west1"
-    dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-    dns_zone_external: "{%- if dns_tld_external -%}  gce_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
-    dns_server: "infoblox"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-    dev:
-      host_vars:
-        test: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10"}
-    cloud_provider: "gce"
-    credentials_file: "{{ gcp_credentials_file }}"
-    service_account_email: "{{gcp_credentials_json.client_email}}"
-    project_id: "{{gcp_credentials_json.project_id}}"
-    #image: "centos-7"
-    image: "ubuntu-1804"
-    preemptible: "false"
-    ip_forward: "true"
-    external_ip: "ephemeral"
-    ext_firewall_src_range: []
