@@ -28,6 +28,9 @@
     mode: 0755
   when: (static_journal is defined and static_journal|bool)
 
+- name: Attach auto_volumes
+  include_tasks: disks_auto.yml
+
 - name: install prometheus node exporter daemon
   include_tasks: prometheus_node_exporter.yml
   when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install|bool)
@@ -73,10 +76,6 @@
       when: cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
   when: cluster_vars[clusterid].type == "openstack"
 
-#- name: debug cluster_hosts_flat localhost
-#  debug: msg={{cluster_hosts_flat}}
-#  delegate_to: localhost
-#  run_once: true
 
 - name: Create/ Update DNS A records in Infoblox (if applicable)
   infoblox:
@@ -91,7 +90,19 @@
   delegate_to: localhost
   run_once: true
   with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server=="infoblox" and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
+  when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and cluster_vars[clusterid].dns_server=="infoblox" and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
+
+## Fails to overwrite previous records
+#- name: Create/ Update DNS host records in Infoblox (if applicable)
+#  nios_host_record:
+#    name: "{{item.fqdn}}"
+#    ipv4:
+#      - address: "{{ hostvars[item.hostname]['ansible_host'] }}"
+#    state: present
+#    provider:
+#      host: "{{ infoblox.server }}"
+#      username: "{{ infoblox.username }}"
+#      password: "{{ infoblox.password }}"
 
 
 - name: Create/ Update DNS A records using nsupdate (if applicable)
@@ -107,7 +118,7 @@
   delegate_to: localhost
   run_once: true
   with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+  when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
 - name: Check that DNS has updated (or otherwise wait for it to do so)  [Note lookup('dig', new_fqdn) doesn't work - seems to cache - https://github.com/ansible/ansible/issues/44128]
   shell: "dig {{new_fqdn}} +short @{{bind9.server}}"
@@ -122,17 +133,5 @@
   become: false
   delegate_to: localhost
   run_once: true
-  when: cluster_vars[clusterid].dns_server is defined and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
+  when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
 
-
-## Fails to overwrite previous records
-#- name: Create/ Update DNS host records in Infoblox (if applicable)
-#  nios_host_record:
-#    name: "{{item.fqdn}}"
-#    ipv4:
-#      - address: "{{ hostvars[item.hostname]['ansible_host'] }}"
-#    state: present
-#    provider:
-#      host: "{{ infoblox.server }}"
-#      username: "{{ infoblox.username }}"
-#      password: "{{ infoblox.password }}"

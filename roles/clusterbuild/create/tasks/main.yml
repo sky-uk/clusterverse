@@ -26,7 +26,7 @@
       {% for key in dynamic_inventory_dict.keys() -%}
       [{{ key }}]
       {% for value in dynamic_inventory_dict[key] %}
-      {{ value | json_query('hostname')}} ansible_host={{ value | json_query('inventory_ip')}}
+      {{ value | json_query('hostname')}} ansible_host={{ value | json_query('inventory_ip')}} hosttype={{ key }}
       {% endfor %}
 
       {% endfor %}
@@ -42,8 +42,9 @@
 - name: Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
-    groups: "{{ item.type }},{{ cluster_name }}"
+    groups: ["{{ item.type }}","{{ cluster_name }}"]
     ansible_host: "{{ item.inventory_ip }}"
+    hosttype: "{{ item.type }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 

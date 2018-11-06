@@ -2,6 +2,11 @@
 
 - debug: msg="Deleting and recreating {{host_to_del.hostname}}"
 
+- name: run pre-delete role
+  include_role:
+    name: "{{predeleterole}}"
+  when: predeleterole is defined and predeleterole != ""
+
 - include_tasks: gce.yml
   when: cluster_vars[clusterid].type == "gce"
 

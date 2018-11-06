@@ -19,6 +19,7 @@ python-novaclient = "*"
 jmespath = "*"
 apache-libcloud = "*"
 dnspython = "*"
+google-auth = "*"
 
 [dev-packages]
 

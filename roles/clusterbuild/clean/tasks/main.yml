@@ -19,17 +19,6 @@
   with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
-- name: Delete DNS A records using nsupdate (if applicable)
-  nsupdate:
-    key_name: "{{bind9.key_name}}"
-    key_secret: "{{bind9.key_secret}}"
-    server: "{{bind9.server}}"
-    zone: "{{dns_tld_external}}"
-    state: "absent"
-    record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-  with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
-
 ## Can't use this unless we use the same creation (which doesn't work properly)
 #- name: Delete DNS entries from infoblox
 #  nios_host_record:
@@ -40,6 +29,16 @@
 #      username: "{{ infoblox.username }}"
 #      password: "{{ infoblox.password }}"
 
+- name: Delete DNS A records using nsupdate (if applicable)
+  nsupdate:
+    key_name: "{{bind9.key_name}}"
+    key_secret: "{{bind9.key_secret}}"
+    server: "{{bind9.server}}"
+    zone: "{{dns_tld_external}}"
+    state: "absent"
+    record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+  with_items: "{{ cluster_hosts_flat }}"
+  when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
 - name: empty the inventory file
   block:

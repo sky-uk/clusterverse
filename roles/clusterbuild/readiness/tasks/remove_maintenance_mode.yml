@@ -1,35 +1,37 @@
 ---
 
-- name: remove_maintenance_mode | get ec2_instance_facts
-  ec2_instance_facts:
-    filters:
-      "tag:Name": "{{item}}"
-      "instance-state-name": ["running", "stopped"]
-    aws_access_key: "{{ cluster_vars[clusterid][buildenv].aws_access_key }}"
-    aws_secret_key: "{{ cluster_vars[clusterid][buildenv].aws_secret_key }}"
-    region: "{{cluster_vars[clusterid].region}}"
-  delegate_to: localhost
-  run_once: true
-  register: ec2_instance_facts
-  with_items: "{{ ansible_play_hosts }}"
+- block:
+    - name: remove_maintenance_mode | get ec2_instance_facts
+      ec2_instance_facts:
+        filters:
+          "tag:Name": "{{item}}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{ cluster_vars[clusterid][buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[clusterid][buildenv].aws_secret_key }}"
+        region: "{{cluster_vars[clusterid].region}}"
+      delegate_to: localhost
+      run_once: true
+      register: ec2_instance_facts
+      with_items: "{{ ansible_play_hosts }}"
 
-- set_fact:
-    maint_mode_uids_to_clear: "{{ec2_instance_facts.results | json_query('[].instances[*].instance_id[]')}}"
-  delegate_to: localhost
-  run_once: true
+    - set_fact:
+        maint_mode_uids_to_clear: "{{ec2_instance_facts.results | json_query('[].instances[*].instance_id[]')}}"
+      delegate_to: localhost
+      run_once: true
 
-# - debug: msg={{maint_mode_uids_to_clear}}
-#   delegate_to: localhost
-#   run_once: true
+    # - debug: msg={{maint_mode_uids_to_clear}}
+    #   delegate_to: localhost
+    #   run_once: true
 
-- name: remove_maintenance_mode | set maintenance_mode to false
-  ec2_tag:
-    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-    region: "{{cluster_vars[clusterid].region}}"
-    resource: "{{ item }}"
-    tags:
-      maintenance_mode: "false"
-  delegate_to: localhost
-  run_once: true
-  with_items: "{{ maint_mode_uids_to_clear }}"
+    - name: remove_maintenance_mode | set maintenance_mode to false
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{ item }}"
+        tags:
+          maintenance_mode: "false"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ maint_mode_uids_to_clear }}"
+  when: cluster_vars[clusterid].type == "aws"
