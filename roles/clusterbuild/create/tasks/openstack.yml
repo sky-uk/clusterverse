@@ -15,7 +15,7 @@
     name: "{{item.hostname}}"
     flavor: "{{item.flavor}}"
     volume_size: "{{item.rootvol_size}}"
-    meta: {type: "{{item.type}}"}
+    meta: {hosttype: "{{item.hosttype}}"}
     image: "{{cluster_vars[clusterid].image}}"
     region_name: "{{cluster_vars[clusterid].region}}"
     timeout: 200
@@ -72,8 +72,8 @@
 
 - set_fact:
     dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
-    dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+    dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('hosttype') }}"
   vars:
-    _dynamic_inventory_flat: "{{ os_ips_jobs.results | json_query('[*].{type: item.item.type, hostname: item.item.hostname, private_ip: floating_ip.fixed_ip_address, public_ip: floating_ip.floating_ip_address, inventory_ip: floating_ip.floating_ip_address}') }}"
+    _dynamic_inventory_flat: "{{ os_ips_jobs.results | json_query('[*].{hosttype: item.item.hosttype, hostname: item.item.hostname, private_ip: floating_ip.fixed_ip_address, public_ip: floating_ip.floating_ip_address, inventory_ip: floating_ip.floating_ip_address}') }}"
 
 #- debug: msg={{dynamic_inventory_flat}}

@@ -10,7 +10,7 @@ Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://
 #### all.yml:
 ```
 clusterid:                        # Must be an index into cluster_vars in cluster_vars.yml
-buildenv:                         # Must be an index into cluster_vars[clusterid].host_vars in cluster_vars.yml
+buildenv:                         # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
 app_class: "test"                 # The class of application - applies to the fqdn
 clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
 dns_tld_external: "example.com"   # Top-level domain (above the level defined per clusterid)
@@ -74,8 +74,8 @@ Credentials are encrypted inline in the playbooks using ansible-vault.
 + Where they are generic the are exported via `VAULT_PASSWORD_ALL`
 
 ```
-export VAULT_PASSORD_ALL=<'all' password>
-export VAULT_PASSORD_BUILDENV=<'dev/stage/prod' password>
+export VAULT_PASSWORD_ALL=<'all' password>
+export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
 ```
 
 
@@ -108,11 +108,11 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 + `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e filebeat_install=false` - Does not install filebeat
-+ `-e myhosttypes="bind-master,bind-slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
+
 
 ### Tags
 - clusterbuild_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
-- clusterbuild_create: Creates only EC2 VMs, based on the host_vars values in group_vars/all/cluster.yml  
+- clusterbuild_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml  
 - clusterbuild_config: Updates packages, sets hostname, adds hosts to DNS
 
 
@@ -125,3 +125,5 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 ### Extra variables:
 + `-e canary=['start', 'finish', 'none']`  -  Specify whether to start or finish a canary deploy, or 'none' deploy
++ `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
+
