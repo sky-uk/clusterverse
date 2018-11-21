@@ -35,12 +35,13 @@
         wait: yes
         instance_tags:
           Name: "{{item.hostname}}"
-          type: "{{item.type}}"
+          hosttype: "{{item.hosttype}}"
           env: "{{buildenv}}"
           cluster_name: "{{cluster_name}}"
+          owner: "{{ lookup('env','USER') }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
         termination_protection: "{{cluster_vars[clusterid][buildenv].termination_protection}}"
-        volumes: "{{cluster_vars[clusterid][buildenv].host_vars[item.type].auto_volumes | default([])}}"
+        volumes: "{{cluster_vars[clusterid][buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
         count_tag:
           Name: "{{item.hostname}}"
         exact_count: 1
@@ -88,8 +89,8 @@
             {% set _dummy = res.extend([{
               'hostname': host.tagged_instances[0].tags.Name,
               'ec2_id': host.tagged_instances[0].id,
-              'device_name': devkey.encode("utf-8"),
-              'volume_id': host.tagged_instances[0].block_device_mapping[devkey.encode("utf-8")].volume_id
+              'device_name': devkey,
+              'volume_id': host.tagged_instances[0].block_device_mapping[devkey].volume_id
               }]) -%}
             {%- endfor %}
           {%- endfor %}
@@ -110,9 +111,12 @@
 
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
-        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('hosttype') }}"
       vars:
-        _dynamic_inventory_flat: "{{ aws_jobs.results | json_query('[*].{type: tagged_instances[0].tags.type, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, inventory_ip: tagged_instances[0].private_ip}') }}"
+        _dynamic_inventory_flat: |
+          {%- if cluster_vars[clusterid].inventory_ip == 'private' -%}
+            {{ aws_jobs.results | json_query('[*].{hosttype: tagged_instances[0].tags.hosttype, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, public_ip: tagged_instances[0].public_ip, inventory_ip: tagged_instances[0].private_ip}') }}
+          {%- else -%}
+            {{ aws_jobs.results | json_query('[*].{hosttype: tagged_instances[0].tags.hosttype, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, public_ip: tagged_instances[0].public_ip, inventory_ip: tagged_instances[0].public_ip}') }}
+          {%- endif -%}
 
-#    - debug: msg={{dynamic_inventory_flat}}
-#    - debug: msg={{dynamic_inventory_dict}}

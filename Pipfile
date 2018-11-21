@@ -5,23 +5,23 @@ name = "pypi"
 
 [packages]
 awscli = "*"
-"boto3" = "*"
+boto3 = "*"
 boto = "*"
 botocore = "*"
 requests = "*"
-ansible = ">=2.6.2"
+ansible = ">=2.7.1"
+jmespath = "*"
+dnspython = "*"
+google-auth = "*"
+netaddr = "*"
 infoblox-client = "*"
 passlib = "*"
-netaddr = "*"
 shade = "*"
 python-openstackclient = "*"
 python-novaclient = "*"
-jmespath = "*"
 apache-libcloud = "*"
-dnspython = "*"
-google-auth = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "2.7"
+python_version = "3.6.6"

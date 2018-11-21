@@ -12,6 +12,9 @@
 - include_tasks: vmware.yml
   when: cluster_vars[clusterid].type == "vmware"
 
+#- debug: msg={{dynamic_inventory_flat}}
+#- debug: msg={{dynamic_inventory_dict}}
+
 
 - stat: path={{inventory_file}}
   register: stat_inventory_file
@@ -42,9 +45,9 @@
 - name: Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
-    groups: ["{{ item.type }}","{{ cluster_name }}"]
+    groups: ["{{ item.hosttype }}","{{ cluster_name }}"]
     ansible_host: "{{ item.inventory_ip }}"
-    hosttype: "{{ item.type }}"
+    hosttype: "{{ item.hosttype }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 

@@ -76,15 +76,16 @@
         machine_type: "{{item.flavor}}"
         disks: "{{_host_disks}}"
         metadata:
-          type: "{{item.type}}"
+          hosttype: "{{item.hosttype}}"
           env: "{{buildenv}}"
           cluster_name: "{{cluster_name}}"
-          maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
+          owner: "{{ lookup('env','USER') }}"
+          maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%} true {%- else -%} false {%- endif -%}"
           startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
         network_interfaces:
           - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_facts['items'][0] | default({}) }}"
-            access_configs: [{name: "External NAT", type: "ONE_TO_ONE_NAT"}]
+            access_configs: "{%- if cluster_vars[clusterid].assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
         zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
         can_ip_forward : "{{cluster_vars[clusterid].ip_forward}}"
         scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[clusterid][buildenv].preemptible}}" }
@@ -95,7 +96,7 @@
         service_account_file: "{{gcp_credentials_file}}"
       vars:
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars[clusterid].image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
-        _autodisks: "{{cluster_vars[clusterid][buildenv].host_vars[item.type].auto_volumes | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,name]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,name]), disk_size_gb: disk_size_gb}} \") }}"
+        _autodisks: "{{cluster_vars[clusterid][buildenv].hosttype_vars[item.hosttype].auto_volumes | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,name]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,name]), disk_size_gb: disk_size_gb}} \") }}"
         _host_disks: "{{[_bootdisk] + _autodisks}}"
       register: gcp_compute_instance
       run_once: true
@@ -130,6 +131,12 @@
 
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
-        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('type') }}"
+        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('hosttype') }}"
       vars:
-        _dynamic_inventory_flat: "{{ gcp_compute_instance_facts.results | json_query(\"[*].items[].{type: metadata.items[?key==`type`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}\") }}"
+        _dynamic_inventory_flat: |
+          {%- if cluster_vars[clusterid].inventory_ip == 'private' -%}
+            {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
+          {%- else -%}
+            {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
+          {%- endif -%}
+

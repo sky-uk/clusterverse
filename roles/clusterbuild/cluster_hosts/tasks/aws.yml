@@ -15,7 +15,7 @@
   set_fact:
     vpc_id: "{{ vpcdata.vpcs[0].id }}"
 
-#- debug: msg={{cluster_vars[clusterid][buildenv].host_vars | json_query('*.[az]|[]|[]') | unique}}
+#- debug: msg={{cluster_vars[clusterid][buildenv].hosttype_vars | json_query('*.[az]|[]|[]') | unique}}
 
 - name: Looking up proxy Subnet facts
   ec2_vpc_subnet_facts:
@@ -26,7 +26,7 @@
       "tag:Name": "{{ cluster_vars[clusterid][buildenv].vpc_subnet_name_prefix }}-{{ cluster_vars[clusterid].region }}{{item}}"
       vpc-id:     "{{ vpc_id }}"
   register: subnetdata
-  with_items: "{{cluster_vars[clusterid][buildenv].host_vars | json_query('*.[az]|[]|[]') | unique}}"
+  with_items: "{{cluster_vars[clusterid][buildenv].hosttype_vars | json_query('*.[az]|[]|[]') | unique}}"
   delegate_to: localhost
   run_once: true
 

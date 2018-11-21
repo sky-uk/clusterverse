@@ -18,7 +18,7 @@
         network_type: "{{ network_type }}"
     vmware_guest_facts: no
     vm_extra_config:
-      notes: "{{item.type}}"
+      notes: "{{item.hosttype}}"
   register: new_instances
   run_once: true
   with_items: "{{cluster_hosts_flat}}"

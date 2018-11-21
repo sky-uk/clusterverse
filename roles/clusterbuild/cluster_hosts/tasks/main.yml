@@ -4,14 +4,14 @@
 - set_fact:
     cluster_hosts_flat: |
       {% set res = [] -%}
-      {%- for hostttype in cluster_vars[clusterid][buildenv].host_vars.keys() -%}
-        {%- for azname in cluster_vars[clusterid][buildenv].host_vars[hostttype].az -%}
-          {%- for number in range(0,cluster_vars[clusterid][buildenv].host_vars[hostttype].count_per_az|int) -%}
+      {%- for hostttype in cluster_vars[clusterid][buildenv].hosttype_vars.keys() -%}
+        {%- for azname in cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].az -%}
+          {%- for number in range(0,cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].count_per_az|int) -%}
             {% set _dummy = res.extend([{
-              'type': hostttype,
+              'hosttype': hostttype,
               'hostname': cluster_name + '-' + hostttype + '-' + azname + number|string,
               'az_name': azname|string,
-              'flavor': cluster_vars[clusterid][buildenv].host_vars[hostttype].flavor
+              'flavor': cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].flavor
               }]) -%}
           {%- endfor %}
         {%- endfor %}
