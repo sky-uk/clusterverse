@@ -7,23 +7,35 @@
   become: true
   with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
 
-- name: autodisks | Check mountpoint
-  shell: lsblk -o NAME,FSTYPE -dsn  | awk '$2 == "" {print $1}'
-  register: mountpoint_result
+- name: autodisks | Retrieve volume names
+  set_fact:
+    volume_name: "{{ item }}"
+    volume_size: "{{ retrieve_size.split('.')[0]}}"
+  vars:
+    os_volume: "{{ansible_facts | json_query(\"devices\") | json_query(item) | json_query(\"partitions\")}}"
+    retrieve_size: "{{ansible_facts | json_query(\"devices\") | json_query(item) | json_query(\"size\")}}"
+  with_items: "{{ansible_facts | json_query(\"device_links.ids\") | list}}"
+  when: retrieve_size != "" and os_volume == {}
+  ignore_errors: yes
+  register: volume_flat
 
-- block:
-  - name: autodisks | Create ext4 filesystem from attached EBS volume
-    become: yes
-    filesystem:
-      fstype: ext4
-      dev: "/dev/{{ mountpoint_result.stdout }}"
-      force: no
-
-  - name: autodisks | Mount created filesytem to /elasticsearch
-    become: yes
-    mount:
-      path: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[].mountpoint\") }}"
-      src: "/dev/{{ mountpoint_result.stdout }}"
-      fstype: ext4
-      state: mounted
-  when: mountpoint_result.stdout != ""
+- name: autodisks | Create ext4 filesystem from attached EBS volume
+  become: yes
+  filesystem:
+    fstype: "{{ file_system_type}}"
+    dev: "/dev/{{ item.volume_name }}"
+    force: no
+  with_items: "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"    
+  
+- name: autodisks | Loop expected volumes and available volumes
+  become: yes
+  include: disks_auto_loop.yml  
+  vars:
+    actual_volume_size: "{{item.1.volume_size}}"
+    volume_name: "{{item.1.volume_name}}"
+    expected_volume_size: "{{item.0.volume_size}}"
+  with_nested:
+      - "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") }}"
+      - "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"  
+  when: actual_volume_size == expected_volume_size
+  

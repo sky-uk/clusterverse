@@ -5,19 +5,21 @@ ansible_python_interpreter: "/usr/bin/python3"
 clusterid: ""                     # Must be an index into cluster_vars in cluster_vars.yml
 buildenv: ""                      # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
 
-app_class: "test"                 # The class of application - applies to the fqdn
-clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
+app_name: ""                      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
+app_class: ""                     # The class of application - applies to the fqdn
 
 dns_tld_external: "example.com"   # Top-level domain (above the level defined per clusterid)
 
+file_system_type: "ext4"
 
-# The global {{cluster_name}} is prefixed with "{{clustername_prefix}}-" if clustername_prefix is defined
-cluster_name: "{{clustername_prefix}}{% if not clustername_prefix | regex_search('.*-$') %}-{% endif -%}{{buildenv}}"
 
-prometheus_node_exporter_install: true          # Whether to install the prometheus node_exporter tool
-prometheus_node_exporter_port: 19100            # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
-prometheus_node_exporter_version: 0.15.2        # Version of prometheus node_exporter tool to install
-prometheus_set_unset_maintenance_mode: true     # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.
+# The global {{cluster_name}} is prefixed with {{app_name}}
+cluster_name: "{{app_name}}-{{buildenv}}"
+prometheus_node_exporter_install: true                    # Whether to install the prometheus node_exporter tool
+prometheus_node_exporter_port: 19100                      # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
+prometheus_node_exporter_version: 0.15.2                  # Version of prometheus node_exporter tool to install
+prometheus_node_exporter_options: "--collector.systemd "  # Extra options for node_exporter
+prometheus_set_unset_maintenance_mode: true               # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.
 
 filebeat_install: true
 filebeat_version: 6.5.1
