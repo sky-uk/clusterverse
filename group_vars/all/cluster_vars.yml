@@ -34,7 +34,8 @@ cluster_vars:
         rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
     dev:
       hosttype_vars:
-        node: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        # "gen" is the "hosttype" and is used as part of the hostname
+        gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
@@ -43,7 +44,8 @@ cluster_vars:
       termination_protection: "yes"
     stage:
       hosttype_vars:
-        node: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        # "gen" is the "hosttype" and is used as part of the hostname
+        gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
@@ -52,7 +54,8 @@ cluster_vars:
       termination_protection: "yes"
     prod:
       hosttype_vars:
-        node: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        # "gen" is the "hosttype" and is used as part of the hostname
+        gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
@@ -61,7 +64,8 @@ cluster_vars:
       termination_protection: "yes"
     tools:
       hosttype_vars:
-        node: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        # "gen" is the "hosttype" and is used as part of the hostname
+        gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
@@ -70,7 +74,9 @@ cluster_vars:
       termination_protection: "yes"
     sandbox:
       hosttype_vars:
-        node: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/mnt/test", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        # "gen" is the "hosttype" and is used as part of the hostname
+        #gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+        gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
@@ -102,6 +108,7 @@ cluster_vars:
         description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
     sandbox:
       hosttype_vars:
+        # "qwerty" is the "hostype" and is used to reate the "host name"
         data: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{"auto_delete": true, "interface": "SCSI", "disk_size_gb": 2, name: "mydata", "host_dev_name": "/dev/sdb", mountpoint: "/mnt/data"}]}
         #query: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
       vpc_network_name: "{{buildenv}}"
