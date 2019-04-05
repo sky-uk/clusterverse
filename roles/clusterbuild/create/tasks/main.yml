@@ -51,7 +51,7 @@
   with_items: "{{ dynamic_inventory_flat }}"
 
 
-- name: Wait for port 22 to become open and contain "OpenSSH". (Do this instead of wait_for_connection, because wait_for_connection needs python2 installed remotely - not the case for Ubuntu)
+- name: Wait for remote port 22 to become open and contain "OpenSSH".
   wait_for:
     port: 22
     host: "{{ item.inventory_ip }}"
@@ -59,3 +59,9 @@
     delay: 1
   with_items: "{{ dynamic_inventory_flat }}"
   connection: local
+
+##### Uncomment the below to simulate redploy failure#######
+############################################################
+# - fail:
+#     msg: "Simulating deployment failure"
+#   when: rescuing is defined and rescuing == "false"

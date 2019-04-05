@@ -52,9 +52,11 @@ export OS_PASSWORD='<yourpass>'
 ````
 
 
-### Other
+### DNS
+- DNS zone delegated to the Bind instance
+or
 - Infoblox access and credentials
-- Internal DNS zone delegated to the Infoblox instance (eg. example.com)
+- DNS zone delegated to the Infoblox instance
 
 ### Localhost
 Dependencies are managed via Pipenv:
@@ -82,8 +84,8 @@ export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
 ## Invocation examples
 #### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=aws_eu_west_1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=aws_eu_west_1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=aws_eu_west_1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=aws_eu_west_1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
 ```
 #### GCP:
 ```

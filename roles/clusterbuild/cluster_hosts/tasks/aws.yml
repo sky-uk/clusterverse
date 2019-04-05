@@ -41,3 +41,49 @@
         {%- set _dummy = host.update({'vpc_subnet_id': subnet_ids_per_az[host.az_name][0].subnet_id | string}) -%}
       {%- endfor %}
       {{ res }}
+
+- name: get existing instance facts
+  ec2_instance_facts:
+    filters:
+      "tag:Name": "{{item.hostname}}"
+      "instance-state-name": ["running"]
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    region: "{{cluster_vars[clusterid].region}}"
+  register: ec2_existing
+  delegate_to: localhost
+  with_items: "{{ cluster_hosts_flat }}"
+
+- name: set deploy_status tag
+  ec2_tag:
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    region: "{{cluster_vars[clusterid].region}}"
+    resource: "{{ item }}"
+    tags:
+      release: "{%- if release_tag !='' -%}{{release_tag}}{%- else -%}unknown{%- endif -%}"
+      deploy_status: "{%- if instance_to_create is undefined and rescuing is undefined -%}old{%- else -%}{{deploy_status_tag}}{%- endif -%}"
+  delegate_to: localhost
+  run_once: true
+  vars:
+    release_tag: "{{ ec2_existing.results | json_query(\"[?instances[0].instance_id==`\" + item + \"`].instances[0].tags.release | [0]\") }}"
+    deploy_status_tag: "{{ ec2_existing.results | json_query(\"[?instances[0].instance_id==`\" + item + \"`].instances[0].tags.deploy_status | [0]\") }}"
+  register: ec2_updated  
+  with_items: "{{ ec2_existing.results | json_query('[].instances[].instance_id')}}"
+
+- set_fact:
+    current_release_per_instance: "{{ec2_updated | json_query(\"results[].{value: tags.release, key: tags.Name}\") | items2dict}}"
+    current_deploy_status_per_instance: "{{ec2_updated | json_query(\"results[].{value: tags.deploy_status, key: tags.Name}\") | items2dict}}"
+ 
+- name: update cluster_hosts_flat with current release and deploy_status
+  set_fact:
+    cluster_hosts_flat: |
+      {% set res = cluster_hosts_flat -%}
+      {%- for host in res -%}
+        {% if  current_release_per_instance[host.hostname] is  defined and current_deploy_status_per_instance[host.hostname] is defined%}
+          {%- set _dummy = host.update({'current_release': current_release_per_instance[host.hostname] | string, 'current_deploy_status': current_deploy_status_per_instance[host.hostname] | string}) -%}
+        {% else %}
+          {%- set _dummy = host.update({'current_release': release_version, 'current_deploy_status': 'old'}) -%}
+        {% endif %}
+      {%- endfor %}
+      {{ res }}

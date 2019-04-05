@@ -15,7 +15,7 @@
   become: false
   gather_facts: false
   tasks:
-    - name: Run redeploy.
+    - name: Run redeploy
       include_role:
         name: clusterbuild/redeploy
       vars:
