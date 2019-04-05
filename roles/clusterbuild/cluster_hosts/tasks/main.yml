@@ -11,7 +11,8 @@
               'hosttype': hostttype,
               'hostname': cluster_name + '-' + hostttype + '-' + azname + number|string,
               'az_name': azname|string,
-              'flavor': cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].flavor
+              'flavor': cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].flavor,
+              'release': release_version
               }]) -%}
           {%- endfor %}
         {%- endfor %}

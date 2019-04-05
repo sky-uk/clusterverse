@@ -1,0 +1,31 @@
+---
+
+- debug: msg="Rescuing {{host_to_rescue.hostname}}"
+
+- name: Rescuing EC2 instance
+  block:
+    - name: aws_restore | get existing instance
+      ec2_instance_facts:
+        filters:
+          "tag:Name": "{{host_to_rescue.hostname}}"
+          "instance-state-name": ["running", "stopped"]
+          "tag:release": "{{host_to_rescue.current_release}}"
+          "tag:deploy_status": "old"
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+      register: existing_torestore
+      delegate_to: localhost
+      run_once: true
+
+    - name: aws_restore | Start EC2 instance
+      ec2:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars[clusterid].region }}"
+        state: "running"
+        instance_ids: ["{{ existing_torestore.instances[0].instance_id }}"]
+        wait: true
+      when: (existing_torestore.instances is defined) and (existing_torestore.instances | length>0) and (existing_torestore.instances[0].instance_id is defined)
+      delegate_to: localhost
+      run_once: true

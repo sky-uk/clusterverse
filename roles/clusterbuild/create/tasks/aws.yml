@@ -37,6 +37,8 @@
           Name: "{{item.hostname}}"
           hosttype: "{{item.hosttype}}"
           env: "{{buildenv}}"
+          release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
+          deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
           owner: "{{ lookup('env','USER') }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
@@ -44,6 +46,8 @@
         volumes: "{{cluster_vars[clusterid][buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
         count_tag:
           Name: "{{item.hostname}}"
+          release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
+          deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
         exact_count: 1
       with_items: "{{cluster_hosts_flat}}"
       async: 7200
@@ -58,7 +62,7 @@
       retries: 300
       with_items: "{{aws_instances.results}}"
 
-#    - debug: msg={{aws_jobs.results}}
+  #    - debug: msg={{aws_jobs.results}}
 
     - name: set a fact containing newly-created hosts
       set_fact:
@@ -66,6 +70,18 @@
       delegate_to: localhost
       run_once: true
 
+    - name: update release tag when run normal deploy
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{ item }}"
+        tags:
+          release: "{{ release_version }}"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ aws_jobs.results | json_query('[].tagged_instances[0].id')}}"
+      when: (instance_to_create is undefined and rescuing is undefined)
 
     - name: force set maintenance_mode to true (when prometheus_set_unset_maintenance_mode)
       ec2_tag:
@@ -119,4 +135,3 @@
           {%- else -%}
             {{ aws_jobs.results | json_query('[*].{hosttype: tagged_instances[0].tags.hosttype, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, public_ip: tagged_instances[0].public_ip, inventory_ip: tagged_instances[0].public_ip}') }}
           {%- endif -%}
-

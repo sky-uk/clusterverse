@@ -4,6 +4,7 @@ ansible_python_interpreter: "/usr/bin/python3"
 ## Default user vars - in general to be provided by Jenkins
 clusterid: ""                     # Must be an index into cluster_vars in cluster_vars.yml
 buildenv: ""                      # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
+release_version: ""               # Identifies the application version that is being deployed 
 
 app_name: ""                      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
 app_class: ""                     # The class of application - applies to the fqdn
@@ -27,14 +28,8 @@ filebeat_version: 6.5.1
 pkgupdate: "onCreate"    # 'always' or 'onCreate'
 reboot_on_package_upgrade: false
 
-# Infoblox Service API user credentials and configurations
-infoblox:
-  server:
-  api_version:
-  username:
-  password:
 
-
+# Bind credentials and configurations
 bind9:
   server:
   key_name:
