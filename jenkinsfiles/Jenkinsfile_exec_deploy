@@ -1,6 +1,7 @@
 pipeline {
   agent any
   parameters {
+    booleanParam(name: 'GENUINE_BUILD', defaultValue: false, description: 'Tick the box to run the job')
     choice(name: 'DEPLOY_ENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy")
     choice(name: 'DEPLOY_TYPE', choices: ['Deploy', 'ReDeploy', 'Clean'], description: "Choose the deploy type")
     string(name: 'CANARY', defaultValue:"none", description: "MANDATORY FIELD - 'start', 'finish', 'none' - Specify whether to start or finish a canary deploy, or 'none' deploy")
@@ -12,10 +13,16 @@ pipeline {
       environment {
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
         VAULT_PASSWORD_ALL = credentials('VAULT_PASSWORD_ALL')
+        GENUINE_BUILD="${params.GENUINE_BUILD}"
       }
       steps {
+        script{
+          if (GENUINE_BUILD == "false"){
+            error "Parameters not specified, Tick the GENUINE_BUILD box to run the job"
+          }
+        }          
         sh 'env'
-        sh 'pipenv install --python /usr/bin/python3.6'
+        sh 'pipenv install --python /usr/bin/python3'
       }
     }
     stage('Execute Deploy Playbook') {
