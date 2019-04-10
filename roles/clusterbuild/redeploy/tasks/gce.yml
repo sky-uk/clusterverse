@@ -2,9 +2,9 @@
 
 - name: Delete GCE VM
   gcp_compute_instance:
-    name: "{{host_to_del.hostname}}"
+    name: "{{host_to_redeploy.hostname}}"
     project: "{{cluster_vars[clusterid].project_id}}"
-    zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.az_name}}"
+    zone: "{{cluster_vars[clusterid].region}}-{{host_to_redeploy.az_name}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     state: "absent"

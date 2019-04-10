@@ -28,7 +28,6 @@
 
 - name: Attempt redploy.  Restore old if fails
   block:
-
     - name: "run {{mainclusteryml}}"
       shell: "{{maincluster_yml_args}} -e rescuing=false"      
       register: r_mainclusteryml
