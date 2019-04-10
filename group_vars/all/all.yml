@@ -28,7 +28,6 @@ filebeat_version: 6.5.1
 pkgupdate: "onCreate"    # 'always' or 'onCreate'
 reboot_on_package_upgrade: false
 
-
 # Bind credentials and configurations
 bind9:
   server:

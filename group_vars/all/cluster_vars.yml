@@ -15,7 +15,7 @@ cluster_vars:
     region: "eu-west-1"
     dns_zone_internal: "eu-west-1.compute.internal"
     dns_zone_external: "{%- if dns_tld_external -%} aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-    dns_server: "nsupdate"    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    dns_server: "nsupdate"    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
     assign_public_ip: "no"
     inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
     instance_profile_name: "vpc_lock_{{buildenv}}"
