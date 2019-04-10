@@ -7,11 +7,11 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 
 
 cluster_vars:
-  aws_eu_west_1:
+  vtp_aws_euw1:
     type: aws
 #    image: "ami-3548444c"           #CentOS Linux 7 x86_64 HVM EBS ENA 1805_01-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-77ec9308.4
 #    image: "ami-00b36349b3dba2ec3"  #ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-20181012
-    image: "ami-0aebeb281fdee5054"  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20181012
+    image: "ami-0727f3c2d4b0226d5"  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20190403
     region: "eu-west-1"
     dns_zone_internal: "eu-west-1.compute.internal"
     dns_zone_external: "{%- if dns_tld_external -%} aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
@@ -39,8 +39,8 @@ cluster_vars:
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
-      key_name: "{{buildenv}}-key"
-      vpc_name: "{{buildenv}}"
+      key_name: "vtp-{{buildenv}}-key"
+      vpc_name: "vtp-{{buildenv}}"
       termination_protection: "yes"
     stage:
       hosttype_vars:
@@ -49,8 +49,8 @@ cluster_vars:
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
-      key_name: "{{buildenv}}-key"
-      vpc_name: "{{buildenv}}"
+      key_name: "vtp-{{buildenv}}-key"
+      vpc_name: "vtp-{{buildenv}}"
       termination_protection: "yes"
     prod:
       hosttype_vars:
@@ -59,8 +59,8 @@ cluster_vars:
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
-      key_name: "{{buildenv}}-key"
-      vpc_name: "{{buildenv}}"
+      key_name: "vtp-{{buildenv}}-key"
+      vpc_name: "vtp-{{buildenv}}"
       termination_protection: "yes"
     tools:
       hosttype_vars:
@@ -69,8 +69,8 @@ cluster_vars:
       aws_access_key:
       aws_secret_key:
       vpc_subnet_name_prefix: "{{buildenv}}-infrastructure-subnet"
-      key_name: "{{buildenv}}-key"
-      vpc_name: "{{buildenv}}"
+      key_name: "vtp-{{buildenv}}-key"
+      vpc_name: "vtp-{{buildenv}}"
       termination_protection: "yes"
     sandbox:
       hosttype_vars:
@@ -81,10 +81,10 @@ cluster_vars:
       aws_secret_key:
       vpc_name: "{{buildenv}}"
       vpc_subnet_name_prefix: "{{buildenv}}-scratch-subnet"
-      key_name: "{{buildenv}}-key"
+      key_name: "vtp-{{buildenv}}-key"
       termination_protection: "no"
 
-  gce_eu_west1:
+  vtp_gce_euw1:
     type: gce
     image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20181029"
 #    image: "projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20181030"
@@ -111,11 +111,11 @@ cluster_vars:
         # "qwerty" is the "hostype" and is used to reate the "host name"
         data: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{"auto_delete": true, "interface": "SCSI", "disk_size_gb": 2, name: "mydata", "host_dev_name": "/dev/sdb", mountpoint: "/mnt/data"}]}
         #query: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
-      vpc_network_name: "{{buildenv}}"
+      vpc_network_name: "vtp-{{buildenv}}"
       vpc_subnet_name: ""
       preemptible: "false"
 
-  m25_lsd_slo:
+  vtp_lsd_slo:
     type: openstack
     image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
     region: "SLO"
@@ -136,3 +136,73 @@ cluster_vars:
     OS_TENANT_ID:
     OS_TENANT_NAME:
     OS_PROJECT_NAME:
+
+  csc_aws_euw1:
+    type: aws
+    image: "ami-0727f3c2d4b0226d5"  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20190403
+    region: "eu-west-1"
+    dns_zone_internal: "eu-west-1.compute.internal"
+    dns_zone_external: "{%- if dns_tld_external -%} aws_euw1.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+    dns_server: ""    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+    assign_public_ip: "no"
+    inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+    instance_profile_name: "vpc_lock_{{buildenv}}"
+    secgroups_existing: []
+    secgroup_new:
+      - proto: tcp
+        ports: [22]
+        cidr_ip: 10.0.0.0/8
+        rule_desc: "SSH Access"
+      - proto: icmp
+        from_port: -1 # icmp type: 8 = echo request, -1 = any type
+        to_port:   -1 # icmp subtype: -1 = any subtype
+        cidr_ip: 10.0.0.0/8
+        rule_desc: "ICMP (ANY)"
+      - proto: all
+        group_name: ["{{cluster_name}}-sg"]
+        rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+    sandbox:
+      hosttype_vars:
+        sys: {count_per_az: 1, az: ["a"], flavor: t3.nano, auto_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_name: "csc{{buildenv}}"
+      vpc_subnet_name_prefix: "{{buildenv}}-private-subnet"
+      key_name: "csc{{buildenv}}-key"
+      termination_protection: "no"
+    tools:
+      hosttype_vars:
+        sys: {count_per_az: 1, az: ["a"], flavor: t3.nano, auto_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_subnet_name_prefix: "{{buildenv}}-private-subnet"
+      key_name: "csc{{buildenv}}-key"
+      vpc_name: "csc{{buildenv}}"
+      termination_protection: "yes"
+    dev:
+      hosttype_vars:
+        sys: {count_per_az: 1, az: ["a"], flavor: t3.nano, auto_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_subnet_name_prefix: "{{buildenv}}-private-subnet"
+      key_name: "csc{{buildenv}}-key"
+      vpc_name: "csc{{buildenv}}"
+      termination_protection: "yes"
+    stage:
+      hosttype_vars:
+        sys: {count_per_az: 1, az: ["a"], flavor: t3.nano, auto_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_subnet_name_prefix: "{{buildenv}}-private-subnet"
+      key_name: "csc{{buildenv}}-key"
+      vpc_name: "csc{{buildenv}}"
+      termination_protection: "yes"
+    prod:
+      hosttype_vars:
+        sys: {count_per_az: 1, az: ["a"], flavor: t3.nano, auto_volumes: []}
+      aws_access_key:
+      aws_secret_key:
+      vpc_subnet_name_prefix: "{{buildenv}}-private-subnet"
+      key_name: "csc{{buildenv}}-key"
+      vpc_name: "csc{{buildenv}}"
+      termination_protection: "yes"

@@ -39,7 +39,7 @@ pipeline {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
           sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=false'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=vtp_aws_euw1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=false'
         }
       }
     }
@@ -59,7 +59,7 @@ pipeline {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
           sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=vtp_aws_euw1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES'
         }
       }
     }
@@ -78,7 +78,7 @@ pipeline {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
           sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=vtp_aws_euw1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY'
         }
       }
     }    
@@ -96,7 +96,7 @@ pipeline {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
           sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterbuild_clean -e clean=true'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=vtp_aws_euw1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterbuild_clean -e clean=true'
         }
       }            
     }

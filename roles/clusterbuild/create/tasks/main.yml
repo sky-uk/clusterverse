@@ -50,15 +50,14 @@
     hosttype: "{{ item.hosttype }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
-
-- name: Wait for remote port 22 to become open and contain "OpenSSH".
-  wait_for:
-    port: 22
-    host: "{{ item.inventory_ip }}"
-    search_regex: OpenSSH
-    delay: 1
-  with_items: "{{ dynamic_inventory_flat }}"
-  connection: local
+#- name: Wait for remote port 22 to become open and contain "OpenSSH".
+#  wait_for:
+#    port: 22
+#    host: "{{ item.inventory_ip }}"
+#    search_regex: OpenSSH
+#    delay: 1
+#  with_items: "{{ dynamic_inventory_flat }}"
+#  connection: local
 
 ##### Uncomment the below to simulate redploy failure#######
 ############################################################

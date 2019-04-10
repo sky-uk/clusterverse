@@ -35,6 +35,12 @@
     - role: clusterbuild/create
   tags: clusterbuild_create
 
+- name: Wait for target connection to cluster nodes (NOTE - This cannot be within clusterbuild/config as that gathers facts, which needs the connection already)
+  hosts: all
+  gather_facts: false
+  tasks:
+    - wait_for_connection:
+  tags: clusterbuild_config
 
 - name: Perform config on the cluster
   hosts: all

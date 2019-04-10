@@ -25,10 +25,17 @@ prometheus_set_unset_maintenance_mode: true               # Whether a maintenanc
 filebeat_install: true
 filebeat_version: 6.5.1
 
-pkgupdate: "onCreate"    # 'always' or 'onCreate'
+pkgupdate: "onCreate"    # "always" or "onCreate".  Leave empty to prevent updating packages.
 reboot_on_package_upgrade: false
 
-# Bind credentials and configurations
+# Infoblox configuration and credentials
+infoblox:
+  server: ""
+  api_version: 2.6.1
+  username: ""
+  password: ""
+
+# Bind configuration and credentials
 bind9:
   server:
   key_name:
