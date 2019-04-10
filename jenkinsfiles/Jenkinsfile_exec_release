@@ -14,7 +14,7 @@ pipeline {
       }         
       steps {
         script {
-          def apiUrl = "https://api.github.com/repos/sky-uk/clusterbuild-ansible/releases"
+          def apiUrl = "https://api.github.com/repos/sky-uk/clusterverse/releases"
           def latestReleaseQuery = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X GET ${apiUrl}/latest").trim()
           def latestRelease = readJSON text: "${latestReleaseQuery}"
           if (NEW_VERSION == "version") {
