@@ -1,0 +1,76 @@
+#!groovy
+import groovy.json.JsonOutput
+
+
+pipeline {
+  agent any
+  parameters {
+    booleanParam(name: 'GENUINE_BUILD', defaultValue: false, description: 'Tick the box to run the job')
+    choice(name: 'DEPLOY_ENV', choices: ['sandbox', 'tools'], description: "Choose an environment to deploy")
+    string(name: 'CANARY', defaultValue:"none", description: "MANDATORY FIELD - 'start', 'finish', 'none' - Specify whether to start or finish a canary deploy, or 'none' deploy")
+    string(name: 'MYHOSTTYPES', defaultValue:"", description: "master,slave - In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types")
+    gitParameter(name: 'RELEASE', type: 'PT_TAG', defaultValue: 'master', sortMode: 'DESCENDING_SMART', description: "Choose the version to deploy")
+  }
+  stages {
+    stage('Init Environment') {
+      environment {
+        GENUINE_BUILD="${params.GENUINE_BUILD}"
+      }      
+      steps {
+        script{
+          if (GENUINE_BUILD == "false"){
+            error "Parameters not specified, Tick the GENUINE_BUILD box to run the job"
+          }
+        }
+        sh 'env'
+        sh 'pipenv install --python /usr/bin/python3'
+      }
+    }    
+    stage('ReDeploy Release') { 
+      environment {
+        DEPLOY_ENV="${params.DEPLOY_ENV}"
+        RELEASE ="${params.RELEASE}"
+        GIT_TOKEN = credentials("GITHUB_SVC_USER")
+        VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
+        VAULT_PASSWORD_ALL = credentials('VAULT_PASSWORD_ALL')
+        CANARY="-e canary=${params.CANARY}"
+        MYHOSTTYPES="${params.MYHOSTTYPES}"
+      }             
+      steps {
+        script {
+          try {
+            if (MYHOSTTYPES != ""){
+              MYHOSTTYPES="-e myhosttypes=${MYHOSTTYPES}"
+            }
+            echo "RELEASE=  ${RELEASE}"
+            sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@github.com/sky-uk/clusterverse.git"
+            sh 'git fetch --tags'
+            sh 'git checkout ${RELEASE}'
+            withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
+              sh 'env'
+              sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)"'
+              sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'
+              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1 -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
+            }    
+          } catch (err) {
+              echo "Failed: ${err} - Version ${broken_version} will be deleted and the previous version will be deployed."  
+            // def stable_version = sh(returnStdout: true, script: "git describe --abbrev=0 --tags `git rev-list --tags --skip=1 --max-count=1`").trim()
+            // def broken_version = sh(returnStdout: true, script: "git describe --tags `git rev-list --tags --max-count=1`").trim()
+            //   sh "git checkout -b ${broken_version}-broken-version"
+            //   sh "git push -u origin ${broken_version}-broken-version"
+            //   sh "git push --delete origin ${broken_version}"
+            //   sh 'git fetch --tags'
+            //   sh "git checkout ${stable_version}"
+            //   withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
+            //   sh 'env'
+            //   sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
+            //   sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
+            //   sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=aws_eu_west_1  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=true --tags=clusterbuild_clean'
+            // }
+              error "${RELEASE} deployment failed"               
+          }
+        }        
+      }
+    }       
+  }
+}
