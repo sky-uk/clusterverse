@@ -28,7 +28,7 @@
 #      host: "{{ infoblox.server }}"
 #      username: "{{ infoblox.username }}"
 #      password: "{{ infoblox.password }}"
-
+  
 - name: Delete DNS A records using nsupdate (if applicable)
   nsupdate:
     key_name: "{{bind9.key_name}}"
@@ -39,6 +39,29 @@
     record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
   with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
+- name: Delete DNS entries from route53
+  block:
+  - name: Get DNS entries from route53
+    route53:
+      state: "get"
+      zone: "{{cluster_vars[clusterid].dns_zone_external}}"
+      record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+      type: "A"
+    register: dns_rec
+    with_items: "{{ cluster_hosts_flat }}"
+
+  - name: Remove DNS entries from route53
+    route53:
+      state: "absent"
+      zone: "{{ item.set.zone }}"
+      record: "{{ item.set.record }}"
+      type: "{{ item.set.type }}"
+      ttl: "{{ item.set.ttl }}"
+      value: ["{{ item.set.value }}"]
+    with_items: "{{ dns_rec.results }}"
+    when: item.set.value is defined
+  when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""  
 
 - name: empty the inventory file
   block:

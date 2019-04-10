@@ -120,6 +120,23 @@
   with_items: "{{ cluster_hosts_flat }}"
   when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
+- name: Create/ Update DNS A records in Route53 (if applicable)
+  route53:
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    state: present
+    zone: "{{cluster_vars[clusterid].dns_zone_external}}"
+    record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    type: A
+    ttl: 60
+    value: "{{ hostvars[item.hostname]['ansible_host'] }}"
+    overwrite: true
+  become: false
+  delegate_to: localhost
+  run_once: true
+  with_items: "{{ cluster_hosts_flat }}"
+  when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and cluster_vars[clusterid].dns_server=="route53" and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
+
 - name: Check that DNS has updated (or otherwise wait for it to do so)  [Note lookup('dig', new_fqdn) doesn't work - seems to cache - https://github.com/ansible/ansible/issues/44128]
   shell: "dig {{new_fqdn}} +short @{{bind9.server}}"
   register: dig_result
