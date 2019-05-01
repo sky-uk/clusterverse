@@ -79,7 +79,7 @@ cluster_vars:
         #gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
       aws_access_key:
       aws_secret_key:
-      vpc_name: "{{buildenv}}"
+      vpc_name: "vtp-{{buildenv}}"
       vpc_subnet_name_prefix: "{{buildenv}}-scratch-subnet"
       key_name: "vtp-{{buildenv}}-key"
       termination_protection: "no"

@@ -102,6 +102,8 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 
 ### Extra variables:
++ `-e app_name=<nginx>` - Gives a customised name for identification purposes if not defined in `group_vars/all.yml` (eg. - nginx, couchbase)
++ `-e app_class=<proxy>` - Specify the class of application if not defined in `group_vars/all.yml` (eg. - proxy, database)
 + `-e buildenv=<environment>`  -  dev/ stage/ prod supported
 + `-e clusterid=<vtp_aws_euw1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml`
 + `-e dns_tld_external="example.com"` - specify the external DNS TLD if not defined in `group_vars/all.yml`
