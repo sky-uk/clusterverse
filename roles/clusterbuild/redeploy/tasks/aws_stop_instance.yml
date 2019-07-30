@@ -1,0 +1,94 @@
+---
+
+- debug: msg="Stop {{host_to_stop.hostname}}, release {{release_to_stop}}"
+
+
+- name: aws_stop | Stop EC2 instance
+  block:
+    - name: get existing instance
+      ec2_instance_facts:
+        filters:
+          "tag:Name": "{{ host_to_stop.hostname }}"
+          "tag:release": "{{ release_to_stop }}"
+          "tag:deploy_status": "{{ deploy_status_to_stop }}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+      register: existing
+      delegate_to: localhost
+      run_once: true
+
+    - name: set maintenance_mode to true
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{cluster_vars[clusterid].region}}"
+        resource: "{{ existing.instances[0].instance_id }}"
+        tags:
+          maintenance_mode: "true"
+      delegate_to: localhost
+      run_once: true     
+
+    - name: Delete DNS entries from infoblox
+      infoblox:
+        server: "{{ infoblox.server }}"
+        username: "{{ infoblox.username }}"
+        password: "{{ infoblox.password }}"
+        action: delete_a_record
+        name: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
+      when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
+    ## Can't use this unless we use the same creation (which doesn't work properly)
+    #- name: Delete DNS entries from infoblox
+    #  nios_host_record:
+    #    name: "{{ existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    #    state: absent
+    #    provider:
+    #      host: "{{ infoblox.server }}"
+    #      username: "{{ infoblox.username }}"
+    #      password: "{{ infoblox.password }}"
+      
+    - name: Delete DNS A records using nsupdate (if applicable)
+      nsupdate:
+        key_name: "{{bind9.key_name}}"
+        key_secret: "{{bind9.key_secret}}"
+        server: "{{bind9.server}}"
+        zone: "{{dns_tld_external}}"
+        state: "absent"
+        record: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+      when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
+    - name: Delete DNS entries from route53
+      block:
+      - name: Get DNS entries from route53
+        route53:
+          state: "get"
+          zone: "{{cluster_vars[clusterid].dns_zone_external}}"
+          record: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
+          type: "A"
+        register: dns_rec
+
+      - name: Remove DNS entries from route53
+        route53:
+          state: "absent"
+          zone: "{{ item.set.zone }}"
+          record: "{{ item.set.record }}"
+          type: "{{ item.set.type }}"
+          ttl: "{{ item.set.ttl }}"
+          value: ["{{ item.set.value }}"]
+        with_items: "{{ dns_rec.results }}"
+        when: item.set.value is defined
+      when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+      
+    - name: aws_stop | Stop EC2 instance
+      ec2:
+        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars[clusterid].region }}"
+        state: "stopped"
+        instance_ids: ["{{ existing.instances[0].instance_id }}"]
+        wait: true
+      when: (existing.instances is defined) and (existing.instances | length>0) and (existing.instances[0].instance_id is defined)
+      delegate_to: localhost
+      run_once: true

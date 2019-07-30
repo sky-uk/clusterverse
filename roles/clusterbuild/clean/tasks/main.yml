@@ -40,6 +40,20 @@
   with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
+- name: "Delete CNAME records"
+  nsupdate:
+    key_name: "{{bind9.key_name}}"
+    key_secret: "{{bind9.key_secret}}"
+    server: "{{bind9.server}}"
+    zone: "{{dns_tld_external}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    value:  "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    type: CNAME
+    state: absent
+  with_items: "{{ cluster_hosts_flat }}"  
+  when: cluster_vars[clusterid].dns_server == "nsupdate" and (instance_to_create is undefined or rescuing_instance is undefined)
+  delegate_to: localhost  
+
 - name: Delete DNS entries from route53
   block:
   - name: Get DNS entries from route53
@@ -61,7 +75,7 @@
       value: ["{{ item.set.value }}"]
     with_items: "{{ dns_rec.results }}"
     when: item.set.value is defined
-  when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""  
+  when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
 - name: empty the inventory file
   block:

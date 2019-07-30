@@ -5,8 +5,7 @@
     - name: get existing instance
       ec2_instance_facts:
         filters:
-          "tag:Name": "{{host_to_del.hostname}}"
-          "tag:release": "{{ release_to_del }}"
+          "tag:cluster_name": "{{cluster_name}}"
           "instance-state-name": ["stopped"]
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
@@ -22,8 +21,8 @@
         region: "{{ cluster_vars[clusterid].region }}"
         state: "stopped"
         termination_protection: "no"
-        instance_ids: ["{{ existing.instances[0].instance_id }}"]
-      when: (existing.instances is defined) and (existing.instances | length>0) and (existing.instances[0].instance_id is defined)
+        instance_ids: ["{{ item }}"]
+      with_items: "{{ existing | json_query('instances[].instance_id')}}"
       delegate_to: localhost
       run_once: true
 
@@ -32,12 +31,12 @@
         aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
         region: "{{cluster_vars[clusterid].region}}"
-        resource: "{{ existing.instances[0].instance_id }}"
+        resource: "{{ item }}"
         tags:
           maintenance_mode: "true"
       delegate_to: localhost
       run_once: true
-      when: (existing.instances is defined) and (existing.instances | length>0) and (existing.instances[0].instance_id is defined)
+      with_items: "{{ existing | json_query('instances[].instance_id')}}"
 
     - name: Delete EC2 instance
       ec2:
@@ -45,8 +44,8 @@
         aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
         region: "{{ cluster_vars[clusterid].region }}"
         state: "absent"
-        instance_ids: ["{{ existing.instances[0].instance_id }}"]
+        instance_ids: ["{{ item }}"]
         wait: true
-      when: (existing.instances is defined) and (existing.instances | length>0) and (existing.instances[0].instance_id is defined)
+      with_items: "{{ existing | json_query('instances[].instance_id')}}"
       delegate_to: localhost
       run_once: true

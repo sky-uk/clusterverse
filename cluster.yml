@@ -20,7 +20,7 @@
   hosts: localhost
   connection: local
   become: false
-  gather_facts: false
+  gather_facts: true
   roles:
     - role: clusterbuild/clean
       when: clean is defined and clean|bool
@@ -30,7 +30,7 @@
   hosts: localhost
   connection: local
   become: false
-  gather_facts: false
+  gather_facts: true
   roles:
     - role: clusterbuild/create
   tags: clusterbuild_create

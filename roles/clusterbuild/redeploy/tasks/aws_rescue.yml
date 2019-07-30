@@ -1,31 +1,78 @@
 ---
 
-- debug: msg="Rescuing {{host_to_rescue.hostname}}"
 
-- name: Rescuing EC2 instance
+- debug: msg="Rescuing"
+
+- name: aws_restore | get existing instances
+  ec2_instance_facts:
+    filters:
+      "tag:cluster_name": "{{cluster_name}}"
+      "instance-state-name": ["running", "stopped"]
+    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
+    region: "{{cluster_vars[clusterid].region}}"
+  register: rollback_instances
+  delegate_to: localhost
+  run_once: true
+
+- name: aws_restore | set hosts_to_rollback_stopped
+  set_fact: hosts_to_rollback_stopped={{rollback_instances | json_query('instances[?tags.deploy_status == `old` && state.name==`stopped`].tags.Name') | list | sort(reverse=True)}}
+
+- name: aws_restore | set expected nodes
+  set_fact:
+    remove_first: "{{hosts_running|int - current_cluter_size|int}}"
+  vars:  
+    hosts_running: "{{rollback_instances | json_query('instances[?state.name==`running`].tags.Name') | length}}"
+  
+
+
+
+- name: aws_restore | remove spare instance (if exixsts)
   block:
-    - name: aws_restore | get existing instance
-      ec2_instance_facts:
-        filters:
-          "tag:Name": "{{host_to_rescue.hostname}}"
-          "instance-state-name": ["running", "stopped"]
-          "tag:release": "{{host_to_rescue.current_release}}"
-          "tag:deploy_status": "old"
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
-      register: existing_torestore
-      delegate_to: localhost
-      run_once: true
 
-    - name: aws_restore | Start EC2 instance
-      ec2:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{ cluster_vars[clusterid].region }}"
-        state: "running"
-        instance_ids: ["{{ existing_torestore.instances[0].instance_id }}"]
-        wait: true
-      when: (existing_torestore.instances is defined) and (existing_torestore.instances | length>0) and (existing_torestore.instances[0].instance_id is defined)
-      delegate_to: localhost
-      run_once: true
+    - set_fact:
+        host_to_redeploy: "{'hostname': \"{{host_to_redeploy_hostname}}\"}"
+      vars:
+        host_to_redeploy_hostname: "{{rollback_instances | json_query('instances[?tags.deploy_status == `new` && state.name==`running`].tags.Name') | list | sort(reverse=True) | first}}"
+
+    - set_fact:
+        j_recover_arg: "[?starts_with(@, '{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}')] | [0]"
+
+    - set_fact:
+        host_to_recover: "{{rollback_instances | json_query('instances[*].tags.Name') | difference([host_to_redeploy.hostname])| to_json | from_json | json_query(j_recover_arg)}}"
+
+    - name: Replace CNAME
+      nsupdate:
+        key_name: "{{bind9.key_name}}"
+        key_secret: "{{bind9.key_secret}}"
+        server: "{{bind9.server}}"
+        zone: "{{dns_tld_external}}"
+        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{ host_to_recover}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"  
+        type: CNAME
+        state: present
+        ttl: 30
+
+    - set_fact:
+        host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
+
+    - name: run pre-delete role
+      include_role:
+        name: "{{predeleterole}}"
+      when: predeleterole is defined and predeleterole != ""    
+        
+    - include_tasks: aws_stop_instance.yml
+      when: cluster_vars[clusterid].type == "aws"
+      vars:
+        host_to_stop: "{{host_to_redeploy}}"
+        release_to_stop: "{{host_to_redeploy_release}}"
+        deploy_status_to_stop: "new"      
+  when: remove_first|int == 1
+
+
+- name: re-add instances
+  include_tasks: aws_rescue_instance.yml
+  with_items: "{{ hosts_to_rollback_stopped }}"
+  loop_control:
+    loop_var: host_to_rollback
+  when: hosts_to_rollback_stopped | length>0

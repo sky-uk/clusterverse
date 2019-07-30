@@ -1,5 +1,9 @@
 ---
 
+- name: Set current time (epoch)
+  set_fact:
+    gdp_time: "{{ansible_date_time.epoch}}" 
+
 # Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
 - set_fact:
     cluster_hosts_flat: |
@@ -19,8 +23,6 @@
       {%- endfor %}
       {{ res }}
 
-#- debug: msg={{cluster_hosts_flat}}
-
 - name: get other hosts
   set_fact:
     other_hosts: "{{ (hostvars[ansible_play_hosts[0]].cluster_hosts_flat | json_query('[].hostname') + ['localhost']) | unique | symmetric_difference(ansible_play_hosts) }}"
@@ -32,13 +34,13 @@
 
 - name: set the cluster_hosts_flat variable on all other hosts
   set_fact:
-    cluster_hosts_flat: "{{hostvars[ansible_play_hosts[0]].cluster_hosts_flat}}"
+    cluster_hosts_flat: "{{hostvars['localhost'].cluster_hosts_flat}}"
     cacheable: true
   delegate_to: "{{item}}"
   delegate_facts: True
   run_once: true
   with_items: "{{ other_hosts }}"
-
+ 
 - include_tasks: aws.yml
   when: cluster_vars[clusterid].type == "aws"
 
