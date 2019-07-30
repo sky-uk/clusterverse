@@ -1,11 +1,16 @@
 #!groovy
 import groovy.json.JsonOutput
 
+def VERSION_TO_DEPLOY = ''
+
 pipeline {
   agent any
   parameters {
     string(name: 'NEW_VERSION', defaultValue:"version", description: "Specify the version to be created eg: v1.0.0")
   }
+  triggers {
+      cron('0 9-16/1 * * 1-5')
+  }  
   stages {
     stage('Create Release') {
       environment {
@@ -30,11 +35,20 @@ pipeline {
             def payload = JsonOutput.toJson(["tag_name": "${NEW_VERSION}", "name": "${NEW_VERSION}", "body": "${body}"])
             def response = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '${payload}' ${apiUrl}").trim()
             echo "${NEW_VERSION} is now created"
+            VERSION_TO_DEPLOY = "${NEW_VERSION}"
           } else {
               error "No change since last release"
           }
         }
       }
-    }     
+    }
+    stage('Trigger deploy') {
+      steps {
+        script {
+          println "Release ${VERSION_TO_DEPLOY} is being deployed in sandbox"
+          build job: "clusterbuild-release-deploy", wait: false, parameters: [string(name: 'GENUINE_BUILD', value: "true"), string(name: 'DEPLOY_ENV', value: "sandbox"), string(name: 'RELEASE', value: "${VERSION_TO_DEPLOY}")]
+        }
+      }
+    }        
   }
 }

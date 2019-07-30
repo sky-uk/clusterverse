@@ -1,10 +1,27 @@
 ---
+- name: Attempt redploy.  Restore old if fails
+  block:
+  
+    - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
+      include_tasks: by_type.yml
+      with_items: "{{ myhosttypes_array }}"
+      loop_control:
+        loop_var: hosttype
+      vars:
+        cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
+        myhosttypes_array: "{%- if myhosttypes is defined and myhosttypes != '' -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
 
-- name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
-  include_tasks: by_type.yml
-  with_items: "{{ myhosttypes_array }}"
-  loop_control:
-    loop_var: hosttype
-  vars:
-    cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
-    myhosttypes_array: "{%- if myhosttypes is defined and myhosttypes != '' -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
+    - name: Clean stopped instance if deployment is succesfull
+      include_tasks: aws_del.yml
+      when: cluster_vars[clusterid].type == "aws" and deployment_failed is not defined and deployment_failed != true
+
+  rescue:
+    - debug: msg="Restoring cluster"
+
+    - set_fact:
+        deployment_failed: true
+    
+    - include_tasks: aws_rescue.yml
+      when: cluster_vars[clusterid].type == "aws"
+      vars:
+        host_to_rescue: "{{host_to_redeploy}}"    

@@ -31,9 +31,7 @@
       {% for value in dynamic_inventory_dict[key] %}
       {{ value | json_query('hostname')}} ansible_host={{ value | json_query('inventory_ip')}} hosttype={{ key }}
       {% endfor %}
-
       {% endfor %}
-
       [{{ cluster_name }}:children]
       {% for key in dynamic_inventory_dict.keys() -%}
       {{ key }}
@@ -49,18 +47,3 @@
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
   with_items: "{{ dynamic_inventory_flat }}"
-
-#- name: Wait for remote port 22 to become open and contain "OpenSSH".
-#  wait_for:
-#    port: 22
-#    host: "{{ item.inventory_ip }}"
-#    search_regex: OpenSSH
-#    delay: 1
-#  with_items: "{{ dynamic_inventory_flat }}"
-#  connection: local
-
-##### Uncomment the below to simulate redploy failure#######
-############################################################
-# - fail:
-#     msg: "Simulating deployment failure"
-#   when: rescuing is defined and rescuing == "false"

@@ -152,3 +152,17 @@
   run_once: true
   when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
 
+- name: "Create CNAME record"
+  nsupdate:
+    key_name: "{{bind9.key_name}}"
+    key_secret: "{{bind9.key_secret}}"
+    server: "{{bind9.server}}"
+    zone: "{{dns_tld_external}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    value:  "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    type: CNAME
+    state: present
+    ttl: 30
+  with_items: "{{ cluster_hosts_flat }}"  
+  when: cluster_vars[clusterid].dns_server == "nsupdate" and instance_to_create is undefined and rescuing_instance is undefined
+  delegate_to: localhost

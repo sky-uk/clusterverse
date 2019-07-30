@@ -23,7 +23,7 @@ prometheus_set_unset_maintenance_mode: true               # Whether a maintenanc
 
 # Default Filebeat agent settings - specifics to be provided by app playbooks
 filebeat_install: true
-filebeat_version: 6.5.1
+filebeat_version: 7.1.0
 
 # Default filesystem and packages configurations
 file_system_type: "ext4" # 

@@ -2,17 +2,13 @@
 
 - debug: msg="Attempting to redeploy {{host_to_redeploy}}"
 
-- name: run pre-delete role
-  include_role:
-    name: "{{predeleterole}}"
-  when: predeleterole is defined and predeleterole != ""
 
 - include_tasks: gce.yml
   when: cluster_vars[clusterid].type == "gce"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
 
-- include_tasks: aws_stop_oldrelease.yml
+- include_tasks: aws-gather-instance-to-create.yml
   when: cluster_vars[clusterid].type == "aws"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
@@ -24,8 +20,12 @@
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
-    maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e instance_to_create={{ existing | json_query('instances[0].tags.Name')}}"
+    instance_to_create: "{{ existing | json_query('instances[0].tags.Name') | regex_replace('-(?!.*-).*') + '-'+gdp_time}}"  
 
+- name: "set argument variables for {{mainclusteryml}}"
+  set_fact:
+    maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e instance_to_create={{instance_to_create}}"
+ 
 - name: Attempt redploy.  Restore old if fails
   block:
     - name: "run {{mainclusteryml}}"
@@ -34,36 +34,34 @@
 
     - debug: msg={{r_mainclusteryml}}
 
-    - include_tasks: aws_del.yml
-      when: cluster_vars[clusterid].type == "aws"
-      vars:
-        host_to_del: "{{ host_to_redeploy }}"
-        release_to_del: "{{host_to_redeploy.current_release}}"   
 
-  rescue:
-    - debug: msg="Restoring {{host_to_redeploy}}"
+    - name: "Create CNAME record"
+      nsupdate:
+        key_name: "{{bind9.key_name}}"
+        key_secret: "{{bind9.key_secret}}"
+        server: "{{bind9.server}}"
+        zone: "{{dns_tld_external}}"
+        record: "{{instance_to_create | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{instance_to_create}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        type: CNAME
+        state: present
+        ttl: 30
+      when: cluster_vars[clusterid].dns_server == "nsupdate"
 
-    - include_tasks: aws_stop_oldrelease.yml
+# ##### Uncomment the below to simulate redploy failure#######
+# ############################################################
+#     - fail:
+#         msg: "Simulating deployment failure"
+#       when: "'gdp-sandbox-gen-b0' in host_to_redeploy.hostname" 
+
+    - name: run pre-delete role
+      include_role:
+        name: "{{predeleterole}}"
+      when: predeleterole is defined and predeleterole != ""    
+        
+    - include_tasks: aws_stop_instance.yml
       when: cluster_vars[clusterid].type == "aws"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
-        release_to_stop: "{{host_to_redeploy.release}}"
-        deploy_status_to_stop: "new"
-        
-    #Uncomment to delete failed instances
-    # - include_tasks: aws_del.yml
-    #   when: cluster_vars[clusterid].type == "aws"
-    #   vars:
-    #     host_to_del: "{{ host_to_redeploy }}"
-    #     release_to_del: "{{release_version}}"       
-
-    - include_tasks: aws_rescue.yml
-      when: cluster_vars[clusterid].type == "aws"
-      vars:
-        host_to_rescue: "{{host_to_redeploy}}"
-
-    - name: "run {{mainclusteryml}} -e rescuing={{host_to_redeploy.current_release}}"
-      shell: "{{maincluster_yml_args}} -e rescuing={{host_to_redeploy.current_release}}"
-      vars:
-        rescuing: "false"      
-      register: r_mainclusteryml
+        release_to_stop: "{{host_to_redeploy.current_release}}"
+        deploy_status_to_stop: "old"

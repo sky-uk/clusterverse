@@ -13,7 +13,7 @@
   hosts: localhost
   connection: local
   become: false
-  gather_facts: false
+  gather_facts: true
   tasks:
     - name: Run redeploy
       include_role:
