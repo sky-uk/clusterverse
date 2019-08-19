@@ -1,5 +1,5 @@
 ---
-- name: Attempt redploy.  Restore old if fails
+- name: Attempt redeploy.  Restore old if fails
   block:
   
     - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
@@ -15,6 +15,10 @@
       include_tasks: aws_del.yml
       when: cluster_vars[clusterid].type == "aws" and deployment_failed is not defined and deployment_failed != true
 
+    - name: Clean stopped instance if deployment is succesfull
+      include_tasks: gce_del.yml
+      when: cluster_vars[clusterid].type == "gce" and deployment_failed is not defined and deployment_failed != true      
+
   rescue:
     - debug: msg="Restoring cluster"
 
@@ -24,4 +28,20 @@
     - include_tasks: aws_rescue.yml
       when: cluster_vars[clusterid].type == "aws"
       vars:
-        host_to_rescue: "{{host_to_redeploy}}"    
+        host_to_rescue: "{{host_to_redeploy}}"
+
+    - include_tasks: gce_rescue.yml
+      when: cluster_vars[clusterid].type == "gce"
+      vars:
+        host_to_rescue: "{{host_to_redeploy}}"
+
+    - name: get argument variables
+      get_argv:
+
+    - name: "set argument variables for {{mainclusteryml}}"
+      set_fact:
+        maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+
+    - name: "run {{mainclusteryml}} to clean the inventory from stopped nodes"
+      shell: "{{maincluster_yml_args}} -e rescuing=false"      
+      register: r_mainclusteryml        

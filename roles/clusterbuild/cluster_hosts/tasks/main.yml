@@ -2,7 +2,7 @@
 
 - name: Set current time (epoch)
   set_fact:
-    gdp_time: "{{ansible_date_time.epoch}}" 
+    epoch_time: "{{ansible_date_time.epoch}}" 
 
 # Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
 - set_fact:

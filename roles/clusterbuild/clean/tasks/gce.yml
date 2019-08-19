@@ -1,5 +1,12 @@
 ---
 
+- name: Remove deletion protection
+  command: "gcloud compute instances update {{item.hostname}} --no-deletion-protection --zone {{cluster_vars[clusterid].region}}-{{item.az_name}}"
+  with_items: "{{cluster_hosts_flat}}"
+  delegate_to: localhost
+  run_once: true
+  when: "cluster_vars[clusterid][buildenv].deletion_protection == 'yes'"
+
 - name: Delete GCE VMs asynchronously
   gcp_compute_instance:
     name: "{{item.hostname}}"
@@ -11,7 +18,7 @@
   register: gcp_compute_instance
   with_items: "{{cluster_hosts_flat}}"
   async: 7200
-  poll: 0
+  poll: 0 
 
 - name: Wait for gce instance deletion to complete
   async_status:

@@ -1,0 +1,121 @@
+---
+
+- debug: msg="Stop {{host_to_stop.hostname}}"
+
+
+- name: gcp_stop | Stop GCE instance
+  block:
+
+    - name: Get GCP instance facts
+      gcp_compute_instance_facts:
+        zone: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        filters:
+          - "name = {{host_to_stop.hostname}}*"
+          - "status = RUNNING"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      register: gcp_compute_instance_facts
+      delegate_to: localhost
+
+    - name: Delete maintenance_mode label
+      gce_labels:
+        resource_name: "{{ host_to_stop.hostname }}"
+        resource_type: instances
+        resource_location: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        project_id: "{{ cluster_vars[clusterid].project_id }}"
+        credentials_file: "{{ gcp_credentials_file }}"
+        labels:
+          maintenance_mode: "{{ maintenance_mode_tag }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+      vars:
+        maintenance_mode_tag: "{{gcp_compute_instance_facts | json_query('items[?name==`' + host_to_stop.hostname + '`].labels.maintenance_mode | [] | [0]')}}"
+      when: maintenance_mode_tag != ""
+
+    - name: Set_maintenance_mode
+      gce_labels:
+        resource_name: "{{host_to_stop.hostname}}"
+        resource_type: instances
+        resource_location: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        credentials_file: "{{gcp_credentials_file}}"
+        labels:
+          maintenance_mode: "true"
+        state: present
+      delegate_to: localhost
+      run_once: true
+
+    - name: Delete DNS entries from infoblox
+      infoblox:
+        server: "{{ infoblox.server }}"
+        username: "{{ infoblox.username }}"
+        password: "{{ infoblox.password }}"
+        action: delete_a_record
+        name: "{{host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+      when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
+    ## Can't use this unless we use the same creation (which doesn't work properly)
+    #- name: Delete DNS entries from infoblox
+    #  nios_host_record:
+    #    name: "{{ host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    #    state: absent
+    #    provider:
+    #      host: "{{ infoblox.server }}"
+    #      username: "{{ infoblox.username }}"
+    #      password: "{{ infoblox.password }}"
+      
+    - name: Delete DNS A records using nsupdate (if applicable)
+      nsupdate:
+        key_name: "{{bind9.key_name}}"
+        key_secret: "{{bind9.key_secret}}"
+        server: "{{bind9.server}}"
+        zone: "{{dns_tld_external}}"
+        state: "absent"
+        record: "{{host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+      when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+
+    - name: Delete DNS entries from route53
+      block:
+      - name: Get DNS entries from route53
+        route53:
+          state: "get"
+          zone: "{{cluster_vars[clusterid].dns_zone_external}}"
+          record: "{{cluster_vars[clusterid].region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
+          type: "A"
+        register: dns_rec
+
+      - name: Remove DNS entries from route53
+        route53:
+          state: "absent"
+          zone: "{{ item.set.zone }}"
+          record: "{{ item.set.record }}"
+          type: "{{ item.set.type }}"
+          ttl: "{{ item.set.ttl }}"
+          value: ["{{ item.set.value }}"]
+        with_items: "{{ dns_rec.results }}"
+        when: item.set.value is defined
+      when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+      
+    - name: Stop GCE VMs asynchronously
+      gcp_compute_instance:
+        name: "{{host_to_stop.hostname}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        zone: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        status: "TERMINATED"
+      register: gcp_compute_instance
+      async: 7200
+      poll: 0
+      delegate_to: localhost
+     
+    - name: Wait for gce instance stop to complete
+      async_status:
+        jid: "{{ gcp_compute_instance.ansible_job_id }}"
+      register: gcp_jobs
+      until: gcp_jobs.finished
+      retries: 300
+      delegate_to: localhost   
