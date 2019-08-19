@@ -106,8 +106,11 @@
             {% endif -%}
           {%- endfor -%}
         {%- else -%}
-          {%- set _dummy = host.update({'hostname': host.hostname + '-' + gdp_time|string})-%}
+          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string})-%}
         {%- endif -%}
+        {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
+          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string})-%}
+        {%- endif -%}   
       {%- endfor -%}
       {{ res }}
 

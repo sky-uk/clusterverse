@@ -2,29 +2,26 @@
 
 - debug: msg="Attempting to rollback {{host_to_rollback}}"
 
-- name: Rescuing EC2 instance
-  block:
-    - name: aws_restore | get existing instance
-      ec2_instance_facts:
-        filters:
-          "instance-state-name": ["running", "stopped"]
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
-      register: existing_torestore
-      delegate_to: localhost
-      run_once: true
-
-    - name: aws_restore | Start EC2 instance
-      ec2:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{ cluster_vars[clusterid].region }}"
-        state: "running"
-        instance_ids: ["{{ existing_torestore | json_query('instances[?tags.Name==`'+ host_to_rollback +'`].instance_id | [0]') }}"]
-        wait: true
-      delegate_to: localhost
-      run_once: true
+- name: Rescuing GCP instance
+  gcp_compute_instance:
+    name: "{{host_to_rollback}}"
+    project: "{{cluster_vars[clusterid].project_id}}"
+    zone: "{{cluster_vars[clusterid].region}}-{{host_to_rollback | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    status: "RUNNING"
+  async: 7200
+  poll: 0
+  delegate_to: localhost
+  register: gcp_compute_instance
+     
+- name: Wait for gce instance start to complete
+  async_status:
+    jid: "{{ gcp_compute_instance.ansible_job_id }}"
+  register: gcp_jobs
+  until: gcp_jobs.finished
+  retries: 300
+  delegate_to: localhost  
 
 - name: get argument variables
   get_argv:
@@ -32,22 +29,16 @@
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
     maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
- 
-
 
 - name: Attempt redeploy
   block:
-
     - set_fact:
         j_rollback_arg: "[?starts_with(@, '{{host_to_rollback_clean|string}}')] | [0]"
       vars:
         host_to_rollback_clean: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}"  
 
     - set_fact:
-        host_to_redeploy: "{'hostname': \"{{rollback_instances | json_query('instances[*].tags.Name') | difference([host_to_rollback]) | to_json | from_json | json_query(j_rollback_arg)}}\"}"
- 
-    - set_fact:
-        host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
+        host_to_redeploy: "{'hostname': \"{{rollback_instances | json_query('results[*].items[].name') | difference([host_to_rollback]) | to_json | from_json | json_query(j_rollback_arg)}}\"}"
 
     - name: "run {{mainclusteryml}}"
       shell: "{{maincluster_yml_args}} -e rescuing=true -e rescuing_instance={{ host_to_redeploy.hostname }}"      
@@ -70,10 +61,9 @@
       include_role:
         name: "{{predeleterole}}"
       when: predeleterole is defined and predeleterole != ""    
-        
-    - include_tasks: aws_stop_instance.yml
-      when: cluster_vars[clusterid].type == "aws"
+
+    - include_tasks: gce_stop_instance.yml
+      when: cluster_vars[clusterid].type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
-        release_to_stop: "{{host_to_redeploy_release}}"
-        deploy_status_to_stop: "new"
+        deploy_status_to_stop: "new"        

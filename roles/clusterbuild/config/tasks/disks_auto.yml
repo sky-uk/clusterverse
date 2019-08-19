@@ -25,7 +25,7 @@
     fstype: "{{ file_system_type}}"
     dev: "/dev/{{ item.volume_name }}"
     force: no
-  with_items: "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"    
+  with_items: "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"
   
 - name: autodisks | Loop expected volumes and available volumes
   become: yes
@@ -33,9 +33,9 @@
   vars:
     actual_volume_size: "{{item.1.volume_size}}"
     volume_name: "{{item.1.volume_name}}"
-    expected_volume_size: "{{item.0.volume_size}}"
+    expected_volume_size: "{%- if cluster_vars[clusterid].type == \"aws\" -%} {{item.0.volume_size}} {%- elif cluster_vars[clusterid].type == \"gce\" -%} {{item.0.disk_size_gb}} {%- endif -%}"
   with_nested:
       - "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") }}"
       - "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"  
-  when: actual_volume_size == expected_volume_size
+  when: actual_volume_size == expected_volume_size 
   

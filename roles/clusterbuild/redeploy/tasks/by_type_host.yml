@@ -2,13 +2,14 @@
 
 - debug: msg="Attempting to redeploy {{host_to_redeploy}}"
 
-
-- include_tasks: gce.yml
+- include_tasks: gce-gather-instance-to-stop.yml
   when: cluster_vars[clusterid].type == "gce"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
+    release_to_stop: "{{host_to_redeploy.current_release}}"
+    deploy_status_to_stop: "old"     
 
-- include_tasks: aws-gather-instance-to-create.yml
+- include_tasks: aws-gather-instance-to-stop.yml
   when: cluster_vars[clusterid].type == "aws"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
@@ -16,24 +17,19 @@
     deploy_status_to_stop: "old"   
 
 - name: get argument variables
-  get_argv:
-
-- name: "set argument variables for {{mainclusteryml}}"
-  set_fact:
-    instance_to_create: "{{ existing | json_query('instances[0].tags.Name') | regex_replace('-(?!.*-).*') + '-'+gdp_time}}"  
+  get_argv:  
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
     maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e instance_to_create={{instance_to_create}}"
- 
-- name: Attempt redploy.  Restore old if fails
+
+- name: Attempt redeploy.  Restore old if fails
   block:
     - name: "run {{mainclusteryml}}"
       shell: "{{maincluster_yml_args}} -e rescuing=false"      
       register: r_mainclusteryml
 
     - debug: msg={{r_mainclusteryml}}
-
 
     - name: "Create CNAME record"
       nsupdate:
@@ -50,9 +46,9 @@
 
 # ##### Uncomment the below to simulate redploy failure#######
 # ############################################################
-#     - fail:
-#         msg: "Simulating deployment failure"
-#       when: "'gdp-sandbox-gen-b0' in host_to_redeploy.hostname" 
+#    - fail:
+#       msg: "Simulating deployment failure"
+#      when: "'gdp-sandbox-gen-b0' in host_to_redeploy.hostname"
 
     - name: run pre-delete role
       include_role:
@@ -61,6 +57,13 @@
         
     - include_tasks: aws_stop_instance.yml
       when: cluster_vars[clusterid].type == "aws"
+      vars:
+        host_to_stop: "{{host_to_redeploy}}"
+        release_to_stop: "{{host_to_redeploy.current_release}}"
+        deploy_status_to_stop: "old"
+
+    - include_tasks: gce_stop_instance.yml
+      when: cluster_vars[clusterid].type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         release_to_stop: "{{host_to_redeploy.current_release}}"

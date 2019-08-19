@@ -61,7 +61,7 @@
         description: "{{ item.description }}"
         source_ranges: "{{ item.source_ranges | default([]) }}"
         source_tags: "{{ item.source_tags | default([]) }}"
-        network: "{{gcp_compute_network_facts['items'][0].selfLink}}"
+        network: "{{gcp_compute_network_facts['items'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         project: "{{cluster_vars[clusterid].project_id}}"
@@ -78,9 +78,9 @@
         metadata:
           hosttype: "{{item.hosttype}}"
           env: "{{buildenv}}"
+          release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
           owner: "{{ lookup('env','USER') }}"
-          maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%} true {%- else -%} false {%- endif -%}"
           startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
         network_interfaces:
           - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
@@ -113,6 +113,63 @@
       retries: 300
       with_items: "{{gcp_compute_instance.results}}"
 
+    - name: set a fact containing newly-created hosts
+      set_fact:
+        cluster_hosts_flat_created: "{{ gce_jobs.results | json_query(\"[?item.changed==`true`].item.item\") }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Set deletion protection
+      command: "gcloud compute instances update {{item.hostname}} --deletion-protection --zone {{cluster_vars[clusterid].region}}-{{item.az_name}}"
+      with_items: "{{cluster_hosts_flat}}"
+      delegate_to: localhost
+      run_once: true
+      when: "cluster_vars[clusterid][buildenv].deletion_protection == 'yes'"         
+
+    # Currently GCP doesn't allow to amend a metadata field and labels don't support . (e.g. v1.0.0)
+    # - name: update release tag when run normal deploy
+    #   gce_labels:
+    #     resource_name: "{{item.hostname}}"
+    #     resource_type: instances
+    #     resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+    #     project_id: "{{cluster_vars[clusterid].project_id}}"
+    #     credentials_file: "{{gcp_credentials_file}}"
+    #     labels:
+    #       release: "{{ release_version }}"
+    #     state: present
+    #   with_items: "{{cluster_hosts_flat}}"
+    #   when: (instance_to_create is undefined and rescuing is undefined)
+
+    - name: force set maintenance_mode to true (when prometheus_set_unset_maintenance_mode)
+      gce_labels:
+        resource_name: "{{item.hostname}}"
+        resource_type: instances
+        resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        credentials_file: "{{gcp_credentials_file}}"
+        labels:
+          maintenance_mode: "true"
+        state: present
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{cluster_hosts_flat}}"
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
+
+    - name: set deploy_status label
+      gce_labels:
+        resource_name: "{{item.hostname}}"
+        resource_type: instances
+        resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        project_id: "{{cluster_vars[clusterid].project_id}}"
+        credentials_file: "{{gcp_credentials_file}}"
+        labels:
+          deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
+        state: present
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{cluster_hosts_flat}}"
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
+
     # Need this because the gcp_compute_instance module does not return all the facts if the instance is already existing (only if newly created)
     # Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
     - name: Get GCP instance facts
@@ -126,8 +183,9 @@
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       with_items: "{{cluster_hosts_flat}}"
       register: gcp_compute_instance_facts
+      run_once: true
 
-#    - debug: msg={{gcp_compute_instance_facts}}
+    # - debug: msg={{gcp_compute_instance_facts}}
 
     - set_fact:
         dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"

@@ -9,7 +9,7 @@ boto3 = "*"
 boto = "*"
 botocore = "*"
 requests = "*"
-ansible = ">=2.7.1"
+ansible = ">=2.8.1"
 jmespath = "*"
 dnspython = "*"
 google-auth = "*"
@@ -20,6 +20,7 @@ shade = "*"
 python-openstackclient = "*"
 python-novaclient = "*"
 apache-libcloud = "*"
+google-api-python-client = "*"
 
 [dev-packages]
 
