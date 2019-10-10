@@ -51,6 +51,7 @@
         type: CNAME
         state: present
         ttl: 30
+      when: cluster_vars[clusterid].dns_server == "nsupdate"
 
     - name: run pre-delete role
       include_role:

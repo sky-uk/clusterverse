@@ -52,6 +52,7 @@
         type: CNAME
         state: present
         ttl: 30
+      when: cluster_vars[clusterid].dns_server == "nsupdate"
 
     - set_fact:
         host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
