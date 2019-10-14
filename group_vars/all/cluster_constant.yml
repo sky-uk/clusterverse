@@ -17,17 +17,3 @@ filebeat_version: 7.3.1
 file_system_type: "ext4" # 
 pkgupdate: "onCreate"    # "always" or "onCreate".  Leave empty to prevent updating packages.
 reboot_on_package_upgrade: false # when set to true, restart after upgrading packages
-
-# Infoblox configurations and credentials
-infoblox:
-  server: ""
-  api_version: 2.6.1
-  username: ""
-  password: ""
-
-# Bind configurations and credentials
-bind9:
-  server:
-  key_name:
-  key_secret:
-  key_private:

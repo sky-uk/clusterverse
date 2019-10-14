@@ -74,10 +74,8 @@ pipenv shell
 ### Credentials
 Credentials are encrypted inline in the playbooks using ansible-vault.  
 + Where they are specific to a VPC environment (e.g. dev/stage etc), they are encrypted with environment-specific password, which should be exported in the environment variable: `VAULT_PASSWORD_BUILDENV`
-+ Where they are generic the are exported via `VAULT_PASSWORD_ALL`
 
 ```
-export VAULT_PASSWORD_ALL=<'all' password>
 export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
 ```
 
@@ -86,18 +84,18 @@ export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
 ### Per-cloud:
 #### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
 ```
 #### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
 ```
 #### Openstack:
 ```
-ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
-ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=all@.vaultpass-client.py --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
+ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
+ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
 ```
 
 

@@ -16,6 +16,21 @@ app_class: ""                     # The class of application - applies to the fq
 
 dns_tld_external: ""              # Top-level domain (above the level defined per clusterid)
 
+# Infoblox configurations and credentials
+infoblox:
+  sandbox:
+    server: ""
+    api_version: 2.6.1
+    username: ""
+    password: ""
+
+# Bind configurations and credentials
+bind9:
+  sandbox:
+    server: 
+    key_name: 
+    key_secret: 
+
 # The global {{cluster_name}} is prefixed with {{app_name}}
 cluster_name: "{{app_name}}-{{buildenv}}"
 

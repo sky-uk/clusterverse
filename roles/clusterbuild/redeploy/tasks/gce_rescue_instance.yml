@@ -43,9 +43,9 @@
 
     - name: "Create CNAME record"
       nsupdate:
-        key_name: "{{bind9.key_name}}"
-        key_secret: "{{bind9.key_secret}}"
-        server: "{{bind9.server}}"
+        key_name: "{{bind9[buildenv].key_name}}"
+        key_secret: "{{bind9[buildenv].key_secret}}"
+        server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
         record: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         value:  "{{host_to_rollback}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"

@@ -79,9 +79,9 @@
 
 - name: Create/ Update DNS A records in Infoblox (if applicable)
   infoblox:
-    server: "{{ infoblox.server }}"
-    username: "{{ infoblox.username }}"
-    password: "{{ infoblox.password }}"
+    server: "{{ infoblox[buildenv].server }}"
+    username: "{{ infoblox[buildenv].username }}"
+    password: "{{ infoblox[buildenv].password }}"
     action: set_a_record
     name: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
     address: "{{ hostvars[item.hostname]['ansible_host'] }}"
@@ -100,16 +100,16 @@
 #      - address: "{{ hostvars[item.hostname]['ansible_host'] }}"
 #    state: present
 #    provider:
-#      host: "{{ infoblox.server }}"
-#      username: "{{ infoblox.username }}"
-#      password: "{{ infoblox.password }}"
+#      host: "{{ infoblox[buildenv].server }}"
+#      username: "{{ infoblox[buildenv].username }}"
+#      password: "{{ infoblox[buildenv].password }}"
 
 
 - name: Create/ Update DNS A records using nsupdate (if applicable)
   nsupdate:
-    key_name: "{{bind9.key_name}}"
-    key_secret: "{{bind9.key_secret}}"
-    server: "{{bind9.server}}"
+    key_name: "{{bind9[buildenv].key_name}}"
+    key_secret: "{{bind9[buildenv].key_secret}}"
+    server: "{{bind9[buildenv].server}}"
     ttl: 60
     zone: "{{dns_tld_external}}"
     record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
@@ -138,7 +138,7 @@
   when: (cluster_vars[clusterid].dns_server is defined and cluster_vars[clusterid].dns_server != "") and cluster_vars[clusterid].dns_server=="route53" and (cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != "")
 
 - name: Check that DNS has updated (or otherwise wait for it to do so)  [Note lookup('dig', new_fqdn) doesn't work - seems to cache - https://github.com/ansible/ansible/issues/44128]
-  shell: "dig {{new_fqdn}} +short @{{bind9.server}}"
+  shell: "dig {{new_fqdn}} +short @{{bind9[buildenv].server}}"
   register: dig_result
   until: "dig_result.stdout == new_ip"
   retries: 60
@@ -154,9 +154,9 @@
 
 - name: "Create CNAME record"
   nsupdate:
-    key_name: "{{bind9.key_name}}"
-    key_secret: "{{bind9.key_secret}}"
-    server: "{{bind9.server}}"
+    key_name: "{{bind9[buildenv].key_name}}"
+    key_secret: "{{bind9[buildenv].key_secret}}"
+    server: "{{bind9[buildenv].server}}"
     zone: "{{dns_tld_external}}"
     record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
     value:  "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
