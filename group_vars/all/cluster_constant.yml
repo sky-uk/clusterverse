@@ -1,29 +1,17 @@
 ---
+# Ansible interpreter
 ansible_python_interpreter: "/usr/bin/python3"
-
-## Default user vars - in general to be provided by Jenkins
-clusterid: ""                     # Must be an index into cluster_vars in cluster_vars.yml
-buildenv: ""                      # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
-release_version: ""               # Identifies the application version that is being deployed 
-
-app_name: ""                      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
-app_class: ""                     # The class of application - applies to the fqdn
-
-dns_tld_external: ""              # Top-level domain (above the level defined per clusterid)
-
-# The global {{cluster_name}} is prefixed with {{app_name}}
-cluster_name: "{{app_name}}-{{buildenv}}"
 
 # Default Prometheus node exporter configurations
 prometheus_node_exporter_install: true                    # Whether to install the prometheus node_exporter tool
 prometheus_node_exporter_port: 19100                      # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
-prometheus_node_exporter_version: 0.15.2                  # Version of prometheus node_exporter tool to install
+prometheus_node_exporter_version: 0.18.1                  # Version of prometheus node_exporter tool to install
 prometheus_node_exporter_options: "--collector.systemd "  # Extra options for node_exporter
 prometheus_set_unset_maintenance_mode: true               # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.
 
 # Default Filebeat agent settings - specifics to be provided by app playbooks
 filebeat_install: true
-filebeat_version: 7.1.0
+filebeat_version: 7.3.1
 
 # Default filesystem and packages configurations
 file_system_type: "ext4" # 

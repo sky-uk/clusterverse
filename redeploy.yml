@@ -1,5 +1,10 @@
 ---
 
+- name: Include cluster variables
+  hosts: localhost
+  tasks:
+    - include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+
 - name: Preflight check
   hosts: localhost:all
   connection: local
