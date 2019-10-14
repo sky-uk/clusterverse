@@ -11,9 +11,9 @@
 
 - name: Delete DNS entries from infoblox
   infoblox:
-    server: "{{ infoblox.server }}"
-    username: "{{ infoblox.username }}"
-    password: "{{ infoblox.password }}"
+    server: "{{ infoblox[buildenv].server }}"
+    username: "{{ infoblox[buildenv].username }}"
+    password: "{{ infoblox[buildenv].password }}"
     action: delete_a_record
     name: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
   with_items: "{{ cluster_hosts_flat }}"
@@ -25,15 +25,15 @@
 #    name: "{{ item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
 #    state: absent
 #    provider:
-#      host: "{{ infoblox.server }}"
-#      username: "{{ infoblox.username }}"
-#      password: "{{ infoblox.password }}"
+#      host: "{{ infoblox[buildenv].server }}"
+#      username: "{{ infoblox[buildenv].username }}"
+#      password: "{{ infoblox[buildenv].password }}"
   
 - name: Delete DNS A records using nsupdate (if applicable)
   nsupdate:
-    key_name: "{{bind9.key_name}}"
-    key_secret: "{{bind9.key_secret}}"
-    server: "{{bind9.server}}"
+    key_name: "{{bind9[buildenv].key_name}}"
+    key_secret: "{{bind9[buildenv].key_secret}}"
+    server: "{{bind9[buildenv].server}}"
     zone: "{{dns_tld_external}}"
     state: "absent"
     record: "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
@@ -42,9 +42,9 @@
 
 - name: "Delete CNAME records"
   nsupdate:
-    key_name: "{{bind9.key_name}}"
-    key_secret: "{{bind9.key_secret}}"
-    server: "{{bind9.server}}"
+    key_name: "{{bind9[buildenv].key_name}}"
+    key_secret: "{{bind9[buildenv].key_secret}}"
+    server: "{{bind9[buildenv].server}}"
     zone: "{{dns_tld_external}}"
     record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
     value:  "{{item.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
