@@ -1,5 +1,11 @@
 ---
 
+- name: Force include of group_vars on localhost prior to dynamic inventory creation
+  hosts: localhost
+  tasks:
+    - include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+  tags: always
+
 - name: Preflight check
   hosts: localhost:all
   connection: local
@@ -10,11 +16,9 @@
     - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
     - assert: { that: "clusterid is defined and cluster_vars[clusterid] is defined", msg: "Please define clusterid" }
     - assert: { that: "buildenv is defined and cluster_vars[clusterid][buildenv] is defined", msg: "Please define buildenv" }
-
     - assert: { that: "(cluster_vars[clusterid].assign_public_ip == 'yes' and cluster_vars[clusterid].inventory_ip == 'public') or (cluster_vars[clusterid].inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars[clusterid].type == "gce" or cluster_vars[clusterid].type == "aws"
   tags: always
-
 
 - name: Clean the cluster
   hosts: localhost
@@ -49,11 +53,9 @@
     - role: clusterbuild/config
   tags: clusterbuild_config
 
-
 ## ...
 ## Application roles
 ## ...
-
 
 - name: Perform cluster readiness operations (e.g. remove maintenance_mode tag from VMs).
   hosts: all
