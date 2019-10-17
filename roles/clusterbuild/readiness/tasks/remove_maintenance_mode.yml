@@ -6,9 +6,9 @@
         filters:
           "tag:Name": "{{item}}"
           "instance-state-name": ["running", "stopped"]
-        aws_access_key: "{{ cluster_vars[clusterid][buildenv].aws_access_key }}"
-        aws_secret_key: "{{ cluster_vars[clusterid][buildenv].aws_secret_key }}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
+        region: "{{cluster_vars.region}}"
       delegate_to: localhost
       run_once: true
       register: ec2_instance_facts
@@ -25,25 +25,25 @@
 
     - name: remove_maintenance_mode | set maintenance_mode to false
       ec2_tag:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
         resource: "{{ item }}"
         tags:
           maintenance_mode: "false"
       delegate_to: localhost
       run_once: true
       with_items: "{{ maint_mode_uids_to_clear }}"
-  when: cluster_vars[clusterid].type == "aws"
+  when: cluster_vars.type == "aws"
 
 - block:
     - name: Get GCP instance facts
       gcp_compute_instance_facts:
-        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        zone: "{{cluster_vars.region}}-{{item.az_name}}"
         filters:
           - "name = {{item.hostname}}*"
           - "status = RUNNING"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -55,8 +55,8 @@
       gce_labels:
         resource_name: "{{ item.hostname }}"
         resource_type: instances
-        resource_location: "{{ cluster_vars[clusterid].region }}-{{ item.az_name }}"
-        project_id: "{{ cluster_vars[clusterid].project_id }}"
+        resource_location: "{{ cluster_vars.region }}-{{ item.az_name }}"
+        project_id: "{{ cluster_vars.project_id }}"
         credentials_file: "{{ gcp_credentials_file }}"
         labels:
           maintenance_mode: "{{ maintenance_mode_tag }}"
@@ -72,8 +72,8 @@
       gce_labels:
         resource_name: "{{item.hostname}}"
         resource_type: instances
-        resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
+        resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
+        project_id: "{{cluster_vars.project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
         labels:
           maintenance_mode: "false"
@@ -81,4 +81,4 @@
       delegate_to: localhost
       run_once: true
       with_items: "{{cluster_hosts_flat}}"
-  when: cluster_vars[clusterid].type == "gce"  
+  when: cluster_vars.type == "gce"

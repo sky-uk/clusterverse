@@ -13,7 +13,6 @@ prometheus_set_unset_maintenance_mode: true               # Whether a maintenanc
 filebeat_install: true
 filebeat_version: 7.3.1
 
-# Default filesystem and packages configurations
-file_system_type: "ext4" # 
+# Default packages configurations
 pkgupdate: "onCreate"    # "always" or "onCreate".  Leave empty to prevent updating packages.
 reboot_on_package_upgrade: false # when set to true, restart after upgrading packages

@@ -4,22 +4,22 @@
   block:
     - name: Create GCP host network (if -e create_gce_network=true)
       gcp_compute_network:
-        name: "{{cluster_vars[clusterid][buildenv].vpc_network_name}}"
-        auto_create_subnetworks: "{%- if cluster_vars[clusterid][buildenv].vpc_subnet_name is defined and cluster_vars[clusterid][buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        name: "{{cluster_vars[buildenv].vpc_network_name}}"
+        auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       register: _gcp_compute_network
 
     - name: Create GCP host subnetwork (if -e create_gce_network=true)
       gcp_compute_subnetwork:
-        name: "{{cluster_vars[clusterid][buildenv].vpc_subnet_name}}"
+        name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
         network: "{{_gcp_compute_network}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       register: _gcp_compute_subnetwork
-      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
   when: create_gce_network is defined and create_gce_network|bool
 
 
@@ -28,35 +28,35 @@
     - name: GCP network facts
       gcp_compute_network_facts:
         filters:
-          - "name = {{cluster_vars[clusterid][buildenv].vpc_network_name}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+          - "name = {{cluster_vars[buildenv].vpc_network_name}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       register: gcp_compute_network_facts
 
-    - name: "Assert that {{cluster_vars[clusterid][buildenv].vpc_network_name}} network exists"
-      assert: { that: "gcp_compute_network_facts['items'] | length > 0", msg: "The {{cluster_vars[clusterid][buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
+    - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
+      assert: { that: "gcp_compute_network_facts['items'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
 
     - name: GCP subnetwork facts
       gcp_compute_subnetwork_facts:
         filters:
-          - "name = {{cluster_vars[clusterid][buildenv].vpc_subnet_name}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+          - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       register: gcp_compute_subnetwork_facts
-      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
-    - name: "Assert that {{cluster_vars[clusterid][buildenv].vpc_subnet_name}} subnet exists"
-      assert: { that: "gcp_compute_subnetwork_facts['items'] | length > 0", msg: "The {{cluster_vars[clusterid][buildenv].vpc_subnet_name}} subnet must exist" }
-      when: (cluster_vars[clusterid][buildenv].vpc_subnet_name is defined) and (cluster_vars[clusterid][buildenv].vpc_subnet_name != "")
+    - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
+      assert: { that: "gcp_compute_subnetwork_facts['items'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
+      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
     - name: Create GCP cluster firewalls
       gcp_compute_firewall:
         name: "{{ item.name }}"
-        target_tags: "{{cluster_vars[clusterid].network_fw_tags}}"
+        target_tags: "{{cluster_vars.network_fw_tags}}"
         allowed: "{{ item.allowed }}"
         description: "{{ item.description }}"
         source_ranges: "{{ item.source_ranges | default([]) }}"
@@ -64,8 +64,8 @@
         network: "{{gcp_compute_network_facts['items'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
-      with_items: "{{ cluster_vars[clusterid].firewall_rules }}"
+        project: "{{cluster_vars.project_id}}"
+      with_items: "{{ cluster_vars.firewall_rules }}"
 
 
 - name: Create GCP VMs asynchronously
@@ -85,18 +85,19 @@
         network_interfaces:
           - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_facts['items'][0] | default({}) }}"
-            access_configs: "{%- if cluster_vars[clusterid].assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
-        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-        can_ip_forward : "{{cluster_vars[clusterid].ip_forward}}"
-        scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[clusterid][buildenv].preemptible}}" }
+            access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
+        zone: "{{cluster_vars.region}}-{{item.az_name}}"
+        can_ip_forward : "{{cluster_vars.ip_forward}}"
+        scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[buildenv].preemptible}}" }
         state: present
-        tags: { items: "{{cluster_vars[clusterid].network_fw_tags}}" }
-        project: "{{cluster_vars[clusterid].project_id}}"
+        tags: { items: "{{cluster_vars.network_fw_tags}}" }
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       vars:
-        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars[clusterid].image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
-        _autodisks: "{{cluster_vars[clusterid][buildenv].hosttype_vars[item.hosttype].auto_volumes | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,name]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,name]), disk_size_gb: disk_size_gb}} \") }}"
+        __autodisksnames: ["{%- for vol in cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes -%}{%- set mountname = vol.mountpoint | regex_replace('.*\\/(.*)', '\\\\1') -%}{{vol|combine({'mountname': mountname})}}{% if not loop.last %},{% endif %}{%- endfor -%}"]
+        _autodisks: "{{__autodisksnames | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,mountname]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,mountname]), disk_size_gb: volume_size}} \") }}"
+        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
         _host_disks: "{{[_bootdisk] + _autodisks}}"
       register: gcp_compute_instance
       run_once: true
@@ -120,19 +121,19 @@
       run_once: true
 
     - name: Set deletion protection
-      command: "gcloud compute instances update {{item.hostname}} --deletion-protection --zone {{cluster_vars[clusterid].region}}-{{item.az_name}}"
+      command: "gcloud compute instances update {{item.hostname}} --deletion-protection --zone {{cluster_vars.region}}-{{item.az_name}}"
       with_items: "{{cluster_hosts_flat}}"
       delegate_to: localhost
       run_once: true
-      when: "cluster_vars[clusterid][buildenv].deletion_protection == 'yes'"         
+      when: "cluster_vars[buildenv].deletion_protection == 'yes'"
 
     # Currently GCP doesn't allow to amend a metadata field and labels don't support . (e.g. v1.0.0)
     # - name: update release tag when run normal deploy
     #   gce_labels:
     #     resource_name: "{{item.hostname}}"
     #     resource_type: instances
-    #     resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-    #     project_id: "{{cluster_vars[clusterid].project_id}}"
+    #     resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
+    #     project_id: "{{cluster_vars.project_id}}"
     #     credentials_file: "{{gcp_credentials_file}}"
     #     labels:
     #       release: "{{ release_version }}"
@@ -144,8 +145,8 @@
       gce_labels:
         resource_name: "{{item.hostname}}"
         resource_type: instances
-        resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
+        resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
+        project_id: "{{cluster_vars.project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
         labels:
           maintenance_mode: "true"
@@ -159,8 +160,8 @@
       gce_labels:
         resource_name: "{{item.hostname}}"
         resource_type: instances
-        resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
+        resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
+        project_id: "{{cluster_vars.project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
         labels:
           deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
@@ -174,10 +175,10 @@
     # Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
     - name: Get GCP instance facts
       gcp_compute_instance_facts:
-        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        zone: "{{cluster_vars.region}}-{{item.az_name}}"
         filters:
           - "name = {{item.hostname}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -188,11 +189,8 @@
     # - debug: msg={{gcp_compute_instance_facts}}
 
     - set_fact:
-        dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
-        dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('hosttype') }}"
-      vars:
-        _dynamic_inventory_flat: |
-          {%- if cluster_vars[clusterid].inventory_ip == 'private' -%}
+        dynamic_inventory_flat: |
+          {%- if cluster_vars.inventory_ip == 'private' -%}
             {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
           {%- else -%}
             {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}

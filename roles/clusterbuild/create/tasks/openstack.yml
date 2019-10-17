@@ -6,22 +6,22 @@
     state: present
     auth_type: password
     auth:
-      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
       username: "{{os_username}}"
       password: "{{os_password}}"
     name: "{{item.hostname}}"
     flavor: "{{item.flavor}}"
     volume_size: "{{item.rootvol_size}}"
     meta: {hosttype: "{{item.hosttype}}"}
-    image: "{{cluster_vars[clusterid].image}}"
-    region_name: "{{cluster_vars[clusterid].region}}"
+    image: "{{cluster_vars.image}}"
+    region_name: "{{cluster_vars.region}}"
     timeout: 200
-    security_groups: "{{cluster_vars[clusterid].secgroups_existing}}"
-    key_name: "{{cluster_vars[clusterid].key_name}}"
-    network: "{{cluster_vars[clusterid].network}}"
+    security_groups: "{{cluster_vars.secgroups_existing}}"
+    key_name: "{{cluster_vars.key_name}}"
+    network: "{{cluster_vars.network}}"
     auto_ip: no
   register: os_instances
   run_once: true
@@ -44,13 +44,13 @@
     state: present
     auth_type: password
     auth:
-      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
       username: "{{os_username}}"
       password: "{{os_password}}"
-    network: "{{cluster_vars[clusterid].floating_ip_pools}}"
+    network: "{{cluster_vars.floating_ip_pools}}"
     server: "{{item.hostname}}"
     reuse: yes
     wait: yes
@@ -71,9 +71,6 @@
 #- debug: msg={{os_ips_jobs.results}}
 
 - set_fact:
-    dynamic_inventory_flat: "{{ _dynamic_inventory_flat }}"
-    dynamic_inventory_dict: "{{ _dynamic_inventory_flat | dict_agg('hosttype') }}"
-  vars:
-    _dynamic_inventory_flat: "{{ os_ips_jobs.results | json_query('[*].{hosttype: item.item.hosttype, hostname: item.item.hostname, private_ip: floating_ip.fixed_ip_address, public_ip: floating_ip.floating_ip_address, inventory_ip: floating_ip.floating_ip_address}') }}"
+    dynamic_inventory_flat: "{{ os_ips_jobs.results | json_query('[*].{hosttype: item.item.hosttype, hostname: item.item.hostname, private_ip: floating_ip.fixed_ip_address, public_ip: floating_ip.floating_ip_address, inventory_ip: floating_ip.floating_ip_address}') }}"
 
 #- debug: msg={{dynamic_inventory_flat}}

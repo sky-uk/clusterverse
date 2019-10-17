@@ -22,10 +22,10 @@
       os_zone_facts:
         auth_type: password
         auth:
-          auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-          tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-          tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-          project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+          auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+          tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+          tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+          project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
           username: "{{os_username}}"
           password: "{{os_password}}"
         name: "{{dns_tld_external}}."
@@ -50,17 +50,17 @@
     - name: Set all dns fact
       set_fact:
         os_all_dns: "{{ recordset_list.stdout | from_json }}"
-  when: cluster_vars[clusterid].type == "openstack" and cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+  when: cluster_vars.type == "openstack" and cluster_vars.dns_server == "openstack" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
 ## Obfuscates output to be 'safe' - v. irritating
 #- name: "Get Openstack Recordsets for Zone {{dns_tld_external}}"
 #  os_recordset_facts:
 #    auth_type: password
 #    auth:
-#      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-#      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-#      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-#      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+#      auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+#      tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+#      tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+#      project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
 #      username: "{{os_username}}"
 #      password: "{{os_password}}"
 #    zone_id: "{{os_zone_id}}"

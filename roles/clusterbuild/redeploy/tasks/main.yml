@@ -13,11 +13,11 @@
 
     - name: Clean stopped instance if deployment is succesfull
       include_tasks: aws_del.yml
-      when: cluster_vars[clusterid].type == "aws" and deployment_failed is not defined and deployment_failed != true
+      when: cluster_vars.type == "aws" and deployment_failed is not defined and deployment_failed != true
 
     - name: Clean stopped instance if deployment is succesfull
       include_tasks: gce_del.yml
-      when: cluster_vars[clusterid].type == "gce" and deployment_failed is not defined and deployment_failed != true      
+      when: cluster_vars.type == "gce" and deployment_failed is not defined and deployment_failed != true
 
   rescue:
     - debug: msg="Restoring cluster"
@@ -26,12 +26,12 @@
         deployment_failed: true
     
     - include_tasks: aws_rescue.yml
-      when: cluster_vars[clusterid].type == "aws"
+      when: cluster_vars.type == "aws"
       vars:
         host_to_rescue: "{{host_to_redeploy}}"
 
     - include_tasks: gce_rescue.yml
-      when: cluster_vars[clusterid].type == "gce"
+      when: cluster_vars.type == "gce"
       vars:
         host_to_rescue: "{{host_to_redeploy}}"
 

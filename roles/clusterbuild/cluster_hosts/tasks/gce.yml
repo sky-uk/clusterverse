@@ -5,7 +5,7 @@
     cluster_hosts_flat: |
       {% set res = cluster_hosts_flat -%}
       {%- for host in res -%}
-        {%- set _dummy = host.update({'rootvol_size': cluster_vars[clusterid][buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
+        {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
       {%- endfor %}
       {{ res }}
 
@@ -45,15 +45,15 @@
 
 - name: Get GCP instance facts
   gcp_compute_instance_facts:
-    zone: "{{cluster_vars[clusterid].region}}-{{item}}"
+    zone: "{{cluster_vars.region}}-{{item}}"
     filters:
       - "name = {{cluster_name}}*"       
       - "status = RUNNING"            # gcloud compute instances list --filter="status=RUNNING"
-    project: "{{cluster_vars[clusterid].project_id}}"
+    project: "{{cluster_vars.project_id}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars | json_query('*.az|[]') | unique }}"
+  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query('*.az|[]') | unique }}"
   register: gcp_compute_instance_facts
   delegate_to: localhost
   run_once: true
@@ -94,8 +94,8 @@
   gce_labels:
     resource_name: "{{ item.hostname }}"
     resource_type: instances
-    resource_location: "{{ cluster_vars[clusterid].region }}-{{ item.az_name }}"
-    project_id: "{{ cluster_vars[clusterid].project_id }}"
+    resource_location: "{{ cluster_vars.region }}-{{ item.az_name }}"
+    project_id: "{{ cluster_vars.project_id }}"
     credentials_file: "{{ gcp_credentials_file }}"
     labels:
       deploy_status: "{{ deploy_status_tag }}"
@@ -111,8 +111,8 @@
   gce_labels:
     resource_name: "{{item.hostname}}"
     resource_type: instances
-    resource_location: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
-    project_id: "{{cluster_vars[clusterid].project_id}}"
+    resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
+    project_id: "{{cluster_vars.project_id}}"
     credentials_file: "{{gcp_credentials_file}}"
     labels:
       deploy_status: "{%- if instance_to_create is undefined and rescuing is undefined -%}old{%- else -%}{{deploy_status_tag}}{%- endif -%}"
@@ -127,11 +127,11 @@
 
 - name: Get GCP instance facts
   gcp_compute_instance_facts:
-    zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+    zone: "{{cluster_vars.region}}-{{item.az_name}}"
     filters:
       - "name = {{item.hostname}}"
       - "status = RUNNING"
-    project: "{{cluster_vars[clusterid].project_id}}"
+    project: "{{cluster_vars.project_id}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]

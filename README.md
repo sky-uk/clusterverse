@@ -10,7 +10,7 @@ Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://
 #### all.yml:
 ```
 clusterid:                        # Must be an index into cluster_vars in cluster_vars.yml
-buildenv:                         # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
+buildenv:                         # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
 app_class: "test"                 # The class of application - applies to the fqdn
 clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
 dns_tld_external: "example.com"   # Top-level domain (above the level defined per clusterid)
@@ -48,8 +48,8 @@ export OS_TENANT_ID=
 export OS_TENANT_NAME=
 export OS_PROJECT_NAME=
 export OS_REGION_NAME=
-export OS_USERNAME="<youruser>"
-export OS_PASSWORD='<yourpass>'
+export OS_USERNAME=
+export OS_PASSWORD=
 ````
 
 

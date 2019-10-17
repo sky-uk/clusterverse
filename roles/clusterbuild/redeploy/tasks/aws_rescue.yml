@@ -8,9 +8,9 @@
     filters:
       "tag:cluster_name": "{{cluster_name}}"
       "instance-state-name": ["running", "stopped"]
-    aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-    aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-    region: "{{cluster_vars[clusterid].region}}"
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{cluster_vars.region}}"
   register: rollback_instances
   delegate_to: localhost
   run_once: true
@@ -47,12 +47,12 @@
         key_secret: "{{bind9[buildenv].key_secret}}"
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
-        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-        value:  "{{ host_to_recover}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"  
+        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{ host_to_recover}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         type: CNAME
         state: present
         ttl: 30
-      when: cluster_vars[clusterid].dns_server == "nsupdate"
+      when: cluster_vars.dns_server == "nsupdate"
 
     - set_fact:
         host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
@@ -63,7 +63,7 @@
       when: predeleterole is defined and predeleterole != ""    
         
     - include_tasks: aws_stop_instance.yml
-      when: cluster_vars[clusterid].type == "aws"
+      when: cluster_vars.type == "aws"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         release_to_stop: "{{host_to_redeploy_release}}"

@@ -5,10 +5,10 @@
 
 - name: gce_restore | Get GCP instance facts
   gcp_compute_instance_facts:
-    zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+    zone: "{{cluster_vars.region}}-{{item.az_name}}"
     filters:
       - "name = {{item.hostname | regex_replace('-(?!.*-).*')}}*"
-    project: "{{cluster_vars[clusterid].project_id}}"
+    project: "{{cluster_vars.project_id}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -46,12 +46,12 @@
         key_secret: "{{bind9[buildenv].key_secret}}"
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
-        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-        value:  "{{ host_to_recover}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"  
+        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{ host_to_recover}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         type: CNAME
         state: present
         ttl: 30
-      when: cluster_vars[clusterid].dns_server == "nsupdate"
+      when: cluster_vars.dns_server == "nsupdate"
 
     - name: run pre-delete role
       include_role:
@@ -59,13 +59,13 @@
       when: predeleterole is defined and predeleterole != ""    
         
     - include_tasks: aws_stop_instance.yml
-      when: cluster_vars[clusterid].type == "aws"
+      when: cluster_vars.type == "aws"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         deploy_status_to_stop: "new"
 
     - include_tasks: gce_stop_instance.yml
-      when: cluster_vars[clusterid].type == "gce"
+      when: cluster_vars.type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         deploy_status_to_stop: "new" 
@@ -76,4 +76,4 @@
   with_items: "{{ hosts_to_rollback_stopped }}"
   loop_control:
     loop_var: host_to_rollback
-  when: hosts_to_rollback_stopped | length>0 and cluster_vars[clusterid].type == "gce"
+  when: hosts_to_rollback_stopped | length>0 and cluster_vars.type == "gce"

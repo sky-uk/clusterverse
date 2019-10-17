@@ -11,9 +11,9 @@
           "tag:release": "{{ release_to_stop }}"
           "tag:deploy_status": "{{ deploy_status_to_stop }}"
           "instance-state-name": ["running", "stopped"]
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
       register: existing
       delegate_to: localhost
       run_once: true

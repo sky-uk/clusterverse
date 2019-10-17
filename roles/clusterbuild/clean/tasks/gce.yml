@@ -1,17 +1,17 @@
 ---
 
 - name: Remove deletion protection
-  command: "gcloud compute instances update {{item.hostname}} --no-deletion-protection --zone {{cluster_vars[clusterid].region}}-{{item.az_name}}"
+  command: "gcloud compute instances update {{item.hostname}} --no-deletion-protection --zone {{cluster_vars.region}}-{{item.az_name}}"
   with_items: "{{cluster_hosts_flat}}"
   delegate_to: localhost
   run_once: true
-  when: "cluster_vars[clusterid][buildenv].deletion_protection == 'yes'"
+  when: "cluster_vars[buildenv].deletion_protection == 'yes'"
 
 - name: Delete GCE VMs asynchronously
   gcp_compute_instance:
     name: "{{item.hostname}}"
-    project: "{{cluster_vars[clusterid].project_id}}"
-    zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+    project: "{{cluster_vars.project_id}}"
+    zone: "{{cluster_vars.region}}-{{item.az_name}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     state: "absent"
@@ -34,14 +34,14 @@
     state: "absent"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
-    project: "{{cluster_vars[clusterid].project_id}}"
-  with_items: "{{ cluster_vars[clusterid].firewall_rules }}"
+    project: "{{cluster_vars.project_id}}"
+  with_items: "{{ cluster_vars.firewall_rules }}"
 
 - name: Delete the GCP network (if -e create_gce_network=true)
   gcp_compute_network:
-    name: "{{cluster_vars[clusterid][buildenv].vpc_network_name}}"
+    name: "{{cluster_vars[buildenv].vpc_network_name}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
-    project: "{{cluster_vars[clusterid].project_id}}"
+    project: "{{cluster_vars.project_id}}"
     state: absent
   when: create_gce_network is defined and create_gce_network|bool

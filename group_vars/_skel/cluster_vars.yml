@@ -8,7 +8,7 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 
 ## Default user vars - in general to be provided by Jenkins
 clusterid: ""                     # Must be an index into cluster_vars in cluster_vars.yml
-buildenv: ""                      # Must be an index into cluster_vars[clusterid].hosttype_vars in cluster_vars.yml
+buildenv: ""                      # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
 release_version: ""               # Identifies the application version that is being deployed 
 
 app_name: ""                      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
@@ -34,87 +34,90 @@ bind9:
 # The global {{cluster_name}} is prefixed with {{app_name}}
 cluster_name: "{{app_name}}-{{buildenv}}"
 
+## AWS example
 cluster_vars:
-  [team_name]_aws_[region]:
-    type: aws  # aws, gcp, openstack
-    image: ""  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20190403
-    region: ""
-    dns_zone_internal: "[region].compute.internal" # eu-west-1, us-west-2
-    dns_zone_external: "{%- if dns_tld_external -%} [region].{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-    dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-    assign_public_ip: "no"
-    inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
-    instance_profile_name: "vpc_lock_{{buildenv}}"
-    secgroups_existing: []
-    secgroup_new:
-      - proto: "tcp"
-        ports: [22]
-        cidr_ip: 10.0.0.0/8
-        rule_desc: "SSH Access"
-      - proto: "tcp"
-        ports: ["{{prometheus_node_exporter_port}}"]
-        group_name: ["{{buildenv}}-private-sg"]
-        rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
-      - proto: all
-        group_name: ["{{cluster_name}}-sg"]
-        rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
-    sandbox:
-      hosttype_vars:
-        sys: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
-        #sys_disks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
-      aws_access_key: ""
-      aws_secret_key: ""
-      vpc_name: "[team_name]-{{buildenv}}"
-      vpc_subnet_name_prefix: ""
-      key_name: "" 
-      termination_protection: "no"
+  type: aws  # aws, gcp, openstack
+  image: ""  #ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-20190403
+  region: ""
+  dns_zone_internal: "[region].compute.internal" # eu-west-1, us-west-2
+  dns_zone_external: "{%- if dns_tld_external -%} [region].{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+  dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "no"
+  inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  instance_profile_name: "vpc_lock_{{buildenv}}"
+  secgroups_existing: []
+  secgroup_new:
+    - proto: "tcp"
+      ports: [22]
+      cidr_ip: 10.0.0.0/8
+      rule_desc: "SSH Access"
+    - proto: "tcp"
+      ports: ["{{prometheus_node_exporter_port}}"]
+      group_name: ["{{buildenv}}-private-sg"]
+      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
+    - proto: all
+      group_name: ["{{cluster_name}}-sg"]
+      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+  sandbox:
+    hosttype_vars:
+      # "gen" is the "hosttype" and is used as part of the hostname
+      gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
+      #gen: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+    aws_access_key: ""
+    aws_secret_key: ""
+    vpc_name: "[team_name]-{{buildenv}}"
+    vpc_subnet_name_prefix: ""
+    key_name: ""
+    termination_protection: "no"
 
-  [team_name]_gce_[region]:
-    type: gce
-    image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20181029"
-    #    image: "projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20181030"
-    region: "europe-west1"
-    dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-    dns_zone_external: "{%- if dns_tld_external -%} gce_[region].{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-    dns_server: ""    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-    assign_public_ip: "yes"
-    inventory_ip: "public"     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
-    project_id: "{{gcp_credentials_json.project_id}}"
-    ip_forward: "false"
-    network_fw_tags: ["{{cluster_name}}-nwtag"]
-    firewall_rules:
-      - name: "{{cluster_name}}-extssh"
-        allowed: [{ip_protocol: "tcp", ports: [22]}]
-        source_ranges: ['10.0.0.0/8']
-        description: "SSH Access"
-      - name: "{{cluster_name}}-nwtag"
-        allowed: [{ip_protocol: "all"}]
-        source_tags: ["{{cluster_name}}-nwtag"]
-        description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
-    sandbox:
-      hosttype_vars:
-        data: {count_per_az: 3, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{"auto_delete": true, "interface": "SCSI", "disk_size_gb": 2, name: "mydata", "host_dev_name": "/dev/sdb", mountpoint: "/mnt/data"}]}
-        query: {count_per_az: 2, az: ["b", "c", "d"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
-      vpc_network_name: "[team_name]-{{buildenv}}"
-      vpc_subnet_name: ""
-      preemptible: "false"
-      deletion_protection: "no"
+### GCE example
+#cluster_vars:
+#  type: gce
+#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20181029"
+#  #image: "projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20181030"
+#  region: "europe-west1"
+#  dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
+#  dns_zone_external: "{%- if dns_tld_external -%} gce_[region].{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+#  dns_server: ""    # Specify DNS server. nsupdate, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+#  assign_public_ip: "yes"
+#  inventory_ip: "public"     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+#  project_id: "{{gcp_credentials_json.project_id}}"
+#  ip_forward: "false"
+#  network_fw_tags: ["{{cluster_name}}-nwtag"]
+#  firewall_rules:
+#    - name: "{{cluster_name}}-extssh"
+#      allowed: [{ip_protocol: "tcp", ports: [22]}]
+#      source_ranges: ['10.0.0.0/8']
+#      description: "SSH Access"
+#    - name: "{{cluster_name}}-nwtag"
+#      allowed: [{ip_protocol: "all"}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
+#  sandbox:
+#    hosttype_vars:
+#      data: {count_per_az: 1, az: ["b"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/mnt/data", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/mnt/data2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/mnt/data3", fstype: "ext4"}]}
+#      #query: {count_per_az: 2, az: ["b", "c", "d"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
+#    vpc_network_name: "[team_name]-{{buildenv}}"
+#    vpc_subnet_name: ""
+#    preemptible: "false"
+#    deletion_protection: "no"
 
-  [team_name]_ostack_[region]:
-    type: openstack
-    image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
-    region: [region]
-    #    dns_zone_internal: ""
-    dns_zone_external: "{%- if dns_tld_external -%}  [region].{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
-    dns_server: "openstack"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-    dev:
-      hosttype_vars:
-        test: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
-    network: "[team_name]_{{buildenv}}"
-    security_group: "wide-open"
-    key_name: "{{os_username}}"
-    floating_ip_pools: "vlan3321"
-    OS_AUTH_URL:
-    OS_TENANT_ID:
-    OS_TENANT_NAME:
-    OS_PROJECT_NAME:
+### Openstack example
+#cluster_vars:
+#  type: openstack
+#  image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
+#  region: [region]
+#  dns_zone_internal: ""
+#  dns_zone_external: "{%- if dns_tld_external -%}  [region].{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
+#  dns_server: "openstack"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+#  dev:
+#    hosttype_vars:
+#      test: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
+#  network: "[team_name]_{{buildenv}}"
+#  security_group: "wide-open"
+#  key_name: "{{os_username}}"
+#  floating_ip_pools: "vlan3321"
+#  OS_AUTH_URL:
+#  OS_TENANT_ID:
+#  OS_TENANT_NAME:
+#  OS_PROJECT_NAME:
