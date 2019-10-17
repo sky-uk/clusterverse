@@ -4,11 +4,11 @@
   block:
     - name: Get GCP instance facts
       gcp_compute_instance_facts:
-        zone: "{{cluster_vars[clusterid].region}}-{{item.az_name}}"
+        zone: "{{cluster_vars.region}}-{{item.az_name}}"
         filters:
           - "name = {{item.hostname | regex_replace('-(?!.*-).*')}}*"
           - "status = TERMINATED"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -22,14 +22,14 @@
       with_items: "{{gcp_compute_instance_facts.results | json_query('[].items[]')}}"
       delegate_to: localhost
       run_once: true
-      when: "cluster_vars[clusterid][buildenv].deletion_protection == 'yes'"
+      when: "cluster_vars[buildenv].deletion_protection == 'yes'"
 
     - name: delete maintenance_mode label
       gce_labels:
         resource_name: "{{ item.name }}"
         resource_type: instances
         resource_location: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
-        project_id: "{{ cluster_vars[clusterid].project_id }}"
+        project_id: "{{ cluster_vars.project_id }}"
         credentials_file: "{{ gcp_credentials_file }}"
         labels:
           maintenance_mode: "{{ maintenance_mode_tag }}"
@@ -46,7 +46,7 @@
         resource_name: "{{item.name}}"
         resource_type: instances
         resource_location: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
+        project_id: "{{cluster_vars.project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
         labels:
           maintenance_mode: "true"
@@ -58,7 +58,7 @@
     - name: Delete GCE VMs asynchronously
       gcp_compute_instance:
         name: "{{item.name}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         zone: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"

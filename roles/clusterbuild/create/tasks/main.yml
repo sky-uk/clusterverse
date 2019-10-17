@@ -1,19 +1,18 @@
 ---
 
 - include_tasks: aws.yml
-  when: cluster_vars[clusterid].type == "aws"
+  when: cluster_vars.type == "aws"
 
 - include_tasks: openstack.yml
-  when: cluster_vars[clusterid].type == "openstack"
+  when: cluster_vars.type == "openstack"
 
 - include_tasks: gce.yml
-  when: cluster_vars[clusterid].type == "gce"
+  when: cluster_vars.type == "gce"
 
 - include_tasks: vmware.yml
-  when: cluster_vars[clusterid].type == "vmware"
+  when: cluster_vars.type == "vmware"
 
 #- debug: msg={{dynamic_inventory_flat}}
-#- debug: msg={{dynamic_inventory_dict}}
 
 - name: Add hosts to dynamic inventory
   add_host:

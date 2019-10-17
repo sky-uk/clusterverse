@@ -8,14 +8,14 @@
 - set_fact:
     cluster_hosts_flat: |
       {% set res = [] -%}
-      {%- for hostttype in cluster_vars[clusterid][buildenv].hosttype_vars.keys() -%}
-        {%- for azname in cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].az -%}
-          {%- for number in range(0,cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].count_per_az|int) -%}
+      {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
+        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].az -%}
+          {%- for number in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].count_per_az|int) -%}
             {% set _dummy = res.extend([{
               'hosttype': hostttype,
               'hostname': cluster_name + '-' + hostttype + '-' + azname + number|string,
               'az_name': azname|string,
-              'flavor': cluster_vars[clusterid][buildenv].hosttype_vars[hostttype].flavor,
+              'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
               'release': release_version
               }]) -%}
           {%- endfor %}
@@ -42,12 +42,12 @@
   with_items: "{{ other_hosts }}"
  
 - include_tasks: aws.yml
-  when: cluster_vars[clusterid].type == "aws"
+  when: cluster_vars.type == "aws"
 
 - include_tasks: openstack.yml
-  when: cluster_vars[clusterid].type == "openstack"
+  when: cluster_vars.type == "openstack"
 
 - include_tasks: gce.yml
-  when: cluster_vars[clusterid].type == "gce"
+  when: cluster_vars.type == "gce"
 
 #- debug: msg={{cluster_hosts_flat}}

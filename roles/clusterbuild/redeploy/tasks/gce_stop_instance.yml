@@ -8,11 +8,11 @@
 
     - name: Get GCP instance facts
       gcp_compute_instance_facts:
-        zone: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
         filters:
           - "name = {{host_to_stop.hostname}}*"
           - "status = RUNNING"
-        project: "{{cluster_vars[clusterid].project_id}}"
+        project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -23,8 +23,8 @@
       gce_labels:
         resource_name: "{{ host_to_stop.hostname }}"
         resource_type: instances
-        resource_location: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
-        project_id: "{{ cluster_vars[clusterid].project_id }}"
+        resource_location: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        project_id: "{{ cluster_vars.project_id }}"
         credentials_file: "{{ gcp_credentials_file }}"
         labels:
           maintenance_mode: "{{ maintenance_mode_tag }}"
@@ -39,8 +39,8 @@
       gce_labels:
         resource_name: "{{host_to_stop.hostname}}"
         resource_type: instances
-        resource_location: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
-        project_id: "{{cluster_vars[clusterid].project_id}}"
+        resource_location: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        project_id: "{{cluster_vars.project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
         labels:
           maintenance_mode: "true"
@@ -54,13 +54,13 @@
         username: "{{ infoblox[buildenv].username }}"
         password: "{{ infoblox[buildenv].password }}"
         action: delete_a_record
-        name: "{{host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
-      when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+        name: "{{host_to_stop.hostname}}.{{cluster_vars.dns_zone_external}}"
+      when: cluster_vars.dns_server == "infoblox" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
     ## Can't use this unless we use the same creation (which doesn't work properly)
     #- name: Delete DNS entries from infoblox
     #  nios_host_record:
-    #    name: "{{ host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    #    name: "{{ host_to_stop.hostname}}.{{cluster_vars.dns_zone_external}}"
     #    state: absent
     #    provider:
     #      host: "{{ infoblox[buildenv].server }}"
@@ -74,16 +74,16 @@
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
         state: "absent"
-        record: "{{host_to_stop.hostname}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-      when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+        record: "{{host_to_stop.hostname}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+      when: cluster_vars.dns_server == "nsupdate" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
     - name: Delete DNS entries from route53
       block:
       - name: Get DNS entries from route53
         route53:
           state: "get"
-          zone: "{{cluster_vars[clusterid].dns_zone_external}}"
-          record: "{{cluster_vars[clusterid].region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
+          zone: "{{cluster_vars.dns_zone_external}}"
+          record: "{{cluster_vars.region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
           type: "A"
         register: dns_rec
 
@@ -97,13 +97,13 @@
           value: ["{{ item.set.value }}"]
         with_items: "{{ dns_rec.results }}"
         when: item.set.value is defined
-      when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+      when: cluster_vars.dns_server == "route53" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
       
     - name: Stop GCE VMs asynchronously
       gcp_compute_instance:
         name: "{{host_to_stop.hostname}}"
-        project: "{{cluster_vars[clusterid].project_id}}"
-        zone: "{{cluster_vars[clusterid].region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        project: "{{cluster_vars.project_id}}"
+        zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         status: "TERMINATED"

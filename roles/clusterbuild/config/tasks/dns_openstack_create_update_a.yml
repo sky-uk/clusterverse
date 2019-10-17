@@ -5,17 +5,17 @@
 #  os_recordset:
 #    auth_type: password
 #    auth:
-#      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-#      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-#      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-#      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+#      auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+#      tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+#      tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+#      project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
 #      username: "{{os_username}}"
 #      password: "{{os_password}}"
 #    state: present
 #    zone: "{{_r_zone.zone.id}}"
 #    name: "{{fqdn}}"
 #    recordset_type: "A"
-#    region_name: "{{cluster_vars[clusterid].region}}"
+#    region_name: "{{cluster_vars.region}}"
 #    records: ["{{ip}}"]
 #    ttl: 60
 #  delegate_to: localhost

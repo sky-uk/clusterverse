@@ -3,14 +3,14 @@
 - debug: msg="Attempting to redeploy {{host_to_redeploy}}"
 
 - include_tasks: gce-gather-instance-to-stop.yml
-  when: cluster_vars[clusterid].type == "gce"
+  when: cluster_vars.type == "gce"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
     release_to_stop: "{{host_to_redeploy.current_release}}"
     deploy_status_to_stop: "old"     
 
 - include_tasks: aws-gather-instance-to-stop.yml
-  when: cluster_vars[clusterid].type == "aws"
+  when: cluster_vars.type == "aws"
   vars:
     host_to_stop: "{{host_to_redeploy}}"
     release_to_stop: "{{host_to_redeploy.current_release}}"
@@ -34,12 +34,12 @@
         key_secret: "{{bind9[buildenv].key_secret}}"
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
-        record: "{{instance_to_create | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-        value:  "{{instance_to_create}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        record: "{{instance_to_create | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{instance_to_create}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         type: CNAME
         state: present
         ttl: 30
-      when: cluster_vars[clusterid].dns_server == "nsupdate"
+      when: cluster_vars.dns_server == "nsupdate"
 
 # ##### Uncomment the below to simulate redploy failure#######
 # ############################################################
@@ -53,14 +53,14 @@
       when: predeleterole is defined and predeleterole != ""    
         
     - include_tasks: aws_stop_instance.yml
-      when: cluster_vars[clusterid].type == "aws"
+      when: cluster_vars.type == "aws"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         release_to_stop: "{{host_to_redeploy.current_release}}"
         deploy_status_to_stop: "old"
 
     - include_tasks: gce_stop_instance.yml
-      when: cluster_vars[clusterid].type == "gce"
+      when: cluster_vars.type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         release_to_stop: "{{host_to_redeploy.current_release}}"

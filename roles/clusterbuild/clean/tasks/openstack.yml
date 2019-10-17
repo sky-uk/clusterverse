@@ -4,14 +4,14 @@
   os_server:
     auth_type: password
     auth:
-      auth_url: "{{cluster_vars[clusterid].OS_AUTH_URL}}"
-      tenant_id: "{{cluster_vars[clusterid].OS_TENANT_ID}}"
-      tenant_name: "{{cluster_vars[clusterid].OS_TENANT_NAME}}"
-      project_name: "{{cluster_vars[clusterid].OS_PROJECT_NAME}}"
+      auth_url: "{{cluster_vars.OS_AUTH_URL}}"
+      tenant_id: "{{cluster_vars.OS_TENANT_ID}}"
+      tenant_name: "{{cluster_vars.OS_TENANT_NAME}}"
+      project_name: "{{cluster_vars.OS_PROJECT_NAME}}"
       username: "{{os_username}}"
       password: "{{os_password}}"
     name: "{{item.hostname}}"
-    region_name: "{{cluster_vars[clusterid].region}}"
+    region_name: "{{cluster_vars.region}}"
     state: absent
   register: openstack_instances
   with_items: "{{cluster_hosts_flat}}"
@@ -29,8 +29,8 @@
 - name: Delete DNS entries from openstack
   include_tasks: openstack_dns.yml
   vars:
-    - fqdn: "{{outer_item.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    - fqdn: "{{outer_item.hostname}}.{{cluster_vars.dns_zone_external}}"
   loop_control:
     loop_var: outer_item
   with_items: "{{ cluster_hosts_flat }}"
-  when: cluster_vars[clusterid].type == "openstack" and cluster_vars[clusterid].dns_server == "openstack" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+  when: cluster_vars.type == "openstack" and cluster_vars.dns_server == "openstack" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""

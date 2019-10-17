@@ -12,18 +12,18 @@
           "tag:release": "{{ release_to_stop }}"
           "tag:deploy_status": "{{ deploy_status_to_stop }}"
           "instance-state-name": ["running", "stopped"]
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
       register: existing
       delegate_to: localhost
       run_once: true
 
     - name: set maintenance_mode to true
       ec2_tag:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
         resource: "{{ existing.instances[0].instance_id }}"
         tags:
           maintenance_mode: "true"
@@ -36,13 +36,13 @@
         username: "{{ infoblox[buildenv].username }}"
         password: "{{ infoblox[buildenv].password }}"
         action: delete_a_record
-        name: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
-      when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+        name: "{{existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
+      when: cluster_vars.dns_server == "infoblox" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
     ## Can't use this unless we use the same creation (which doesn't work properly)
     #- name: Delete DNS entries from infoblox
     #  nios_host_record:
-    #    name: "{{ existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
+    #    name: "{{ existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
     #    state: absent
     #    provider:
     #      host: "{{ infoblox[buildenv].server }}"
@@ -56,16 +56,16 @@
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
         state: "absent"
-        record: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-      when: cluster_vars[clusterid].dns_server == "nsupdate" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+        record: "{{existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+      when: cluster_vars.dns_server == "nsupdate" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
     - name: Delete DNS entries from route53
       block:
       - name: Get DNS entries from route53
         route53:
           state: "get"
-          zone: "{{cluster_vars[clusterid].dns_zone_external}}"
-          record: "{{existing.instances[0].tags.Name}}.{{cluster_vars[clusterid].dns_zone_external}}"
+          zone: "{{cluster_vars.dns_zone_external}}"
+          record: "{{existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
           type: "A"
         register: dns_rec
 
@@ -79,13 +79,13 @@
           value: ["{{ item.set.value }}"]
         with_items: "{{ dns_rec.results }}"
         when: item.set.value is defined
-      when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
+      when: cluster_vars.dns_server == "route53" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
       
     - name: aws_stop | Stop EC2 instance
       ec2:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{ cluster_vars[clusterid].region }}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
         state: "stopped"
         instance_ids: ["{{ existing.instances[0].instance_id }}"]
         wait: true

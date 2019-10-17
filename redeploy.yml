@@ -14,7 +14,7 @@
     - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
   tags: always
 
-- name: Redeploy (destroy and reprovision one at a time).
+- name: Redeploy (reprovision one at a time).
   hosts: localhost
   connection: local
   become: false

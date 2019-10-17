@@ -5,8 +5,8 @@
 - name: Rescuing GCP instance
   gcp_compute_instance:
     name: "{{host_to_rollback}}"
-    project: "{{cluster_vars[clusterid].project_id}}"
-    zone: "{{cluster_vars[clusterid].region}}-{{host_to_rollback | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+    project: "{{cluster_vars.project_id}}"
+    zone: "{{cluster_vars.region}}-{{host_to_rollback | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     status: "RUNNING"
@@ -47,12 +47,12 @@
         key_secret: "{{bind9[buildenv].key_secret}}"
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
-        record: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-        value:  "{{host_to_rollback}}.{{cluster_vars[clusterid].dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        record: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{host_to_rollback}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         type: CNAME
         state: present
         ttl: 30
-      when: cluster_vars[clusterid].dns_server == "nsupdate"
+      when: cluster_vars.dns_server == "nsupdate"
 
     - name: run pre-delete role
       include_role:
@@ -60,7 +60,7 @@
       when: predeleterole is defined and predeleterole != ""    
 
     - include_tasks: gce_stop_instance.yml
-      when: cluster_vars[clusterid].type == "gce"
+      when: cluster_vars.type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         deploy_status_to_stop: "new"        

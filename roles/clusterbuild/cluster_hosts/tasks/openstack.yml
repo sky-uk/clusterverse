@@ -5,6 +5,6 @@
     cluster_hosts_flat: |
       {% set res = cluster_hosts_flat -%}
       {%- for host in res -%}
-        {%- set _dummy = host.update({'rootvol_size': cluster_vars[clusterid][buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
+        {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
       {%- endfor %}
       {{ res }}

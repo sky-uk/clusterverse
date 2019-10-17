@@ -7,18 +7,18 @@
         filters:
           "tag:cluster_name": "{{cluster_name}}"
           "instance-state-name": ["stopped"]
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
       register: existing
       delegate_to: localhost
       run_once: true
 
     - name: Remove EC2 instance termination protection
       ec2:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{ cluster_vars[clusterid].region }}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
         state: "stopped"
         termination_protection: "no"
         instance_ids: ["{{ item }}"]
@@ -28,9 +28,9 @@
 
     - name: set maintenance_mode to true
       ec2_tag:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{cluster_vars[clusterid].region}}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
         resource: "{{ item }}"
         tags:
           maintenance_mode: "true"
@@ -40,9 +40,9 @@
 
     - name: Delete EC2 instance
       ec2:
-        aws_access_key: "{{cluster_vars[clusterid][buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[clusterid][buildenv].aws_secret_key}}"
-        region: "{{ cluster_vars[clusterid].region }}"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
         state: "absent"
         instance_ids: ["{{ item }}"]
         wait: true

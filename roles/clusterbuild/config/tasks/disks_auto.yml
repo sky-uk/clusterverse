@@ -1,41 +1,52 @@
 ---
 
-- name: autodisks | Create mountpoint directory
-  file:
-    path: "{{item.mountpoint}}"
-    state: directory
-  become: true
-  with_items: "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") | list }}"
+- name: autodisks | Get block devices as json
+  shell: lsblk -Jb
+  register: lsblk
 
-- name: autodisks | Retrieve volume names
+- debug: msg={{ lsblk.stdout | from_json }}
+
+- name: autodisks | Retrieve unused (i.e. unmounted, with no child partitions), 'disk' devices (i.e. not cdroms or loopback)
   set_fact:
-    volume_name: "{{ item }}"
-    volume_size: "{{ retrieve_size.split('.')[0]}}"
-  vars:
-    os_volume: "{{ansible_facts | json_query(\"devices\") | json_query(item) | json_query(\"partitions\")}}"
-    retrieve_size: "{{ansible_facts | json_query(\"devices\") | json_query(item) | json_query(\"size\")}}"
-  with_items: "{{ansible_facts | json_query(\"device_links.ids\") | list}}"
-  when: retrieve_size != "" and os_volume == {}
-  ignore_errors: yes
-  register: volume_flat
+    lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !children && !mountpoint].{dev: name, size_b: size}\") }}"
 
-- name: autodisks | Create ext4 filesystem from attached EBS volume
+- debug: msg={{ lsblk_volumes }}
+- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
+
+- name: autodisks | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
+  set_fact:
+    hostvols: |
+      {% set res = [] -%}
+      {% set tmp_blkvols = lsblk_volumes -%}
+        {%- for autovol in cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes -%}
+          {%- set blkvolloop = namespace(break=false) -%}
+          {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
+            {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
+              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype}]) -%}
+              {%- set _ = tmp_blkvols.remove(blkvol) -%}
+              {%- set blkvolloop.break = true -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endfor -%}
+      {{ res }}
+
+- debug: msg={{hostvols}}
+
+# Create partition-less filesystems.
+- name: autodisks | Create filesystem(s) on attached volume(s)
   become: yes
   filesystem:
-    fstype: "{{ file_system_type}}"
-    dev: "/dev/{{ item.volume_name }}"
+    fstype: "{{ item.fstype }}"
+    dev: "{{ item.device }}"
     force: no
-  with_items: "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"
-  
-- name: autodisks | Loop expected volumes and available volumes
+  with_items: "{{ hostvols }}"
+
+- name: autodisks | Mount created filesytem(s) persistently
   become: yes
-  include: disks_auto_loop.yml  
-  vars:
-    actual_volume_size: "{{item.1.volume_size}}"
-    volume_name: "{{item.1.volume_name}}"
-    expected_volume_size: "{%- if cluster_vars[clusterid].type == \"aws\" -%} {{item.0.volume_size}} {%- elif cluster_vars[clusterid].type == \"gce\" -%} {{item.0.disk_size_gb}} {%- endif -%}"
-  with_nested:
-      - "{{ cluster_vars[clusterid][buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] | json_query(\"auto_volumes[]\") }}"
-      - "{{ volume_flat | json_query(\"results[].ansible_facts\") }}"  
-  when: actual_volume_size == expected_volume_size 
-  
+  mount:
+    path: "{{ item.mountpoint }}"
+    src: "{{ item.device }}"
+    fstype: "{{ item.fstype }}"
+    state: mounted
+    opts: _netdev
+  with_items: "{{ hostvols }}"
