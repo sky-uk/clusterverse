@@ -9,7 +9,7 @@ Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://
 ### group_vars:
 #### all.yml:
 ```
-clusterid:                        # Must be an index into cluster_vars in cluster_vars.yml
+clusterid:                        # Must be a folder under `group_vars` containing cluster_vars.yml and app_vars.yml
 buildenv:                         # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
 app_class: "test"                 # The class of application - applies to the fqdn
 clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
@@ -18,13 +18,18 @@ dns_tld_external: "example.com"   # Top-level domain (above the level defined pe
 
 #### cluster_vars.yml:
 ```
-cluster_vars:
-  <clusterid>:
+group_vars/<clusterid>/cluster_vars.yml:
+  <buildenv>:
     ...
-    <buildenv>:
-      ...
-      hosttype_vars:
-        <hosttype>: {...}
+    hosttype_vars:
+      <hosttype>: {...}
+```
+
+#### app_vars.yml:
+```
+group_vars/<clusterid>/app_vars.yml:
+app_var1: {...}
+app_var2: {...}
 ```
 
 ## Prerequisites
@@ -84,16 +89,19 @@ export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
 ### Per-cloud:
 #### AWS:
 ```
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py 
 ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
 ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
 ```
 #### GCP:
 ```
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
 ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
 ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
 ```
 #### Openstack:
 ```
+ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py
 ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true
 ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
 ```
