@@ -33,7 +33,6 @@ pipeline {
         RELEASE ="${params.RELEASE}"
         GIT_TOKEN = credentials("GITHUB_SVC_USER")
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
-        VAULT_PASSWORD_ALL = credentials('VAULT_PASSWORD_ALL')
         CANARY="-e canary=${params.CANARY}"
         MYHOSTTYPES="-e myhosttypes=${params.MYHOSTTYPES}"
       }             
@@ -47,8 +46,7 @@ pipeline {
             withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
               sh 'env'
               sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)"'
-              sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'
-              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
+              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
             }    
           } catch (err) {
             // echo "Failed: ${err} - Version ${broken_version} will be deleted and the previous version will be deployed."  
@@ -62,8 +60,7 @@ pipeline {
             //   withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
             //   sh 'env'
             //   sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-            //   sh 'echo "all: len $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_ALL | /usr/bin/sum)"'          
-            //   sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=all@.vaultpass-client.py --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=true --tags=clusterbuild_clean'
+            //   sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=true --tags=clusterbuild_clean'
             // }
               error "${RELEASE} deployment failed"               
           }
