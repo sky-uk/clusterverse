@@ -70,6 +70,12 @@ cluster_vars:
     key_name: ""
     termination_protection: "no"
 
+## OPTIONAL - NVME/Nitro instances Logical Volumes configuration in case the mounting point for all nvme_volumes is set to the same path
+vg_name: vg0
+lv_name: lv0
+lv_size: 100%FREE
+
+
 ### GCE example
 #cluster_vars:
 #  type: gce
