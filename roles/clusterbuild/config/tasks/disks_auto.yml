@@ -1,19 +1,19 @@
 ---
-- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
-- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme_volumes }}
+#- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
+#- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme_volumes }}
 
 - block:
   - name: autodisks | Get block devices as json
     shell: lsblk -Jb
     register: lsblk
 
-  - debug: msg={{ lsblk.stdout | from_json }}
+  #- debug: msg={{ lsblk.stdout | from_json }}
 
   - name: autodisks | Retrieve unused (i.e. unmounted, with no child partitions), 'disk' devices (i.e. not cdroms or loopback)
     set_fact:
       lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !children && !mountpoint].{dev: name, size_b: size}\") }}"
 
-  - debug: msg={{ lsblk_volumes }}
+  #- debug: msg={{ lsblk_volumes }}
 
   - name: autodisks | Create 'nvmevols' fact that contains a list of available host nvme devices (lsblk) mapped to the mountpoints defined in cluster_vars. Handles single mounting points with LV/VG
     set_fact:
@@ -32,8 +32,10 @@
           {%- endfor -%}
         {{ res }}
 
-  - debug: msg={{ nvmevols | map(attribute='mountpoint') | list | unique }}
+
 # The following block mounts all nvme attached volumes that have individual mountpoints
+  - debug: msg={{ nvmevols | map(attribute='mountpoint') | list | unique }}
+
   - name: autodisks | Mount nvme volumes with different mountpoints
     block:
     - name: autodisks | Create filesystem(s) on attached nvme volume(s)
@@ -54,10 +56,11 @@
         opts: _netdev
       with_items: "{{ nvmevols }}"
     when: (nvmevols | map(attribute='mountpoint') | list | unique | count == nvmevols | map(attribute='mountpoint') | list | count)
-# The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
+
+  # The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
   - name: autodisks | Mount nvme volumes in a single mountpoint through LV/VG
     block:
-    - debug: msg={{nvmevols | map(attribute='device') | join(',')}}
+    #- debug: msg={{nvmevols | map(attribute='device') | join(',')}}
 
     - name: autodisks | Create a volume group from all nvme devices
       become: yes
@@ -95,13 +98,13 @@
   shell: lsblk -Jb
   register: lsblk
 
-- debug: msg={{ lsblk.stdout | from_json }}
+#- debug: msg={{ lsblk.stdout | from_json }}
 
 - name: autodisks | Retrieve unused (i.e. unmounted, with no child partitions), 'disk' devices (i.e. not cdroms or loopback)
   set_fact:
     lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !children && !mountpoint].{dev: name, size_b: size}\") }}"
 
-- debug: msg={{ lsblk_volumes }}
+#- debug: msg={{ lsblk_volumes }}
 
 - name: autodisks | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
   set_fact:
@@ -120,7 +123,7 @@
         {%- endfor -%}
       {{ res }}
 
-- debug: msg={{hostvols}}
+#- debug: msg={{hostvols}}
 
 # Create partition-less filesystems.
 - name: autodisks | Create filesystem(s) on attached volume(s)

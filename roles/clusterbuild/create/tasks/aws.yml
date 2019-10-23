@@ -46,8 +46,6 @@
         volumes: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
         count_tag:
           Name: "{{item.hostname}}"
-          # release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
-          # deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
         exact_count: 1
       with_items: "{{cluster_hosts_flat}}"
       async: 7200

@@ -63,6 +63,8 @@
       block:
       - name: Get DNS entries from route53
         route53:
+          aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+          aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"        
           state: "get"
           zone: "{{cluster_vars.dns_zone_external}}"
           record: "{{existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
@@ -71,14 +73,16 @@
 
       - name: Remove DNS entries from route53
         route53:
+          aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+          aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"        
           state: "absent"
-          zone: "{{ item.set.zone }}"
-          record: "{{ item.set.record }}"
-          type: "{{ item.set.type }}"
-          ttl: "{{ item.set.ttl }}"
-          value: ["{{ item.set.value }}"]
-        with_items: "{{ dns_rec.results }}"
-        when: item.set.value is defined
+          zone: "{{ dns_rec.set.zone }}"
+          record: "{{ dns_rec.set.record }}"
+          type: "{{ dns_rec.set.type }}"
+          ttl: "{{ dns_rec.set.ttl }}"
+          value: ["{{ dns_rec.set.value }}"]
+          private_zone: true
+        when: dns_rec.set.value is defined
       when: cluster_vars.dns_server == "route53" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
       
     - name: aws_stop | Stop EC2 instance
