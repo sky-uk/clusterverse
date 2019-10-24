@@ -14,5 +14,12 @@ filebeat_install: true
 filebeat_version: 7.3.1
 
 # Default packages configurations
-pkgupdate: "onCreate"    # "always" or "onCreate".  Leave empty to prevent updating packages.
-reboot_on_package_upgrade: false # when set to true, restart after upgrading packages
+pkgupdate: "onCreate"                                     # "always" or "onCreate".  Leave empty to prevent updating packages.
+reboot_on_package_upgrade: false                          # when set to true, restart after upgrading packages
+
+# Default non-NBCU settings for cluster
+nbcu_cluster: false                                       # Default value for all non-nbcu clusters is false. true will add qualys cloud agents and won't take ec2 instance profile
+
+# Vulnerability scanning agents configurations
+qualys_agent_pkg: ""
+nessus_agent_pkg: ""

@@ -39,6 +39,10 @@
   include_tasks: filebeat.yml
   when: (filebeat_install is defined and filebeat_install|bool)
 
+- name: Install security cloud agent
+  include_tasks: cloud_agents.yml
+  when: nbcu_cluster is defined
+
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml
   when: (skip_package_upgrade is not defined) or (skip_package_upgrade is defined and not skip_package_upgrade|bool)
