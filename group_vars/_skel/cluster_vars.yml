@@ -7,14 +7,27 @@ gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null',
 gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
 
 ## Default user vars - in general to be provided by Jenkins
-clusterid: ""                     # Must be an index into cluster_vars in cluster_vars.yml
-buildenv: ""                      # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
-release_version: ""               # Identifies the application version that is being deployed 
+clusterid: ""                      # Must be an index into cluster_vars in cluster_vars.yml
+buildenv: ""                       # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
+release_version: ""                # Identifies the application version that is being deployed 
 
-app_name: ""                      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
-app_class: ""                     # The class of application - applies to the fqdn
+app_name: ""                       # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments) eg. Prometheus
+app_class: ""                      # The class of application - applies to the fqdn
 
-dns_tld_external: ""              # Top-level domain (above the level defined per clusterid)
+dns_tld_external: "" # Top-level domain (above the level defined per clusterid)
+
+# Vulnerablity scanners - Tenable and Qualys cloud agents. (Tenable for EU GOTTT environments, Qualys for NBCU)
+secagent_service: ""               # Service name for the security agent
+secagent_binary: ""                # Package file of security agents. There is an S3 bucket with the packages as variable in group_var
+secagent_config_path: ""           # config path for agents. e.g. /etc/default/qualys-cloud-agent
+secagent_bin: ""                   # bin path for the security agent
+qualys_activation_id: ""           # For Qualys security scanner - for NBCU
+qualys_customer_id: ""             # For Qualys security scanner - for NBCU
+nessus_key_id: ""                  # For Tenable security scanner - for non-NBCU
+nessus_group_id: ""                # For Tenable security scanner - for nopn-NBCU
+proxy_required: ""                 # Whether the cloud agents require proxy or not. Default is no
+proxy_host: ""                     # If proxy is required, proxy host to be added to the cloud agents
+proxy_port: ""                     # If proxy is required, proxy port to be added to the cloud agents
 
 # Infoblox configurations and credentials
 infoblox:

@@ -27,7 +27,7 @@
         region: "{{cluster_vars.region}}"
         key_name: "{{cluster_vars[buildenv].key_name}}"
         instance_type: "{{item.flavor}}"
-        instance_profile_name: "{{cluster_vars.instance_profile_name}}"
+        instance_profile_name: "{{cluster_vars.instance_profile_name  | default(omit)}}"
         image: "{{cluster_vars.image}}"
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         assign_public_ip: "{{cluster_vars.assign_public_ip}}"
