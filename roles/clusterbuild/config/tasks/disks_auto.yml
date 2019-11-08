@@ -9,9 +9,9 @@
 
   #- debug: msg={{ lsblk.stdout | from_json }}
 
-  - name: autodisks | Retrieve unused (i.e. unmounted, with no child partitions), 'disk' devices (i.e. not cdroms or loopback)
+  - name: autodisks | Retrieve unused (i.e. unmounted, with unmounted child partitions), 'disk' devices (i.e. not cdroms or loopback)
     set_fact:
-      lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !children && !mountpoint].{dev: name, size_b: size}\") }}"
+      lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !mountpoint && (!children || length(children[?mountpoint])==`0`)].{dev: name, size_b: size}\") }}"
 
   #- debug: msg={{ lsblk_volumes }}
 
@@ -100,9 +100,9 @@
 
 #- debug: msg={{ lsblk.stdout | from_json }}
 
-- name: autodisks | Retrieve unused (i.e. unmounted, with no child partitions), 'disk' devices (i.e. not cdroms or loopback)
+- name: autodisks | Retrieve unused (i.e. unmounted, with unmounted child partitions), 'disk' devices (i.e. not cdroms or loopback)
   set_fact:
-    lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !children && !mountpoint].{dev: name, size_b: size}\") }}"
+    lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !mountpoint && (!children || length(children[?mountpoint])==`0`)].{dev: name, size_b: size}\") }}"
 
 #- debug: msg={{ lsblk_volumes }}
 
