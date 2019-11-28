@@ -95,7 +95,7 @@
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       vars:
-        __autodisksnames: ["{%- for vol in cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes -%}{%- set mountname = vol.mountpoint | regex_replace('.*\\/(.*)', '\\\\1') -%}{{vol|combine({'mountname': mountname})}}{% if not loop.last %},{% endif %}{%- endfor -%}"]
+        __autodisksnames: "{%- if cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | length -%}[{%- for vol in cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes -%}{%- set mountname = vol.mountpoint | regex_replace('.*\\/(.*)', '\\\\1') -%}{{vol|combine({'mountname': mountname})}}{% if not loop.last %},{% endif %}{%- endfor -%}]{%- else -%}[]{%- endif-%}"
         _autodisks: "{{__autodisksnames | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,mountname]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,mountname]), disk_size_gb: volume_size}} \") }}"
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
         _host_disks: "{{[_bootdisk] + _autodisks}}"
