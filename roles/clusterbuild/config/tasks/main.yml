@@ -41,7 +41,6 @@
 
 - name: Install security cloud agent
   include_tasks: cloud_agents.yml
-  when: nbcu_cluster is defined
 
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml

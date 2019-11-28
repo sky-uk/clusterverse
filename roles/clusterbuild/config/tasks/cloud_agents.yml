@@ -1,50 +1,55 @@
 ---
 
-# This role should never be made public and must remain private to the organisation
-- name: Install Cloud Agent for Debian
-  become: yes
-  apt:
-    deb: "{{ secagent_binary }}"
-    state: present
+- name: cloud_agents | Qualys cloud agent
+  block:
+    - name: cloud_agents | install Qualys cloud agent
+      become: yes
+      apt:
+        deb: "{{ cloud_agent.qualys.debpackage }}"
 
-- name: Stop service cloud-agent if started
-  become: yes
-  service:
-    name: '{{ secagent_service }}'
-    state: stopped
+    - name: cloud_agents | link Qualys cloud agent
+      become: yes
+      shell: "{{ cloud_agent.qualys.bin_path }}/qualys-cloud-agent.sh ActivationId={{ cloud_agent.qualys.activation_id }} CustomerId={{ cloud_agent.qualys.customer_id }}"
 
-- name: Link Qualys Cloud Agent
-  become: yes
-  shell: "{{ secagent_bin }}/qualys-cloud-agent.sh ActivationId={{ qualys_activation_id }} CustomerId={{ qualys_customer_id }}"
-  when: (nbcu_cluster is defined and nbcu_cluster|bool == true)
+    - name: cloud_agents | configure proxy for the Qualys cloud agent
+      become: yes
+      lineinfile:
+        path: '{{  cloud_agent.qualys.config_path }}'
+        regexp: '^qualys_https_proxy='
+        line: 'qualys_https_proxy=https://{{ cloud_agent.qualys.proxy.host }}:{{ cloud_agent.qualys.proxy.port }}'
+        state: present
+        create: yes
+        owner: root
+        group: root
+        mode: '0600'
+      when: "'proxy' in cloud_agent.qualys"
 
-- debug: msg={{secagent_bin}}
+    - name: cloud_agents | enable and start Qualys service
+      become: yes
+      service:
+        name: '{{ cloud_agent.qualys.service }}'
+        state: started
+        enabled: yes
+  when: "'qualys' in cloud_agent"
 
-- name: Link Tenable Cloud Agent
-  become: yes
-  shell: "{{ secagent_bin }}/nessuscli agent link --key={{ nessus_key_id }} --groups={{ nessus_group_id }} --cloud"
-  when: (nbcu_cluster is defined and nbcu_cluster|bool == false)
+- name: cloud_agents | Tenable Nessus cloud agent
+  block:
+    - name: cloud_agents | install Tenable Nessus cloud agent
+      become: yes
+      apt:
+        deb: "{{ cloud_agent.tenable.debpackage }}"
 
-- name: Link Tenable Cloud Agent with proxy
-  shell: "{{ secagent_bin }}/nessuscli agent link --key={{ nessus_key_id }} --groups={{ nessus_group_id }} --cloud --proxy-host={{ proxy_host }} --proxy-port={{ proxy_port }}"
-  when: proxy_required|bool
+    - name: cloud_agents | link Tenable Nessus cloud agent (with proxy if applicable)
+      shell: "{{ cloud_agent.tenable.bin_path }}/nessuscli agent link --key={{ tenable_cloud_agent.nessus_key_id }} --groups={{ tenable_cloud_agent.nessus_group_id }} --cloud {%- if 'proxy' in cloud_agent.tenable -%} --proxy-host={{ tenable_cloud_agent.proxy.host }} --proxy-port={{ tenable_cloud_agent.proxy.port }} {%- endif -%}"
+      when: "'proxy' in cloud_agent.tenable"
 
-- name: Ensure proxy is configured for the qualys cloud agent
-  become: yes
-  lineinfile:
-    path: '{{ secagent_config_path }}'
-    regexp: '^qualys_https_proxy='
-    line: 'qualys_https_proxy=https://{{ proxy_host }}:{{ proxy_port }}'
-    state: present
-    create: yes
-    owner: root
-    group: root
-    mode: '0600'
-  when: proxy_required|bool
+    - name: cloud_agents | enable and start Tenable Nessus service
+      become: yes
+      service:
+        name: '{{ cloud_agent.tenable.service }}'
+        state: started
+        enabled: yes
+  when: "'tenable' in cloud_agent"
 
-- name: Start service cloud-agent
-  become: yes
-  service:
-    name: '{{ secagent_service }}'
-    state: started
-    enabled: yes
+
+

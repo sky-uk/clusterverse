@@ -16,18 +16,27 @@ app_class: ""                      # The class of application - applies to the f
 
 dns_tld_external: "" # Top-level domain (above the level defined per clusterid)
 
-# Vulnerablity scanners - Tenable and Qualys cloud agents. (Tenable for EU GOTTT environments, Qualys for NBCU)
-secagent_service: ""               # Service name for the security agent
-secagent_binary: ""                # Package file of security agents. There is an S3 bucket with the packages as variable in group_var
-secagent_config_path: ""           # config path for agents. e.g. /etc/default/qualys-cloud-agent
-secagent_bin: ""                   # bin path for the security agent
-qualys_activation_id: ""           # For Qualys security scanner - for NBCU
-qualys_customer_id: ""             # For Qualys security scanner - for NBCU
-nessus_key_id: ""                  # For Tenable security scanner - for non-NBCU
-nessus_group_id: ""                # For Tenable security scanner - for nopn-NBCU
-proxy_required: ""                 # Whether the cloud agents require proxy or not. Default is no
-proxy_host: ""                     # If proxy is required, proxy host to be added to the cloud agents
-proxy_port: ""                     # If proxy is required, proxy port to be added to the cloud agents
+## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
+cloud_agent:
+  tenable:
+    service: "nessusagent"
+    debpackage: ""
+    bin_path: "/opt/nessus_agent/sbin"
+    nessus_key_id: ""
+    nessus_group_id: ""
+    proxy:
+      host: ""
+      port: ""
+  qualys:
+    service: "qualys-cloud-agent"
+    debpackage: "{{ qualys_agent_pkg }}"
+    bin_path: "/usr/local/qualys/cloud-agent/bin"
+    config_path: "/etc/default/qualys-cloud-agent"
+    activation_id: ""
+    customer_id: ""
+    proxy:
+      host: ""
+      port: ""
 
 # Infoblox configurations and credentials
 infoblox:
