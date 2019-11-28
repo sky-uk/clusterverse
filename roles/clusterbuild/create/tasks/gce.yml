@@ -67,6 +67,15 @@
         project: "{{cluster_vars.project_id}}"
       with_items: "{{ cluster_vars.firewall_rules }}"
 
+- name: Generate public key from provided private key
+  shell: ssh-keygen -y -f "{{ ansible_ssh_private_key_file }}"
+  register: pubkey
+  delegate_to: localhost
+  run_once: true
+
+- set_fact:
+    gce_ssh_username: "{{ cliargs.remote_user }}"
+    gce_ssh_pubkey: "{{ pubkey.stdout }}"
 
 - name: Create GCP VMs asynchronously
   block:
@@ -82,6 +91,7 @@
           cluster_name: "{{cluster_name}}"
           owner: "{{ lookup('env','USER') }}"
           startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
+          ssh-keys: "{{ gce_ssh_username }}: {{ gce_ssh_pubkey }} {{ gce_ssh_username }}"
         network_interfaces:
           - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_facts['items'][0] | default({}) }}"
