@@ -2,10 +2,11 @@
 
 - name: cloud_agents | Qualys cloud agent
   block:
-    - name: cloud_agents | install Qualys cloud agent
+    - name: cloud_agents | Download and install Qualys cloud agent pkg
       become: yes
       apt:
         deb: "{{ cloud_agent.qualys.debpackage }}"
+        state: present
 
     - name: cloud_agents | link Qualys cloud agent
       become: yes
@@ -34,10 +35,11 @@
 
 - name: cloud_agents | Tenable Nessus cloud agent
   block:
-    - name: cloud_agents | install Tenable Nessus cloud agent
+    - name: cloud_agents | Download and install Tenable Nessus cloud agent pkg
       become: yes
       apt:
         deb: "{{ cloud_agent.tenable.debpackage }}"
+        state: present
 
     - name: cloud_agents | link Tenable Nessus cloud agent (with proxy if applicable)
       shell: "{{ cloud_agent.tenable.bin_path }}/nessuscli agent link --key={{ tenable_cloud_agent.nessus_key_id }} --groups={{ tenable_cloud_agent.nessus_group_id }} --cloud {%- if 'proxy' in cloud_agent.tenable -%} --proxy-host={{ tenable_cloud_agent.proxy.host }} --proxy-port={{ tenable_cloud_agent.proxy.port }} {%- endif -%}"
@@ -50,6 +52,4 @@
         state: started
         enabled: yes
   when: "'tenable' in cloud_agent"
-
-
 

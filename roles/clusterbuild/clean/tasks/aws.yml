@@ -38,6 +38,7 @@
       delegate_to: localhost
       run_once: true
       with_items: "{{ uids_to_del }}"
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
 
     - name: Delete EC2 instances
       ec2:

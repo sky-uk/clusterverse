@@ -28,7 +28,8 @@
         tags:
           maintenance_mode: "true"
       delegate_to: localhost
-      run_once: true     
+      run_once: true
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
 
     - name: Delete DNS entries from infoblox
       infoblox:
