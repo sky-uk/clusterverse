@@ -70,6 +70,7 @@
           zone: "{{cluster_vars.dns_zone_external}}"
           record: "{{existing.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
           type: "A"
+          private_zone: true
         register: dns_rec
 
       - name: Remove DNS entries from route53
