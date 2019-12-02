@@ -108,12 +108,15 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 
 
-### Extra variables:
-+ `-e app_name=<nginx>` - Gives a customised name for identification purposes if not defined in `group_vars/all.yml` (eg. - nginx, couchbase)
-+ `-e app_class=<proxy>` - Specify the class of application if not defined in `group_vars/all.yml` (eg. - proxy, database)
-+ `-e buildenv=<environment>`  -  dev/ stage/ prod supported
-+ `-e clusterid=<vtp_aws_euw1>` - specify the clusterid: must be one of the clusters in `cluster_vars.yml`
-+ `-e dns_tld_external="example.com"` - specify the external DNS TLD if not defined in `group_vars/all.yml`
+### Mandatory command-line variables:
++ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
++ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
+
+### Optional extra variables:
++ `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
++ `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
++ `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed. 
++ `-e dns_tld_external=<test.example.com>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`. 
 + `-e clean=true` - Deletes all existing VMs and security groups before creating
 + `-e skip_package_upgrade=true` - Does not upgrade the OS packages (saves a lot of time during debugging)
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.

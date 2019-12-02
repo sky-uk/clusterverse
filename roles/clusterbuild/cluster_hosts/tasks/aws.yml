@@ -23,7 +23,7 @@
     aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
     aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
     filters:
-      "tag:Name": "{{ cluster_vars[buildenv].vpc_subnet_name_prefix }}-{{ cluster_vars.region }}{{item}}"
+      "tag:Name": "{{ cluster_vars[buildenv].vpc_subnet_name_prefix }}{{item}}"
       vpc-id:     "{{ vpc_id }}"
   register: subnetdata
   with_items: "{{cluster_vars[buildenv].hosttype_vars | json_query('*.[az]|[]|[]') | unique}}"

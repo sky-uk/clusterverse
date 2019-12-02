@@ -41,6 +41,7 @@
 
 - name: Install security cloud agent
   include_tasks: cloud_agents.yml
+  when: (cloud_agent is defined and cloud_agent)
 
 - name: Update packages (unless skip_package_upgrade is defined)
   include_tasks: pkgupdate.yml

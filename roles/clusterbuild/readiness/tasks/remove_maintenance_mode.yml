@@ -34,6 +34,7 @@
       delegate_to: localhost
       run_once: true
       with_items: "{{ maint_mode_uids_to_clear }}"
+      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
   when: cluster_vars.type == "aws"
 
 - block:
