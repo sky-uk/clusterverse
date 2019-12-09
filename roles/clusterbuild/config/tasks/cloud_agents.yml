@@ -2,6 +2,12 @@
 
 - name: cloud_agents | Qualys cloud agent
   block:
+    - name: cloud_agents | Remove existing Qualys cloud agent pkg
+      become: yes
+      apt:
+        name: "{{ cloud_agent.qualys.service }}"
+        state: absent
+
     - name: cloud_agents | Download and install Qualys cloud agent pkg
       become: yes
       apt:
