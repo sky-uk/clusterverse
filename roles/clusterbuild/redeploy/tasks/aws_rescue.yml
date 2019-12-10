@@ -41,7 +41,7 @@
     - set_fact:
         host_to_recover: "{{rollback_instances | json_query('instances[*].tags.Name') | difference([host_to_redeploy.hostname])| to_json | from_json | json_query(j_recover_arg)}}"
 
-    - name: Replace CNAME
+    - name: Replace CNAME with nsupdate
       nsupdate:
         key_name: "{{bind9[buildenv].key_name}}"
         key_secret: "{{bind9[buildenv].key_secret}}"
@@ -53,6 +53,20 @@
         state: present
         ttl: 30
       when: cluster_vars.dns_server == "nsupdate"
+
+    - name: Replace CNAME with Route53
+      route53:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        state: present
+        zone: "{{cluster_vars.dns_zone_external}}"
+        record: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
+        value: "{{ host_to_recover}}.{{cluster_vars.dns_zone_external}}"
+        type: CNAME
+        ttl: 30
+        private_zone: true
+        overwrite: true   
+      when: cluster_vars.dns_server == "route53"      
 
     - set_fact:
         host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"

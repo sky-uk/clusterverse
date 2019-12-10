@@ -190,3 +190,5 @@
   run_once: true   
   with_items: "{{ cluster_hosts_flat }}"  
   when: cluster_vars.dns_server == "route53" and instance_to_create is undefined and rescuing_instance is undefined
+  delegate_to: localhost
+  run_once: true
