@@ -133,6 +133,7 @@
     dev: "{{ item.device }}"
     force: no
   with_items: "{{ hostvols }}"
+  register: created_filesystem
 
 - name: autodisks | Mount created filesytem(s) persistently
   become: yes
@@ -143,3 +144,9 @@
     state: mounted
     opts: _netdev
   with_items: "{{ hostvols }}"
+
+# debconf Ansible module cannot be used as it has a bug: https://github.com/ansible/ansible/issues/29352
+- name: autodisks | Reconfigure rsyslog if any volume has been attached
+  become: yes
+  shell: "dpkg-reconfigure rsyslog"
+  when: created_filesystem.changed
