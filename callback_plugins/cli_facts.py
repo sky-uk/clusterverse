@@ -19,11 +19,11 @@ description:
     - Expose the system ARGV and CLI arguments as facts in plays.  Two new facts are added: argv and cliargs.
 options:
 requirements:
-    - "python >= 3"
 '''
 
-from ansible.context import CLIARGS
 from ansible.plugins.callback import CallbackBase
+from ansible.context import CLIARGS
+from ansible.cli import CLI
 
 import sys
 
@@ -40,24 +40,19 @@ class CallbackModule(CallbackBase):
         super(CallbackModule, self).__init__(*args, **kwargs)
         self._cliargs = CLIARGS
         self._argv = sys.argv
-        self._play = ""
-
-    def _all_vars(self, host=None, task=None):
-        # host and task need to be specified in case 'magic variables' (host vars, group vars, etc) need to be loaded as well
-        return self._play.get_variable_manager().get_vars(play=self._play, host=host, task=task)
 
     def set_options(self, task_keys=None, var_options=None, direct=None):
         super(CallbackModule, self).set_options(task_keys=task_keys, var_options=var_options, direct=direct)
-        pass
 
     def v2_playbook_on_play_start(self, play):
-        self._play = play
         variable_manager = play.get_variable_manager()
-        variable_manager.set_host_variable(str(variable_manager._inventory.localhost), "cliargs", self._cliargs)
-        variable_manager.set_host_variable(str(variable_manager._inventory.localhost), "argv", self._argv)
-        # variable_manager.set_host_facts(str(variable_manager._inventory.localhost), "argv", self._argv)
 
-        hosts = variable_manager._inventory.get_hosts()
+        # We cannot put 'localhost' in get_hosts(pattern=['all', 'localhost']) call, because of PR 58400, described below.
+        hosts = variable_manager._inventory.get_hosts(pattern=['all'], ignore_restrictions=True)
+        hosts.append(variable_manager._inventory.localhost)
         for host in hosts:
-            variable_manager.set_host_variable(str(host), "cliargs", self._cliargs)
-            variable_manager.set_host_variable(str(host), "argv", self._argv)
+            # Ansible 2.9 (https://github.com/ansible/ansible/pull/58400) changed the 'host' type in ansible/vars/manager.py::set_host_variable() from type <class 'ansible.inventory.host.Host'> to type string.
+            if CLI.version_info()['major'] >= 2 and CLI.version_info()['minor'] >= 9:
+                host = str(host)
+            variable_manager.set_host_variable(host, "cliargs", self._cliargs)
+            variable_manager.set_host_variable(host, "argv", self._argv)
