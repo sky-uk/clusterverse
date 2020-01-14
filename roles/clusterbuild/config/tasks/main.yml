@@ -134,7 +134,7 @@
     type: A
     ttl: 60
     value: "{{ hostvars[item.hostname]['ansible_host'] }}"
-    private_zone: true
+    private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
     overwrite: true
   become: false
   delegate_to: localhost
@@ -183,7 +183,7 @@
     type: CNAME
     ttl: 30
     value: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
-    private_zone: true
+    private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
     overwrite: true
   become: false
   delegate_to: localhost
