@@ -51,7 +51,7 @@
         value: "{{instance_to_create}}.{{cluster_vars.dns_zone_external}}"
         type: CNAME
         ttl: 30
-        private_zone: true
+        private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
         overwrite: true   
       when: cluster_vars.dns_server == "route53"      
 

@@ -55,6 +55,7 @@ bind9:
 # The global {{cluster_name}} is prefixed with {{app_name}}
 cluster_name: "{{app_name}}-{{buildenv}}"
 
+### AWS example
 cluster_vars:
   type: aws     # aws, gcp, openstack
   image: ""     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
@@ -69,6 +70,7 @@ cluster_vars:
   assign_public_ip: "no"
   inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   instance_profile_name: "vpc_lock_{{buildenv}}"
+  route53_private_zone: true # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
   secgroups_existing: []
   secgroup_new:
     - proto: "tcp"
