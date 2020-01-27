@@ -26,31 +26,31 @@
 - name: Create GCP firewalls
   block:
     - name: GCP network facts
-      gcp_compute_network_facts:
+      gcp_compute_network_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_network_name}}"
         project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-      register: gcp_compute_network_facts
+      register: gcp_compute_network_info
 
     - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
-      assert: { that: "gcp_compute_network_facts['items'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
+      assert: { that: "gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
 
     - name: GCP subnetwork facts
-      gcp_compute_subnetwork_facts:
+      gcp_compute_subnetwork_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
         project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-      register: gcp_compute_subnetwork_facts
+      register: gcp_compute_subnetwork_info
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
     - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
-      assert: { that: "gcp_compute_subnetwork_facts['items'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
+      assert: { that: "gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
     - name: Create GCP cluster firewalls
@@ -61,7 +61,7 @@
         description: "{{ item.description }}"
         source_ranges: "{{ item.source_ranges | default([]) }}"
         source_tags: "{{ item.source_tags | default([]) }}"
-        network: "{{gcp_compute_network_facts['items'][0]}}"
+        network: "{{gcp_compute_network_info['resources'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         project: "{{cluster_vars.project_id}}"
@@ -93,8 +93,8 @@
           startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
           ssh-keys: "{{ gce_ssh_username }}: {{ gce_ssh_pubkey }} {{ gce_ssh_username }}"
         network_interfaces:
-          - network: "{{ gcp_compute_network_facts['items'][0] | default({}) }}"
-            subnetwork: "{{ gcp_compute_subnetwork_facts['items'][0] | default({}) }}"
+          - network: "{{ gcp_compute_network_info['items'][0] | default({}) }}"
+            subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
             access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         can_ip_forward : "{{cluster_vars.ip_forward}}"
@@ -184,7 +184,7 @@
     # Need this because the gcp_compute_instance module does not return all the facts if the instance is already existing (only if newly created)
     # Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
     - name: Get GCP instance facts
-      gcp_compute_instance_facts:
+      gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         filters:
           - "name = {{item.hostname}}"
@@ -193,16 +193,16 @@
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       with_items: "{{cluster_hosts_flat}}"
-      register: gcp_compute_instance_facts
+      register: gcp_compute_instance_info
       run_once: true
 
-    # - debug: msg={{gcp_compute_instance_facts}}
+    # - debug: msg={{gcp_compute_instance_info}}
 
     - set_fact:
         dynamic_inventory_flat: |
           {%- if cluster_vars.inventory_ip == 'private' -%}
-            {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
+            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
           {%- else -%}
-            {{ gcp_compute_instance_facts.results | json_query('[*].items[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
+            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
           {%- endif -%}
 
