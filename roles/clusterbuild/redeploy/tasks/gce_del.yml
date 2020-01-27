@@ -3,7 +3,7 @@
 - name: Delete GCP instance
   block:
     - name: Get GCP instance facts
-      gcp_compute_instance_facts:
+      gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         filters:
           - "name = {{item.hostname | regex_replace('-(?!.*-).*')}}*"
@@ -13,13 +13,13 @@
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       with_items: "{{cluster_hosts_flat}}"
-      register: gcp_compute_instance_facts
+      register: gcp_compute_instance_info
       delegate_to: localhost
       run_once: true
 
     - name: Remove deletion protection
       command: "gcloud compute instances update {{item.name}} --no-deletion-protection --zone {{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
-      with_items: "{{gcp_compute_instance_facts.results | json_query('[].items[]')}}"
+      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
       delegate_to: localhost
       run_once: true
       when: "cluster_vars[buildenv].deletion_protection == 'yes'"
@@ -37,8 +37,8 @@
       delegate_to: localhost
       run_once: true
       vars:
-        maintenance_mode_tag: "{{gcp_compute_instance_facts.results | json_query('[].items[?name==`' + item.name + '`].labels.maintenance_mode | [] | [0]')}}"
-      with_items: "{{gcp_compute_instance_facts.results | json_query('[].items[]')}}"
+        maintenance_mode_tag: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.name + '`].labels.maintenance_mode | [] | [0]')}}"
+      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
       when: maintenance_mode_tag != ""
 
     - name: remove_maintenance_mode
@@ -53,7 +53,7 @@
         state: present
       delegate_to: localhost
       run_once: true
-      with_items: "{{gcp_compute_instance_facts.results | json_query('[].items[]')}}"
+      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
 
     - name: Delete GCE VMs asynchronously
       gcp_compute_instance:
@@ -64,7 +64,7 @@
         service_account_file: "{{gcp_credentials_file}}"
         state: "absent"
       register: gcp_compute_instance
-      with_items: "{{gcp_compute_instance_facts.results | json_query('[].items[]')}}"
+      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
       async: 7200
       poll: 0 
 
