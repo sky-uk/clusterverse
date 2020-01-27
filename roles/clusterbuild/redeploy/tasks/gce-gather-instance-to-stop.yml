@@ -3,7 +3,7 @@
 - debug: msg="Stop {{host_to_stop.hostname}}, release {{release_to_stop}}" 
 
 - name: gcp_gather | Get GCP instance facts
-  gcp_compute_instance_facts:
+  gcp_compute_instance_info:
     zone: "{{cluster_vars.region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
     filters:
       - "name = {{host_to_stop.hostname}}*"
@@ -12,10 +12,10 @@
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  register: existing_gcp
+  register: gcp_compute_instance_info
   delegate_to: localhost
   run_once: true
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
-    instance_to_create: "{{ existing_gcp | json_query('items[0].name') | regex_replace('-(?!.*-).*') + '-'+epoch_time}}"
+    instance_to_create: "{{ gcp_compute_instance_info | json_query('resources[0].name') | regex_replace('-(?!.*-).*') + '-'+epoch_time}}"

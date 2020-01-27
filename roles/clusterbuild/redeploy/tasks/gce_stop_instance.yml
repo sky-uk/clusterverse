@@ -7,7 +7,7 @@
   block:
 
     - name: Get GCP instance facts
-      gcp_compute_instance_facts:
+      gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
         filters:
           - "name = {{host_to_stop.hostname}}*"
@@ -16,7 +16,7 @@
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-      register: gcp_compute_instance_facts
+      register: gcp_compute_instance_info
       delegate_to: localhost
 
     - name: Delete maintenance_mode label
@@ -32,7 +32,7 @@
       delegate_to: localhost
       run_once: true
       vars:
-        maintenance_mode_tag: "{{gcp_compute_instance_facts | json_query('items[?name==`' + host_to_stop.hostname + '`].labels.maintenance_mode | [] | [0]')}}"
+        maintenance_mode_tag: "{{gcp_compute_instance_info | json_query('resources[?name==`' + host_to_stop.hostname + '`].labels.maintenance_mode | [] | [0]')}}"
       when: maintenance_mode_tag != ""
 
     - name: Set_maintenance_mode
