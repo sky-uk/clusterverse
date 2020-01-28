@@ -2,35 +2,24 @@
 This project provides an Ansible playbook to provision (cloud) infrastructure.
 
 ## Requirements
-Ansible >= 2.6.2 is required (v2.4.0, 2.4.2, 2.5.1, 2.5.3 contain [bug](https://github.com/ansible/ansible/issues/33433), [bug](https://github.com/ansible/ansible/pull/38302), [bug](https://github.com/ansible/ansible/issues/38656) that cause a failures)
+Ansible >= 2.9
 
 ## Variables specific to your project
 
 ### group_vars:
-#### all.yml:
+#### group_vars/\<clusterid\>/cluster_vars.yml:
 ```
-clusterid:                        # Must be a folder under `group_vars` containing cluster_vars.yml and app_vars.yml
-buildenv:                         # Must be an index into cluster_vars.hosttype_vars in cluster_vars.yml
-app_class: "test"                 # The class of application - applies to the fqdn
-clustername_prefix: "qwerty"      # Gives a customised name for identification purposes (it is part of cluster_name, and identifies load balancers etc in cloud environments)
-dns_tld_external: "example.com"   # Top-level domain (above the level defined per clusterid)
-```
+buildenv: ""                      # The environment (dev, stage, etc), which must be an attribute of cluster_vars
+release_version: ""               # Identifies the application version that is being deployed (optional)
+app_name: "nginx"                 # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
+app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-#### cluster_vars.yml:
-```
-group_vars/<clusterid>/cluster_vars.yml:
-  <buildenv>:
-    ...
-    hosttype_vars:
-      <hosttype>: {...}
+cluster_vars:
+ <buildenv>: ... hosttype_vars: <hosttype>: {...}
 ```
 
 #### app_vars.yml:
-```
-group_vars/<clusterid>/app_vars.yml:
-app_var1: {...}
-app_var2: {...}
-```
+Contains your application-specific variables
 
 ## Prerequisites
 ### AWS
@@ -45,8 +34,8 @@ app_var2: {...}
 - Google Cloud SDK need to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
 
 ### Openstack
-- Put the following OS parameters in your ~/.bash_profile:
-````
+Put the following OS parameters in your ~/.bash_profile:
+```
 export OS_AUTH_URL=
 export OS_TENANT_ID=
 export OS_TENANT_NAME=
@@ -54,7 +43,7 @@ export OS_PROJECT_NAME=
 export OS_REGION_NAME=
 export OS_USERNAME=
 export OS_PASSWORD=
-````
+```
 
 
 ### DNS
@@ -77,20 +66,24 @@ pipenv shell
 or run all ansible-playbook commands by prepending `pipenv run`
 
 ### Credentials
-Credentials are encrypted inline in the playbooks using ansible-vault.  
-+ Where they are specific to a VPC environment (e.g. dev/stage etc), they are encrypted with environment-specific password, which should be exported in the environment variable: `VAULT_PASSWORD_BUILDENV`
-
-```
-export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>
-```
+Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
++ Because multiple environments are supported, it is recommended to use [vault-ids](https://docs.ansible.com/ansible/latest/user_guide/vault.html#multiple-vault-passwords), and have credentials per environment (e.g. to help avoid accidentally running a deploy on prod).
++ There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible.  This is particularly useful for running under Jenkins.
+  + `export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>`
++ To encrypt (export `VAULT_PASSWORD_BUILDENV` first):
+  + `ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox`
++ To decrypt, either run the playbook with the correct `VAULT_PASSWORD_BUILDENV` and just `debug: msg=` the variable, or:
+  + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
+  `86338616...33630313034' | ansible-vault decrypt --vault-id=sandbox@.vaultpass-client.py`  + or, to decrypt using a non-exported password:
+  + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
+  `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
 
 
 ## Invocation examples
 ### Per-cloud:
 #### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py 
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterbuild_clean -e clean=true -e release_version=v1.0.1
 ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
 ```
 #### GCP:
@@ -115,8 +108,8 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 ### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
 + `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
-+ `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed. 
-+ `-e dns_tld_external=<test.example.com>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`. 
++ `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
++ `-e dns_tld_external=<test.example.com>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.
 + `-e clean=true` - Deletes all existing VMs and security groups before creating
 + `-e skip_package_upgrade=true` - Does not upgrade the OS packages (saves a lot of time during debugging)
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
@@ -127,7 +120,7 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 
 ### Tags
 - clusterbuild_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
-- clusterbuild_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml  
+- clusterbuild_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
 - clusterbuild_config: Updates packages, sets hostname, adds hosts to DNS
 
 
@@ -139,6 +132,5 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
 
 ### Extra variables:
-+ `-e canary=['start', 'finish', 'none']`  -  Specify whether to start or finish a canary deploy, or 'none' deploy
++ `-e canary=['start', 'finish', 'none']` -  Specify whether to start or finish a canary deploy, or 'none' deploy
 + `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
-
