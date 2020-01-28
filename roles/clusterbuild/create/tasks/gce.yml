@@ -90,7 +90,7 @@
           release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
           owner: "{{ lookup('env','USER') }}"
-          startup-script: "#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo x.x.x.x/26 >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard"
+          startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
           ssh-keys: "{{ gce_ssh_username }}: {{ gce_ssh_pubkey }} {{ gce_ssh_username }}"
         network_interfaces:
           - network: "{{ gcp_compute_network_info['items'][0] | default({}) }}"

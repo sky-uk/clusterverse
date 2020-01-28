@@ -115,10 +115,11 @@ lv_size: 100%FREE
 #  project_id: "{{gcp_credentials_json.project_id}}"
 #  ip_forward: "false"
 #  network_fw_tags: ["{{cluster_name}}-nwtag"]
+#  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']
 #  firewall_rules:
 #    - name: "{{cluster_name}}-extssh"
 #      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
-#      source_ranges: ['10.0.0.0/8']
+#      source_ranges: "{{_ssh_guard_whitelist}}"
 #      description: "SSH Access"
 #    - name: "{{cluster_name}}-nwtag"
 #      allowed: [{ip_protocol: "all"}]
@@ -133,6 +134,7 @@ lv_size: 100%FREE
 #    preemptible: "false"
 #    deletion_protection: "no"
 #_region: *region
+#_ssh_guard_whitelist: *ssh_guard_whitelist
 
 ### Openstack example
 #cluster_vars:
