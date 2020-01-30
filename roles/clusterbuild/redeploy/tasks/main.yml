@@ -1,7 +1,15 @@
 ---
+
+- name: Include cluster variables
+  include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+
+- name: Preflight check
+  block:
+    - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
+    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
+
 - name: Attempt redeploy.  Restore old if fails
   block:
-  
     - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
       include_tasks: by_type.yml
       with_items: "{{ myhosttypes_array }}"
