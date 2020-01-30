@@ -15,7 +15,10 @@ app_name: "nginx"                 # The name of the application cluster (e.g. 'c
 app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
 cluster_vars:
- <buildenv>: ... hosttype_vars: <hosttype>: {...}
+  <buildenv>:
+    ...
+    hosttype_vars:
+      <hosttype>: {...}
 ```
 
 #### app_vars.yml:
@@ -30,7 +33,6 @@ Contains your application-specific variables
 ### GCP
 - Create a gcloud account.
 - Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.  This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/all/clusters.yml`.  You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
-- You need to edit your "Google Compute Engine API / In-use IP addresses" to at least 16.  This is found in `IAM & Admin` / `Quotas`
 - Google Cloud SDK need to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
 
 ### Openstack
