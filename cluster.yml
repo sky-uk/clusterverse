@@ -1,26 +1,5 @@
 ---
 
-- name: Force include of group_vars on localhost prior to dynamic inventory creation
-  hosts: localhost
-  tasks:
-    - include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
-  tags: clusterbuild_clean,clusterbuild_create,clusterbuild_config,clusterbuild_readiness
-
-- name: Preflight check
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - assert: { that: "ansible_version.full is version_compare('2.7.1', '>=')", msg: "Ansible >=2.7.1 required due to bugs in older versions." }
-    - assert: { that: "app_name is defined and app_name != ''", msg: "Please define app_name" }
-    - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
-    - assert: { that: "clusterid is defined and cluster_vars is defined", msg: "Please define clusterid" }
-    - assert: { that: "buildenv is defined and cluster_vars[buildenv] is defined", msg: "Please define buildenv" }
-
-    - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
-      when: cluster_vars.type == "gce" or cluster_vars.type == "aws"
-  tags: clusterbuild_clean,clusterbuild_create,clusterbuild_config,clusterbuild_readiness
-
 - name: Clean the cluster
   hosts: localhost
   connection: local

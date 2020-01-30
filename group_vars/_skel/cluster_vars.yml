@@ -56,45 +56,45 @@ bind9:
 cluster_name: "{{app_name}}-{{buildenv}}"
 
 ### AWS example
-cluster_vars:
-  type: aws     # aws, gcp, openstack
-  image: ""     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#  image: "ami-0987ee37af7792903"    #eu-west-1	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
-#  image: "ami-04c58523038d79132"    #eu-west-1	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
-#  image: "ami-0bbe9b07c5fe8e86e"    #us-west-2	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
-#  image: "ami-0a7d051a1c4b54f65"    #us-west-2	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
-  region: &region "eu-west-1"
-  dns_zone_internal: "{{_region}}.compute.internal" # eu-west-1, us-west-2
-  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. aws_euw1, gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-  dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-  assign_public_ip: "no"
-  inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
-  instance_profile_name: "vpc_lock_{{buildenv}}"
-  route53_private_zone: true # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
-  secgroups_existing: []
-  secgroup_new:
-    - proto: "tcp"
-      ports: ["22"]
-      cidr_ip: 10.0.0.0/8
-      rule_desc: "SSH Access"
-    - proto: "tcp"
-      ports: ["{{prometheus_node_exporter_port}}"]
-      group_name: ["{{buildenv}}-private-sg"]
-      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
-    - proto: all
-      group_name: ["{{cluster_name}}-sg"]
-      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
-  sandbox:
-    hosttype_vars:
-      sys: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
-      #sysdisks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
-    aws_access_key: ""
-    aws_secret_key: ""
-    vpc_name: "<team_name>-{{buildenv}}"
-    vpc_subnet_name_prefix: "{{buildenv}}-private-subnet-{{_region}}"
-    key_name: ""
-    termination_protection: "no"
-_region: *region
+#cluster_vars:
+#  type: aws     # aws, gcp, openstack
+#  image: ""     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+##  image: "ami-0987ee37af7792903"    #eu-west-1	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
+##  image: "ami-04c58523038d79132"    #eu-west-1	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
+##  image: "ami-0bbe9b07c5fe8e86e"    #us-west-2	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
+##  image: "ami-0a7d051a1c4b54f65"    #us-west-2	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
+#  region: &region "eu-west-1"
+#  dns_zone_internal: "{{_region}}.compute.internal" # eu-west-1, us-west-2
+#  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. aws_euw1, gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+#  dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+#  assign_public_ip: "no"
+#  inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+#  instance_profile_name: "vpc_lock_{{buildenv}}"
+#  route53_private_zone: true # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
+#  secgroups_existing: []
+#  secgroup_new:
+#    - proto: "tcp"
+#      ports: ["22"]
+#      cidr_ip: 10.0.0.0/8
+#      rule_desc: "SSH Access"
+#    - proto: "tcp"
+#      ports: ["{{prometheus_node_exporter_port}}"]
+#      group_name: ["{{buildenv}}-private-sg"]
+#      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
+#    - proto: all
+#      group_name: ["{{cluster_name}}-sg"]
+#      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+#  sandbox:
+#    hosttype_vars:
+#      sys: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
+#      #sysdisks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+#    aws_access_key: ""
+#    aws_secret_key: ""
+#    vpc_name: "<team_name>-{{buildenv}}"
+#    vpc_subnet_name_prefix: "{{buildenv}}-private-subnet-{{_region}}"
+#    key_name: ""
+#    termination_protection: "no"
+#_region: *region
 
 ## OPTIONAL - NVME/Nitro instances Logical Volumes configuration in case the mounting point for all nvme_volumes is set to the same path
 vg_name: vg0
@@ -121,6 +121,10 @@ lv_size: 100%FREE
 #      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
 #      source_ranges: "{{_ssh_guard_whitelist}}"
 #      description: "SSH Access"
+#    - name: "{{cluster_name}}-prometheus_node_exporter"
+#      allowed: [{ip_protocol: "tcp", ports: ["{{prometheus_node_exporter_port}}"]}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
 #    - name: "{{cluster_name}}-nwtag"
 #      allowed: [{ip_protocol: "all"}]
 #      source_tags: ["{{cluster_name}}-nwtag"]
