@@ -1,19 +1,5 @@
 ---
 
-- name: Include cluster variables
-  hosts: localhost
-  tasks:
-    - include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
-
-- name: Preflight check
-  hosts: localhost:all
-  connection: local
-  gather_facts: false
-  tasks:
-    - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
-    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
-  tags: always
-
 - name: Redeploy (reprovision one at a time).
   hosts: localhost
   connection: local
@@ -21,7 +7,7 @@
   gather_facts: true
   tasks:
     - name: Run redeploy
-      include_role:
+      import_role:
         name: clusterbuild/redeploy
       vars:
         mainclusteryml: "cluster.yml"

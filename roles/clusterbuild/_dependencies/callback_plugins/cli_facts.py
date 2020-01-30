@@ -49,7 +49,7 @@ class CallbackModule(CallbackBase):
 
         # We cannot put 'localhost' in get_hosts(pattern=['all', 'localhost']) call, because of PR 58400, described below.
         hosts = variable_manager._inventory.get_hosts(pattern=['all'], ignore_restrictions=True)
-        hosts.append(variable_manager._inventory.localhost)
+        if variable_manager._inventory.localhost: hosts.append(variable_manager._inventory.localhost)
         for host in hosts:
             # Ansible 2.9 (https://github.com/ansible/ansible/pull/58400) changed the 'host' type in ansible/vars/manager.py::set_host_variable() from type <class 'ansible.inventory.host.Host'> to type string.
             if CLI.version_info()['major'] >= 2 and CLI.version_info()['minor'] >= 9:
