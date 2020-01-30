@@ -8,7 +8,7 @@
   tasks:
     - name: Run redeploy
       import_role:
-        name: clusterbuild/redeploy
+        name: clusterverse/redeploy
       vars:
         mainclusteryml: "cluster.yml"
         predeleterole: ""
