@@ -6,9 +6,9 @@
   become: false
   gather_facts: true
   roles:
-    - role: clusterbuild/clean
+    - role: clusterverse/clean
       when: clean is defined and clean|bool
-  tags: clusterbuild_clean
+  tags: clusterverse_clean
 
 - name: Deploy the cluster
   hosts: localhost
@@ -16,22 +16,22 @@
   become: false
   gather_facts: true
   roles:
-    - role: clusterbuild/create
-  tags: clusterbuild_create
+    - role: clusterverse/create
+  tags: clusterverse_create
 
-- name: Wait for target connection to cluster nodes (NOTE - This cannot be within clusterbuild/config as that gathers facts, which needs the connection already)
+- name: Wait for target connection to cluster nodes (NOTE - This cannot be within clusterverse/config as that gathers facts, which needs the connection already)
   hosts: all
   gather_facts: false
   tasks:
     - wait_for_connection:
-  tags: clusterbuild_config
+  tags: clusterverse_config
 
 - name: Perform config on the cluster
   hosts: all
   become: false
   roles:
-    - role: clusterbuild/config
-  tags: clusterbuild_config
+    - role: clusterverse/config
+  tags: clusterverse_config
 
 ## ...
 ## Application roles
@@ -40,6 +40,6 @@
 - name: Perform cluster readiness operations (e.g. remove maintenance_mode tag from VMs).
   hosts: all
   roles:
-    - role: clusterbuild/readiness
-  tags: clusterbuild_readiness
+    - role: clusterverse/readiness
+  tags: clusterverse_readiness
 
