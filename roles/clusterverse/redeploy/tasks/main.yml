@@ -1,5 +1,4 @@
 ---
-
 - name: Include cluster variables
   include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
 
@@ -7,46 +6,9 @@
   block:
     - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
     - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
+    - assert: { that: "redeploy_scheme is defined" }
 
-- name: Attempt redeploy.  Restore old if fails
-  block:
-    - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
-      include_tasks: by_type.yml
-      with_items: "{{ myhosttypes_array }}"
-      loop_control:
-        loop_var: hosttype
-      vars:
-        cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
-        myhosttypes_array: "{%- if myhosttypes is defined and myhosttypes != '' -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
-
-    - name: Clean stopped instance if deployment is succesfull
-      include_tasks: aws_del.yml
-      when: cluster_vars.type == "aws" and deployment_failed is not defined and deployment_failed != true
-
-    - name: Clean stopped instance if deployment is succesfull
-      include_tasks: gce_del.yml
-      when: cluster_vars.type == "gce" and deployment_failed is not defined and deployment_failed != true
-
-  rescue:
-    - debug: msg="Restoring cluster"
-
-    - set_fact:
-        deployment_failed: true
-    
-    - include_tasks: aws_rescue.yml
-      when: cluster_vars.type == "aws"
-      vars:
-        host_to_rescue: "{{host_to_redeploy}}"
-
-    - include_tasks: gce_rescue.yml
-      when: cluster_vars.type == "gce"
-      vars:
-        host_to_rescue: "{{host_to_redeploy}}"
-
-    - name: "set argument variables for {{mainclusteryml}}"
-      set_fact:
-        maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
-
-    - name: "run {{mainclusteryml}} to clean the inventory from stopped nodes"
-      shell: "{{maincluster_yml_args}} -e rescuing=false"      
-      register: r_mainclusteryml        
+- name: "Run the {{redeploy_scheme}} redploy scheme"
+  include_role:
+    name: "{{role_path}}/{{redeploy_scheme}}"
+  when: redeploy_scheme is defined
