@@ -1,0 +1,23 @@
+---
+
+- name: set hosts_to_del if canary==start
+  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype][:1]}}
+  when: (canary is defined and canary=="start")
+
+- name: set hosts_to_del if canary==finish
+  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype][1:]}}
+  when: (canary is defined and canary=="finish")
+
+- name: set hosts_to_del if canary==none
+  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype]}}
+  when: (canary is defined and canary=="none")
+
+- debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_del | json_query('[].hostname') | join(', ')}}]"
+  when: (canary is defined)
+
+
+- name: Run redeploy per host.  Delete one at a time, then reprovision.
+  include_tasks: by_type_host.yml
+  with_items: "{{ hosts_to_del }}"
+  loop_control:
+    loop_var: host_to_del

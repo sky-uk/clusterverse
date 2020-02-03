@@ -129,10 +129,23 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 ---
 
 # redeploy.yml
-+ This playbook enables a basic rolling redeployment of the cluster - e.g. if it is desired to upgrade each node without downtime.
-  + This assumes a resilient deployment (it can tolerate one node being removed from the cluster).
+This playbook supports pluggable infrastructure redeployment schemes.  Two are provided:
++ It contains callback hooks:
+  + `mainclusteryml`: This is the name of the deployment playbook.
+  + `predeleterole`: This is the name of a role that should be called prior to deleting a VM
+
+### _scheme_rmvm_rmdisks_only
+This scheme runs a very basic rolling redeployment of the cluster.
 + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
++ **This assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+
+### _scheme_addnewvm_rmdisk_rollback
+This scheme runs a more advanced rolling redeployment of the cluster.
++ For each VM, firstly, a new VM is created, and then the old one is shut down.
++ If the process proceeds correctly for all the VMs, the old (now shut-down) VMs, are terminated
++ If the process fails for any reason, the old VMs are reinstated.
 
 ### Extra variables:
-+ `-e canary=['start', 'finish', 'none']` -  Specify whether to start or finish a canary deploy, or 'none' deploy
++ `-e 'redeploy_scheme'=<subrole_name>` - The scheme corresponds to one defined in 
++ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
 + `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
