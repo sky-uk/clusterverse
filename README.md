@@ -1,30 +1,22 @@
-# clusterverse
-This project provides an Ansible playbook to provision (cloud) infrastructure.
+# clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
+Full-lifecycle, immutable cloud infrastructure cluster management, using Ansible.
+- **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS and GCP
+- **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
+- **Scale (e.g. add a node):**  If you change the config yaml and rerun the deploy, new nodes will be added.
+- **Redeploy (e.g. up-version):** If you need to up-version, the `redelpoy` playbook will replace each node in turn, (with optional callbacks), and rollback if any failures occur. 
+
+**clusterverse** is designed to deploy base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, or Cassandra.
 
 ## Requirements
-Ansible >= 2.9
 
-## Variables specific to your project
+### Python dependencies
+Dependencies are managed via Pipenv:
++ `pipenv install`  will create a Python virtual environment with dependencies specified in the Pipfile
 
-### group_vars:
-#### group_vars/\<clusterid\>/cluster_vars.yml:
-```
-buildenv: ""                      # The environment (dev, stage, etc), which must be an attribute of cluster_vars
-release_version: ""               # Identifies the application version that is being deployed (optional)
-app_name: "nginx"                 # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
-app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
+To active the pipenv:
++ `pipenv shell`
++ or prepend the ansible-playbook commands with: `pipenv run`
 
-cluster_vars:
-  <buildenv>:
-    ...
-    hosttype_vars:
-      <hosttype>: {...}
-```
-
-#### app_vars.yml:
-Contains your application-specific variables
-
-## Prerequisites
 ### AWS
 - AWS account with IAM rights to create EC2 VMs + Security Groups in the chosen VPC/Subnets
 - Already created VPCs
@@ -47,27 +39,15 @@ export OS_USERNAME=
 export OS_PASSWORD=
 ```
 
-
 ### DNS
-- DNS zone delegated to the Bind instance
-or
-- Infoblox access and credentials
-- DNS zone delegated to the Infoblox instance
+DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS Zone delegated to one of the following:
+- Bind9
+- Route53
+- Infoblox
 
-### Localhost
-Dependencies are managed via Pipenv:
-```bash
-pipenv install
-```
-Will create a Python virtual environment with dependencies specified in the Pipfile
+Credentials to the DNS server will also be required. 
 
-To active it, simply enter:
-```bash
-pipenv shell
-```
-or run all ansible-playbook commands by prepending `pipenv run`
-
-### Credentials
+### Cloud credential management
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
 + Because multiple environments are supported, it is recommended to use [vault-ids](https://docs.ansible.com/ansible/latest/user_guide/vault.html#multiple-vault-passwords), and have credentials per environment (e.g. to help avoid accidentally running a deploy on prod).
 + There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible.  This is particularly useful for running under Jenkins.
@@ -102,12 +82,30 @@ ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml
 ```
 
 
+### Variables 
+#### group_vars/\<clusterid\>/cluster_vars.yml:
+```
+buildenv: ""                      # The environment (dev, stage, etc), which must be an attribute of cluster_vars
+release_version: ""               # Identifies the application version that is being deployed (optional)
+app_name: "nginx"                 # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
+app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-### Mandatory command-line variables:
+cluster_vars:
+  <buildenv>:
+    ...
+    hosttype_vars:
+      <hosttype>: {...}
+```
+
+#### group_vars/\<clusterid\>/cluster_vars.yml:
+Contains your application-specific variables
+
+
+#### Mandatory command-line variables:
 + `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
 
-### Optional extra variables:
+#### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
 + `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 + `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
