@@ -17,15 +17,6 @@
       register: gcp_compute_instance_facts
       delegate_to: localhost
 
-    - name: Delete DNS entries from infoblox
-      infoblox:
-        server: "{{ infoblox.server }}"
-        username: "{{ infoblox.username }}"
-        password: "{{ infoblox.password }}"
-        action: delete_a_record
-        name: "{{host_to_del.hostname}}.{{cluster_vars[clusterid].dns_zone_external}}"
-      when: cluster_vars[clusterid].dns_server == "infoblox" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
-
     - name: Delete DNS A records using nsupdate (if applicable)
       nsupdate:
         key_name: "{{bind9.key_name}}"

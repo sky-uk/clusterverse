@@ -24,7 +24,7 @@
 
     - set_fact:
         deployment_failed: true
-    
+
     - include_tasks: aws_rescue.yml
       when: cluster_vars.type == "aws"
       vars:
@@ -40,5 +40,5 @@
         maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
 
     - name: "run {{mainclusteryml}} to clean the inventory from stopped nodes"
-      shell: "{{maincluster_yml_args}} -e rescuing=false"      
-      register: r_mainclusteryml        
+      shell: "{{maincluster_yml_args}} -e rescuing=false"
+      register: r_mainclusteryml

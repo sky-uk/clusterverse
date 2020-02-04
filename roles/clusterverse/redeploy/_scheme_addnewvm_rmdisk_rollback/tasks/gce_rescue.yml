@@ -23,7 +23,7 @@
 - name: gce_restore | set expected nodes
   set_fact:
     remove_first: "{{hosts_running|int - current_cluter_size|int}}"
-  vars:  
+  vars:
     hosts_running: "{{gcp_compute_instance_info | json_query('results[].resources[?status==`RUNNING`].name | []') | length}}"
 
 - name: gce_restore | remove spare instance (if exixsts)
@@ -56,8 +56,8 @@
     - name: run pre-delete role
       include_role:
         name: "{{predeleterole}}"
-      when: predeleterole is defined and predeleterole != ""    
-        
+      when: predeleterole is defined and predeleterole != ""
+
     - include_tasks: aws_stop_instance.yml
       when: cluster_vars.type == "aws"
       vars:
@@ -68,7 +68,7 @@
       when: cluster_vars.type == "gce"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
-        deploy_status_to_stop: "new" 
+        deploy_status_to_stop: "new"
   when: remove_first|int == 1
 
 - name: re-add instances

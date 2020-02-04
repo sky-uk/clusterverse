@@ -6,7 +6,7 @@
 
 - name: Preflight check
   block:
-    - assert: { that: "ansible_version.full is version_compare('2.7.1', '>=')", msg: "Ansible >=2.7.1 required due to bugs in older versions." }
+    - assert: { that: "ansible_version.full is version_compare('2.9', '>=')", msg: "Ansible >=2.9 required." }
     - assert: { that: "app_name is defined and app_name != ''", msg: "Please define app_name" }
     - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
     - assert: { that: "clusterid is defined and cluster_vars is defined", msg: "Please define clusterid" }

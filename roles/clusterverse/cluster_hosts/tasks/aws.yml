@@ -31,7 +31,7 @@
   run_once: true
 
 - set_fact:
-    subnet_ids_per_az: "{{subnetdata.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"       
+    subnet_ids_per_az: "{{subnetdata.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"
 
 - name: Add instance_to_create to cluster_hosts_flat
   set_fact:
@@ -46,7 +46,7 @@
               }]) -%}
       {{ res }}
   vars:
-     instance_to_create_clean: "{{instance_to_create | regex_replace('-(?!.*-).*')}}"   
+     instance_to_create_clean: "{{instance_to_create | regex_replace('-(?!.*-).*')}}"
   when: instance_to_create is defined and cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create + '`]') | length == 0
 
 - name: Add rescuing_instance to cluster_hosts_flat
@@ -62,7 +62,7 @@
               }]) -%}
       {{ res }}
   vars:
-     rescuing_instance_clean: "{{rescuing_instance | regex_replace('-(?!.*-).*')}}"   
+     rescuing_instance_clean: "{{rescuing_instance | regex_replace('-(?!.*-).*')}}"
   when: rescuing_instance is defined and cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance + '`]') | length == 0
 
 - name: Update cluster_hosts_flat with subnet_ids
@@ -97,12 +97,12 @@
         {%- if running_instance_fact[0] is defined -%}
           {%- for real_hostname in running_instance_fact -%}
             {%- if real_hostname.name == host.hostname-%}
-              {%- set _dummy = host.update({'hostname': host.hostname})-%}             
+              {%- set _dummy = host.update({'hostname': host.hostname})-%}
             {%- elif host.hostname in real_hostname.name -%}
-              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%} 
+              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
               {%- else -%}
                 {%- set _dummy = host.update({'hostname': real_hostname.name})-%}
-              {% endif -%}  
+              {% endif -%}
             {% endif -%}
           {%- endfor -%}
         {%- else -%}
@@ -110,7 +110,7 @@
         {%- endif -%}
         {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
           {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string})-%}
-        {%- endif -%}   
+        {%- endif -%}
       {%- endfor -%}
       {{ res }}
 
@@ -128,13 +128,13 @@
   vars:
     release_tag: "{{ ec2_existing | json_query(\"instances[?instance_id==`\" + item + \"`].tags.release | [0]\") }}"
     deploy_status_tag: "{{ ec2_existing | json_query(\"instances[?instance_id==`\" + item + \"`].tags.deploy_status | [0]\") }}"
-  register: ec2_updated  
+  register: ec2_updated
   with_items: "{{ ec2_existing | json_query('instances[].instance_id')}}"
 
 - set_fact:
     current_release_per_instance: "{{ec2_updated | json_query(\"results[].{value: tags.release, key: tags.Name}\") | items2dict}}"
     current_deploy_status_per_instance: "{{ec2_updated | json_query(\"results[].{value: tags.deploy_status, key: tags.Name}\") | items2dict}}"
- 
+
 - name: update cluster_hosts_flat with current release and deploy_status
   set_fact:
     cluster_hosts_flat: |
@@ -146,4 +146,4 @@
           {%- set _dummy = host.update({'current_release': release_version, 'current_deploy_status': 'new'}) -%}
         {% endif %}
       {%- endfor %}
-      {{ res }}                
+      {{ res }}

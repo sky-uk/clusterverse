@@ -35,16 +35,16 @@
     - set_fact:
         j_rollback_arg: "[?starts_with(@, '{{host_to_rollback_clean|string}}')] | [0]"
       vars:
-        host_to_rollback_clean: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}"  
+        host_to_rollback_clean: "{{host_to_rollback | regex_replace('-(?!.*-).*')}}"
 
     - set_fact:
         host_to_redeploy: "{'hostname': \"{{rollback_instances | json_query('instances[*].tags.Name') | difference([host_to_rollback]) | to_json | from_json | json_query(j_rollback_arg)}}\"}"
- 
+
     - set_fact:
         host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
 
     - name: "run {{mainclusteryml}}"
-      shell: "{{maincluster_yml_args}} -e rescuing=true -e rescuing_instance={{ host_to_redeploy.hostname }}"      
+      shell: "{{maincluster_yml_args}} -e rescuing=true -e rescuing_instance={{ host_to_redeploy.hostname }}"
       register: r_mainclusteryml
 
     - name: "Create CNAME record"
@@ -63,8 +63,8 @@
     - name: run pre-delete role
       include_role:
         name: "{{predeleterole}}"
-      when: predeleterole is defined and predeleterole != ""    
-        
+      when: predeleterole is defined and predeleterole != ""
+
     - include_tasks: aws_stop_instance.yml
       when: cluster_vars.type == "aws"
       vars:

@@ -67,7 +67,7 @@
       lvg:
         vg:  "{{ vg_name }}"
         pvs: "{{nvmevols | map(attribute='device') | join(',')}}"
-    
+
     - name: autodisks | Create a logical volume from volume group
       become: yes
       lvol:

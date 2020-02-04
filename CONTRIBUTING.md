@@ -1,20 +1,17 @@
 # Contributing
-​
-Contributions are welcomed! 
-​
+Contributions are welcomed!
+
 When contributing to this repository, please first discuss the change you wish to make via GitHub
 issue before making a change.  This saves everyone from wasted effort in the event that the proposed
 changes need some adjustment before they are ready for submission.
 ​
 ## Pull Request Process
-​
 1. Ensure your code is consistent with the existing style.  Use [yamllint](https://pypi.org/project/yamllint/) to achieve this if you prefer.
 2. Update the README.md where relevant.
 3. You may merge the Pull Request in once you have the sign-off of the code owners - please squash-merge. If you 
    do not have permission to do that, you may request the reviewers to merge it for you.
 ​
 ## Contributor Code of Conduct
-​
 As contributors and maintainers of this project, and in the interest of fostering an open and 
 welcoming community, we pledge to respect all people who contribute through reporting issues, 
 posting feature requests, updating documentation, submitting pull requests or patches, and other 
