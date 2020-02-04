@@ -1,6 +1,6 @@
 ---
 
-- debug: msg="Stop {{host_to_stop.hostname}}, release {{release_to_stop}}" 
+- debug: msg="Stop {{host_to_stop.hostname}}, release {{release_to_stop}}"
 
 - name: gcp_gather | Get GCP instance facts
   gcp_compute_instance_info:

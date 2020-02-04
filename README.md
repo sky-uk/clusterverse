@@ -7,6 +7,9 @@ Full-lifecycle, immutable cloud infrastructure cluster management, using Ansible
 
 **clusterverse** is designed to deploy base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, or Cassandra.
 
+## Contributing
+Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/sky-uk/clusterverse/blob/master/CONTRIBUTING.md) for details.
+
 ## Requirements
 
 ### Python dependencies
@@ -27,23 +30,10 @@ To active the pipenv:
 - Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.  This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/all/clusters.yml`.  You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
 - Google Cloud SDK need to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
 
-### Openstack
-Put the following OS parameters in your ~/.bash_profile:
-```
-export OS_AUTH_URL=
-export OS_TENANT_ID=
-export OS_TENANT_NAME=
-export OS_PROJECT_NAME=
-export OS_REGION_NAME=
-export OS_USERNAME=
-export OS_PASSWORD=
-```
-
 ### DNS
 DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS Zone delegated to one of the following:
 - Bind9
 - Route53
-- Infoblox
 
 Credentials to the DNS server will also be required. 
 
@@ -61,28 +51,9 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
   `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
 
 
-## Invocation examples
-### Per-cloud:
-#### AWS:
-```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true -e release_version=v1.0.1
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
-```
-#### GCP:
-```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
-```
-#### Openstack:
-```
-ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true
-ansible-playbook -u centos --private-key=/home/<user>/.ssh/<rsa_key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_lsd_slo --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
-```
+### Cluster Variables
+The clusters are defined as code, within Ansible yaml file as below:
 
-
-### Variables 
 #### group_vars/\<clusterid\>/cluster_vars.yml:
 ```
 buildenv: ""                      # The environment (dev, stage, etc), which must be an attribute of cluster_vars
@@ -100,12 +71,28 @@ cluster_vars:
 #### group_vars/\<clusterid\>/cluster_vars.yml:
 Contains your application-specific variables
 
+---
+## Invocation examples: _deploy_
+The `cluster.yml` playbook deploys a cluster from the config defined above.
 
-#### Mandatory command-line variables:
+### AWS:
+```
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
+```
+### GCP:
+```
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
+```
+
+### Mandatory command-line variables:
 + `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
 
-#### Optional extra variables:
+### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
 + `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 + `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
@@ -126,8 +113,29 @@ Contains your application-specific variables
 
 ---
 
-# redeploy.yml
-This playbook supports pluggable infrastructure redeployment schemes.  Two are provided:
+## Invocation examples: _redeploy_
+The `redeploy.yml` playbook will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
+
+### AWS:
+```
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
+```
+### GCP:
+```
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
+```
+
+### Mandatory command-line variables:
++ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
++ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
+
+### Extra variables:
++ `-e 'redeploy_scheme'=<subrole_name>` - The scheme corresponds to one defined in 
++ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
++ `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
+
+
+The redeploy playbook supports pluggable infrastructure redeployment schemes.  Two are provided:
 + It contains callback hooks:
   + `mainclusteryml`: This is the name of the deployment playbook.
   + `predeleterole`: This is the name of a role that should be called prior to deleting a VM
@@ -142,8 +150,3 @@ This scheme runs a more advanced rolling redeployment of the cluster.
 + For each VM, firstly, a new VM is created, and then the old one is shut down.
 + If the process proceeds correctly for all the VMs, the old (now shut-down) VMs, are terminated
 + If the process fails for any reason, the old VMs are reinstated.
-
-### Extra variables:
-+ `-e 'redeploy_scheme'=<subrole_name>` - The scheme corresponds to one defined in 
-+ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
-+ `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types

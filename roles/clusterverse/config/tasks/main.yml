@@ -52,62 +52,6 @@
   hostname:
     name: "{{inventory_hostname.split('.')[0]}}"
 
-# Openstack
-- block:
-    - name: set preserve_hostname in cloud.cfg
-      lineinfile:
-        path: /etc/cloud/cloud.cfg
-        line: 'preserve_hostname: true'
-        insertbefore: '^cloud_init_modules:'
-      become: true
-
-    - name: remove domain info from hostname
-      lineinfile:
-        path: /etc/hostname
-        regexp: '^(.*?)\..*'
-        line: '\1'
-        backrefs: yes
-      become: true
-
-    - name: Apply openstack DNS (if dns_server=openstack and dns.tld_external is set)
-      include_tasks: dns_openstack_create_update_a.yml
-      vars:
-        - fqdn: "{{outer_item.hostname}}.{{cluster_vars.dns_zone_external}}"
-        - ip: "{{ hostvars[outer_item.hostname]['ansible_host'] }}"
-      with_items: "{{ cluster_hosts_flat }}"
-      loop_control:
-        loop_var: outer_item
-      when: cluster_vars.dns_server == "openstack" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
-  when: cluster_vars.type == "openstack"
-
-
-- name: Create/ Update DNS A records in Infoblox (if applicable)
-  infoblox:
-    server: "{{ infoblox[buildenv].server }}"
-    username: "{{ infoblox[buildenv].username }}"
-    password: "{{ infoblox[buildenv].password }}"
-    action: set_a_record
-    name: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
-    address: "{{ hostvars[item.hostname]['ansible_host'] }}"
-    ttl: 60
-  become: false
-  delegate_to: localhost
-  run_once: true
-  with_items: "{{ cluster_hosts_flat }}"
-  when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and cluster_vars.dns_server=="infoblox" and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
-
-## Fails to overwrite previous records
-#- name: Create/ Update DNS host records in Infoblox (if applicable)
-#  nios_host_record:
-#    name: "{{item.fqdn}}"
-#    ipv4:
-#      - address: "{{ hostvars[item.hostname]['ansible_host'] }}"
-#    state: present
-#    provider:
-#      host: "{{ infoblox[buildenv].server }}"
-#      username: "{{ infoblox[buildenv].username }}"
-#      password: "{{ infoblox[buildenv].password }}"
-
 
 - name: Create/ Update DNS A records using nsupdate (if applicable)
   nsupdate:
@@ -168,7 +112,7 @@
     type: CNAME
     state: present
     ttl: 30
-  with_items: "{{ cluster_hosts_flat }}"  
+  with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars.dns_server == "nsupdate" and instance_to_create is undefined and rescuing_instance is undefined
   delegate_to: localhost
   run_once: true
@@ -187,6 +131,6 @@
     overwrite: true
   become: false
   delegate_to: localhost
-  run_once: true   
-  with_items: "{{ cluster_hosts_flat }}"  
+  run_once: true
+  with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars.dns_server == "route53" and instance_to_create is undefined and rescuing_instance is undefined

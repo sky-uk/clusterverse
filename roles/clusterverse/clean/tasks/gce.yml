@@ -18,7 +18,7 @@
   register: gcp_compute_instance
   with_items: "{{cluster_hosts_flat}}"
   async: 7200
-  poll: 0 
+  poll: 0
 
 - name: Wait for gce instance deletion to complete
   async_status:

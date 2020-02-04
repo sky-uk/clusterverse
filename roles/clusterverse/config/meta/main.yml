@@ -2,6 +2,3 @@ dependencies:
   - role: '_dependencies'
 
   - role: 'cluster_hosts'
-
-  - role: openstack_prereq
-    when: cluster_vars.type == "openstack"

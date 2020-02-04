@@ -1,8 +1,6 @@
 ---
 
-# Openstack and Google Cloud credentials lookup
-os_username: "{{ lookup('env','OS_USERNAME') }}"
-os_password: "{{ lookup('env','OS_PASSWORD') }}"
+# Google Cloud credentials lookup
 gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
 gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
 
@@ -37,27 +35,19 @@ cloud_agent:
       host: ""
       port: ""
 
-# Infoblox configurations and credentials
-infoblox:
-  sandbox:
-    server: ""
-    api_version: 2.6.1
-    username: ""
-    password: ""
-
 # Bind configurations and credentials
 bind9:
   sandbox:
-    server: 
-    key_name: 
-    key_secret: 
+    server:
+    key_name:
+    key_secret:
 
 # The global {{cluster_name}} is prefixed with {{app_name}}
 cluster_name: "{{app_name}}-{{buildenv}}"
 
 ### AWS example
 #cluster_vars:
-#  type: aws     # aws, gcp, openstack
+#  type: aws
 #  image: ""     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 ##  image: "ami-0987ee37af7792903"    #eu-west-1	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
 ##  image: "ami-04c58523038d79132"    #eu-west-1	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
@@ -66,7 +56,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"
 #  region: &region "eu-west-1"
 #  dns_zone_internal: "{{_region}}.compute.internal" # eu-west-1, us-west-2
 #  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. aws_euw1, gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-#  dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+#  dns_server: ""    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
 #  assign_public_ip: "no"
 #  inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
 #  instance_profile_name: "vpc_lock_{{buildenv}}"
@@ -109,7 +99,7 @@ lv_size: 100%FREE
 #  region: &region "europe-west1"
 #  dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
 #  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-#  dns_server: ""    # Specify DNS server. nsupdate, route53, infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
+#  dns_server: ""    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
 #  assign_public_ip: "yes"
 #  inventory_ip: "public"     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
 #  project_id: "{{gcp_credentials_json.project_id}}"
@@ -139,23 +129,3 @@ lv_size: 100%FREE
 #    deletion_protection: "no"
 #_region: *region
 #_ssh_guard_whitelist: *ssh_guard_whitelist
-
-### Openstack example
-#cluster_vars:
-#  type: openstack
-#  image: "centos7"    #OR "CentOS-7-cloudimg-x64-20170612",  "Ubuntu-1604-Xenial-cloudimg-x64-20170621"
-#  region: [region]
-#  dns_zone_internal: ""
-#  dns_zone_external: "{%- if dns_tld_external -%}  [region].{{app_class}}.{{buildenv}}.{{dns_tld_external}}  {%- endif -%}"
-#  dns_server: "openstack"    # Specify DNS server. infoblox or openstack (on openstack) supported.  If empty string is specified, no DNS will be added.
-#  dev:
-#    hosttype_vars:
-#      sys: {count_per_az: 1, az: ["az1", "az2"], flavor: m1.1c.1g, rootvol_size: "10"}
-#  network: "[team_name]_{{buildenv}}"
-#  security_group: "wide-open"
-#  key_name: "{{os_username}}"
-#  floating_ip_pools: "vlan3321"
-#  OS_AUTH_URL:
-#  OS_TENANT_ID:
-#  OS_TENANT_NAME:
-#  OS_PROJECT_NAME:

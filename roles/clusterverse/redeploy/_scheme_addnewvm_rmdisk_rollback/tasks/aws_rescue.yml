@@ -21,9 +21,9 @@
 - name: aws_restore | set expected nodes
   set_fact:
     remove_first: "{{hosts_running|int - current_cluter_size|int}}"
-  vars:  
+  vars:
     hosts_running: "{{rollback_instances | json_query('instances[?state.name==`running`].tags.Name') | length}}"
-  
+
 
 
 
@@ -65,8 +65,8 @@
         type: CNAME
         ttl: 30
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
-        overwrite: true   
-      when: cluster_vars.dns_server == "route53"      
+        overwrite: true
+      when: cluster_vars.dns_server == "route53"
 
     - set_fact:
         host_to_redeploy_release: "{{rollback_instances| json_query('instances[?tags.Name==`' + host_to_redeploy.hostname + '`].tags.release|[0]')}}"
@@ -74,14 +74,14 @@
     - name: run pre-delete role
       include_role:
         name: "{{predeleterole}}"
-      when: predeleterole is defined and predeleterole != ""    
-        
+      when: predeleterole is defined and predeleterole != ""
+
     - include_tasks: aws_stop_instance.yml
       when: cluster_vars.type == "aws"
       vars:
         host_to_stop: "{{host_to_redeploy}}"
         release_to_stop: "{{host_to_redeploy_release}}"
-        deploy_status_to_stop: "new"      
+        deploy_status_to_stop: "new"
   when: remove_first|int == 1
 
 

@@ -2,7 +2,6 @@
 
 - debug: msg="Stop {{host_to_del.hostname}}"
 
-
 - name:
   block:
     - name: get existing instance
@@ -16,15 +15,6 @@
       register: ec2_instance_facts
       delegate_to: localhost
       run_once: true
-
-    - name: Delete DNS entries from infoblox
-      infoblox:
-        server: "{{ infoblox[buildenv].server }}"
-        username: "{{ infoblox[buildenv].username }}"
-        password: "{{ infoblox[buildenv].password }}"
-        action: delete_a_record
-        name: "{{ec2_instance_facts.instances[0].tags.Name}}.{{cluster_vars.dns_zone_external}}"
-      when: cluster_vars.dns_server == "infoblox" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
     - name: Delete DNS A records using nsupdate (if applicable)
       nsupdate:

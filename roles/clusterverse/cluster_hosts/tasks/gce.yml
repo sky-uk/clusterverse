@@ -23,7 +23,7 @@
               }]) -%}
       {{ res }}
   vars:
-     instance_to_create_clean: "{{instance_to_create | regex_replace('-(?!.*-).*')}}"   
+     instance_to_create_clean: "{{instance_to_create | regex_replace('-(?!.*-).*')}}"
   when: instance_to_create is defined and cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create + '`]') | length == 0
 
 - name: Add rescuing_instance to cluster_hosts_flat
@@ -40,14 +40,14 @@
               }]) -%}
       {{ res }}
   vars:
-     rescuing_instance_clean: "{{rescuing_instance | regex_replace('-(?!.*-).*')}}"   
+     rescuing_instance_clean: "{{rescuing_instance | regex_replace('-(?!.*-).*')}}"
   when: rescuing_instance is defined and cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance + '`]') | length == 0
 
 - name: Get GCP instance facts
   gcp_compute_instance_info:
     zone: "{{cluster_vars.region}}-{{item}}"
     filters:
-      - "name = {{cluster_name}}*"       
+      - "name = {{cluster_name}}*"
       - "status = RUNNING"            # gcloud compute instances list --filter="status=RUNNING"
     project: "{{cluster_vars.project_id}}"
     auth_kind: "serviceaccount"
@@ -62,7 +62,7 @@
 - set_fact:
     running_instance_fact: "{{gcp_compute_instance_info.results | json_query('[*].resources[].{name: name, deploy_status: labels.deploy_status}')}}"
     current_cluter_size: "{{gcp_compute_instance_info.results | json_query('[*].resources[]') | length}}"
-  run_once: true  
+  run_once: true
 
 - name: Update cluster_hosts_flat with running_instance_fact data
   set_fact:
@@ -72,12 +72,12 @@
         {%- if running_instance_fact[0] is defined and running_instance_fact[0] != None -%}
           {%- for real_hostname in running_instance_fact -%}
             {%- if real_hostname.name == host.hostname-%}
-              {%- set _dummy = host.update({'hostname': host.hostname,'gdplabel': 'exactmatch'})-%}             
+              {%- set _dummy = host.update({'hostname': host.hostname,'gdplabel': 'exactmatch'})-%}
             {%- elif host.hostname in real_hostname.name -%}
-              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%} 
+              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
               {%- else -%}
                 {%- set _dummy = host.update({'hostname': real_hostname.name,'gdplabel': 'beginningmatchmatch'})-%}
-              {% endif -%}  
+              {% endif -%}
             {% endif -%}
           {%- endfor -%}
         {%- else -%}
@@ -85,10 +85,10 @@
         {%- endif -%}
         {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
           {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string,'gdplabel': 'missingEpoch'})-%}
-        {%- endif -%}        
+        {%- endif -%}
       {%- endfor -%}
       {{ res }}
-  run_once: true           
+  run_once: true
 
 - name: delete deploy_status label
   gce_labels:
@@ -138,11 +138,11 @@
   with_items: "{{cluster_hosts_flat}}"
   register: gcp_compute_instance_info_updated
   delegate_to: localhost
- 
+
 - set_fact:
     current_release_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: metadata.items[?key==`release`].value | [0], key: name}\") | items2dict}}"
     current_deploy_status_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: labels.deploy_status, key: name}\") | items2dict}}"
- 
+
 - name: update cluster_hosts_flat with current release and deploy_status
   set_fact:
     cluster_hosts_flat: |
@@ -154,5 +154,5 @@
           {%- set _dummy = host.update({'current_release': release_version, 'current_deploy_status': 'new'}) -%}
         {% endif %}
       {%- endfor %}
-      {{ res }}  
+      {{ res }}
 
