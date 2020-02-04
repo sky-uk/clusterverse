@@ -8,9 +8,10 @@ changes need some adjustment before they are ready for submission.
 ​
 ## Pull Request Process
 ​
-1. Update the README.md where relevant.
-2. You may merge the Pull Request in once you have the sign-off of two other developers - please squash-merge. If you 
-   do not have permission to do that, you may request the second reviewer to merge it for you.
+1. Ensure your code is consistent with the existing style.  Use [yamllint](https://pypi.org/project/yamllint/) to achieve this if you prefer.
+2. Update the README.md where relevant.
+3. You may merge the Pull Request in once you have the sign-off of the code owners - please squash-merge. If you 
+   do not have permission to do that, you may request the reviewers to merge it for you.
 ​
 ## Contributor Code of Conduct
 ​
