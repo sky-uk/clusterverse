@@ -73,28 +73,28 @@
         - name: autodisks | Create a volume group from all nvme devices
           become: yes
           lvg:
-            vg:  "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.vg_name }}"
+            vg:  "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}"
             pvs: "{{nvmevols | map(attribute='device') | join(',')}}"
 
         - name: autodisks | Create a logical volume from volume group
           become: yes
           lvol:
-            vg: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.vg_name }}"
-            lv: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.lv_name }}"
-            size: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.lv_size }}"
+            vg: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}"
+            lv: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_name }}"
+            size: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_size }}"
 
         - name: autodisks | Create filesystem(s) on attached nvme volume(s)
           become: yes
           filesystem:
             fstype: "{{ nvmevols | map(attribute='fstype') | list | unique | join('') }}"
-            dev: "/dev/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.vg_name }}/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.lv_name }}"
+            dev: "/dev/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_name }}"
             force: no
 
         - name: autodisks | Mount created filesytem(s) persistently
           become: yes
           mount:
             path: "{{ nvmevols | map(attribute='mountpoint') | list | unique | join('') }}"
-            src: "/dev/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.vg_name }}/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.params.lv_name }}"
+            src: "/dev/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_name }}"
             fstype: "{{ nvmevols | map(attribute='fstype') | list | unique | join('') }}"
             state: mounted
             opts: _netdev

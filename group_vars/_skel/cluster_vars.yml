@@ -78,8 +78,8 @@ cluster_name: "{{app_name}}-{{buildenv}}"
 #    hosttype_vars:
 #      sys: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
 #      #sysdisks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "syslog", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
-#      #sysnvme_jbod: {count_per_az: 1, az: ["a"], flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/mnt/data1", fstype: ext4, volume_size: 2500}, {mountpoint: "/mnt/data2", fstype: ext4, volume_size: 2500}], params: {vg_name: "vg0", lv_name: "lv0", lv_size: "100%FREE"} } }
-#      #sysnvme_raid: {count_per_az: 1, az: ["a"], flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/mnt/data", fstype: ext4, volume_size: 2500}, {mountpoint: "/mnt/data", fstype: ext4, volume_size: 2500}], params: {vg_name: "vg0", lv_name: "lv0", lv_size: "100%FREE"} } }
+#      #sysnvme_multi: {count_per_az: 1, az: ["a"], flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/mnt/data1", fstype: ext4, volume_size: 2500}, {mountpoint: "/mnt/data2", fstype: ext4, volume_size: 2500}]} } }
+#      #sysnvme_lvm: {count_per_az: 1, az: ["a"], flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/mnt/data", fstype: ext4, volume_size: 2500}, {mountpoint: "/mnt/data", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "100%FREE"} } }
 #    aws_access_key: ""
 #    aws_secret_key: ""
 #    vpc_name: "<team_name>-{{buildenv}}"
