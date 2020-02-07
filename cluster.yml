@@ -24,6 +24,8 @@
   gather_facts: false
   tasks:
     - wait_for_connection:
+      vars:
+        ansible_pipelining: no
   tags: clusterverse_config
 
 - name: Perform config on the cluster
