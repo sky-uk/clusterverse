@@ -81,29 +81,33 @@
   block:
     - name: Create GCP VMs asynchronously
       gcp_compute_instance:
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        project: "{{cluster_vars.project_id}}"
+        zone: "{{cluster_vars.region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{_host_disks}}"
         metadata:
+          startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
+          ssh-keys: "{{ gce_ssh_username }}:{{ gce_ssh_pubkey }} {{ gce_ssh_username }}"
+        labels:
           hosttype: "{{item.hosttype}}"
           env: "{{buildenv}}"
           release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
           owner: "{{ lookup('env','USER') }}"
-          startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
-          ssh-keys: "{{ gce_ssh_username }}: {{ gce_ssh_pubkey }} {{ gce_ssh_username }}"
+          maintenance_mode: "true"
+          deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
         network_interfaces:
           - network: "{{ gcp_compute_network_info['items'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
             access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
-        zone: "{{cluster_vars.region}}-{{item.az_name}}"
+        tags: { items: "{{cluster_vars.network_fw_tags}}" }
         can_ip_forward : "{{cluster_vars.ip_forward}}"
         scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[buildenv].preemptible}}" }
         state: present
-        tags: { items: "{{cluster_vars.network_fw_tags}}" }
-        project: "{{cluster_vars.project_id}}"
-        auth_kind: "serviceaccount"
-        service_account_file: "{{gcp_credentials_file}}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
       vars:
         __autodisksnames: "{%- if cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | length -%}[{%- for vol in cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes -%}{%- set mountname = vol.mountpoint | regex_replace('.*\\/(.*)', '\\\\1') -%}{{vol|combine({'mountname': mountname})}}{% if not loop.last %},{% endif %}{%- endfor -%}]{%- else -%}[]{%- endif-%}"
         _autodisks: "{{__autodisksnames | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,mountname]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,mountname]), disk_size_gb: volume_size}} \") }}"
@@ -130,56 +134,6 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Set deletion protection
-      command: "gcloud compute instances update {{item.hostname}} --deletion-protection --zone {{cluster_vars.region}}-{{item.az_name}}"
-      with_items: "{{cluster_hosts_flat}}"
-      delegate_to: localhost
-      run_once: true
-      when: "cluster_vars[buildenv].deletion_protection == 'yes'"
-
-    # Currently GCP doesn't allow to amend a metadata field and labels don't support . (e.g. v1.0.0)
-    # - name: update release tag when run normal deploy
-    #   gce_labels:
-    #     resource_name: "{{item.hostname}}"
-    #     resource_type: instances
-    #     resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
-    #     project_id: "{{cluster_vars.project_id}}"
-    #     credentials_file: "{{gcp_credentials_file}}"
-    #     labels:
-    #       release: "{{ release_version }}"
-    #     state: present
-    #   with_items: "{{cluster_hosts_flat}}"
-    #   when: (instance_to_create is undefined and rescuing is undefined)
-
-    - name: force set maintenance_mode to true (when prometheus_set_unset_maintenance_mode)
-      gce_labels:
-        resource_name: "{{item.hostname}}"
-        resource_type: instances
-        resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
-        project_id: "{{cluster_vars.project_id}}"
-        credentials_file: "{{gcp_credentials_file}}"
-        labels:
-          maintenance_mode: "true"
-        state: present
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{cluster_hosts_flat}}"
-      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
-
-    - name: set deploy_status label
-      gce_labels:
-        resource_name: "{{item.hostname}}"
-        resource_type: instances
-        resource_location: "{{cluster_vars.region}}-{{item.az_name}}"
-        project_id: "{{cluster_vars.project_id}}"
-        credentials_file: "{{gcp_credentials_file}}"
-        labels:
-          deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
-        state: present
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{cluster_hosts_flat}}"
-      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
 
     # Need this because the gcp_compute_instance module does not return all the facts if the instance is already existing (only if newly created)
     # Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
@@ -196,13 +150,13 @@
       register: gcp_compute_instance_info
       run_once: true
 
-    # - debug: msg={{gcp_compute_instance_info}}
+#    - debug: msg={{gcp_compute_instance_info}}
 
     - set_fact:
         dynamic_inventory_flat: |
           {%- if cluster_vars.inventory_ip == 'private' -%}
-            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
+            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
           {%- else -%}
-            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: metadata.items[?key==`hosttype`].value|[0], hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
+            {{ gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
           {%- endif -%}
 

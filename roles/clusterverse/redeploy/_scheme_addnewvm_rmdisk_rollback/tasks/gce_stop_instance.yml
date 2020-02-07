@@ -2,51 +2,30 @@
 
 - debug: msg="Stop {{host_to_stop.hostname}}"
 
-
 - name: gcp_stop | Stop GCE instance
   block:
-
     - name: Get GCP instance facts
       gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
         filters:
           - "name = {{host_to_stop.hostname}}*"
-          - "status = RUNNING"
         project: "{{cluster_vars.project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
       register: gcp_compute_instance_info
-      delegate_to: localhost
 
-    - name: Delete maintenance_mode label
-      gce_labels:
-        resource_name: "{{ host_to_stop.hostname }}"
-        resource_type: instances
-        resource_location: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
-        project_id: "{{ cluster_vars.project_id }}"
-        credentials_file: "{{ gcp_credentials_file }}"
-        labels:
-          maintenance_mode: "{{ maintenance_mode_tag }}"
-        state: absent
-      delegate_to: localhost
-      run_once: true
-      vars:
-        maintenance_mode_tag: "{{gcp_compute_instance_info | json_query('resources[?name==`' + host_to_stop.hostname + '`].labels.maintenance_mode | [] | [0]')}}"
-      when: maintenance_mode_tag != ""
-
-    - name: Set_maintenance_mode
-      gce_labels:
-        resource_name: "{{host_to_stop.hostname}}"
-        resource_type: instances
-        resource_location: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
-        project_id: "{{cluster_vars.project_id}}"
-        credentials_file: "{{gcp_credentials_file}}"
-        labels:
-          maintenance_mode: "true"
-        state: present
-      delegate_to: localhost
-      run_once: true
+    - name: Stop GCE VM and set maintenance_mode to true
+      gcp_compute_instance:
+        name: "{{host_to_stop.hostname}}"
+        project: "{{cluster_vars.project_id}}"
+        zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        status: "TERMINATED"
+        labels: "{{ gcp_compute_instance_info.resources[0].labels | combine({'maintenance_mode': true}) }}"
+      register: gcp_compute_instance
 
     - name: Delete DNS A records using nsupdate (if applicable)
       nsupdate:
@@ -83,24 +62,3 @@
           private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
         when: dns_rec.set.value is defined
       when: cluster_vars.dns_server == "route53" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
-
-    - name: Stop GCE VMs asynchronously
-      gcp_compute_instance:
-        name: "{{host_to_stop.hostname}}"
-        project: "{{cluster_vars.project_id}}"
-        zone: "{{cluster_vars.region}}-{{host_to_stop.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
-        auth_kind: "serviceaccount"
-        service_account_file: "{{gcp_credentials_file}}"
-        status: "TERMINATED"
-      register: gcp_compute_instance
-      async: 7200
-      poll: 0
-      delegate_to: localhost
-
-    - name: Wait for gce instance stop to complete
-      async_status:
-        jid: "{{ gcp_compute_instance.ansible_job_id }}"
-      register: gcp_jobs
-      until: gcp_jobs.finished
-      retries: 300
-      delegate_to: localhost

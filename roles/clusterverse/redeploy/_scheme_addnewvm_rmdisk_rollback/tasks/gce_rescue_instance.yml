@@ -2,6 +2,17 @@
 
 - debug: msg="Attempting to rollback {{host_to_rollback}}"
 
+- name: "Get GCP instance facts for {{host_to_rollback}}"
+  gcp_compute_instance_info:
+    zone: "{{cluster_vars.region}}-{{host_to_rollback | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+    filters:
+      - "name = {{host_to_rollback}}*"
+    project: "{{cluster_vars.project_id}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+  register: gcp_compute_instance_info
+
 - name: Rescuing GCP instance
   gcp_compute_instance:
     name: "{{host_to_rollback}}"
@@ -10,18 +21,7 @@
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     status: "RUNNING"
-  async: 7200
-  poll: 0
-  delegate_to: localhost
-  register: gcp_compute_instance
-
-- name: Wait for gce instance start to complete
-  async_status:
-    jid: "{{ gcp_compute_instance.ansible_job_id }}"
-  register: gcp_jobs
-  until: gcp_jobs.finished
-  retries: 300
-  delegate_to: localhost
+    labels: "{{ gcp_compute_instance_info.resources[0].labels }}"
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:

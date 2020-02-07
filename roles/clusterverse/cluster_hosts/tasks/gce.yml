@@ -53,7 +53,7 @@
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query('*.az|[]') | unique }}"
+  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
   register: gcp_compute_instance_info
   delegate_to: localhost
   run_once: true
@@ -140,7 +140,7 @@
   delegate_to: localhost
 
 - set_fact:
-    current_release_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: metadata.items[?key==`release`].value | [0], key: name}\") | items2dict}}"
+    current_release_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: labels.release, key: name}\") | items2dict}}"
     current_deploy_status_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: labels.deploy_status, key: name}\") | items2dict}}"
 
 - name: update cluster_hosts_flat with current release and deploy_status
