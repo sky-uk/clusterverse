@@ -33,7 +33,7 @@
         {{ res }}
 
 
-# The following block mounts all nvme attached volumes that have individual mountpoints
+  # The following block mounts all nvme attached volumes that have individual mountpoints
   - debug: msg={{ nvmevols | map(attribute='mountpoint') | list | unique }}
 
   - name: autodisks | Mount nvme volumes with different mountpoints
@@ -115,7 +115,7 @@
           {%- set blkvolloop = namespace(break=false) -%}
           {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
             {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
-              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms}]) -%}
+              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms | default({})}]) -%}
               {%- set _ = tmp_blkvols.remove(blkvol) -%}
               {%- set blkvolloop.break = true -%}
             {%- endif -%}
@@ -154,7 +154,6 @@
     owner: "{{ item.perms.owner | default(omit)}}"
     group: "{{ item.perms.group | default(omit)}}"
   with_items: "{{ hostvols }}"
-
 
 - block:
     - name: reboot and wait (if auto_volumes contains a /var/log mountpoint)
