@@ -115,7 +115,7 @@
           {%- set blkvolloop = namespace(break=false) -%}
           {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
             {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
-              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype}]) -%}
+              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms}]) -%}
               {%- set _ = tmp_blkvols.remove(blkvol) -%}
               {%- set blkvolloop.break = true -%}
             {%- endif -%}
@@ -143,6 +143,16 @@
     fstype: "{{ item.fstype }}"
     state: mounted
     opts: _netdev
+  with_items: "{{ hostvols }}"
+
+- name: autodisks | change ownership of mountpoint (if set)
+  become: yes
+  file:
+    path: "{{ item.mountpoint }}"
+    state: directory
+    mode: "{{ item.perms.mode | default(omit)}}"
+    owner: "{{ item.perms.owner | default(omit)}}"
+    group: "{{ item.perms.group | default(omit)}}"
   with_items: "{{ hostvols }}"
 
 

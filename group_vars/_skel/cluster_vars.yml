@@ -77,7 +77,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"
 #  sandbox:
 #    hosttype_vars:
 #      sys: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: []}
-#      #sysdisks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+#      #sysdisks: {count_per_az: 1, az: ["a", "b"], flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "syslog", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/mnt/test2", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/mnt/test3", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
 #    aws_access_key: ""
 #    aws_secret_key: ""
 #    vpc_name: "<team_name>-{{buildenv}}"
@@ -121,8 +121,8 @@ lv_size: 100%FREE
 #      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
 #  sandbox:
 #    hosttype_vars:
-#      data: {count_per_az: 1, az: ["b"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/mnt/data", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/mnt/data2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/mnt/data3", fstype: "ext4"}]}
-#    #  query: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
+#      sys: {count_per_az: 1, az: ["b", "c"], flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
+#      #sysdisks: {count_per_az: 1, az: ["b"], flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log", fstype: "ext4", perms: {owner: "root", group: "syslog", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/mnt/data", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/mnt/data2", fstype: "ext4"}]}
 #    vpc_network_name: "<team_name>-{{buildenv}}"
 #    vpc_subnet_name: ""
 #    preemptible: "false"
