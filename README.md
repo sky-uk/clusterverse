@@ -1,9 +1,9 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
 Full-lifecycle, immutable cloud infrastructure cluster management, using Ansible.
-- **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS and GCP
-- **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
-- **Scale (e.g. add a node):**  If you change the config yaml and rerun the deploy, new nodes will be added.
-- **Redeploy (e.g. up-version):** If you need to up-version, the `redelpoy` playbook will replace each node in turn, (with optional callbacks), and rollback if any failures occur. 
++ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS and GCP
++ **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
++ **Scale (e.g. add a node):**  If you change the config yaml and rerun the deploy, new nodes will be added.
++ **Redeploy (e.g. up-version):** If you need to up-version, the `redeploy.yml` playbook will replace each node in turn, (with optional callbacks), and rollback if any failures occur. 
 
 **clusterverse** is designed to deploy base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, or Cassandra.
 
@@ -21,21 +21,23 @@ To active the pipenv:
 + or prepend the ansible-playbook commands with: `pipenv run`
 
 ### AWS
-- AWS account with IAM rights to create EC2 VMs + Security Groups in the chosen VPC/Subnets
-- Already created VPCs
-- Already created Subnets
++ AWS account with IAM rights to create EC2 VMs + Security Groups in the chosen VPC/Subnets
++ Already created VPCs
++ Already created Subnets
 
 ### GCP
-- Create a gcloud account.
-- Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.  This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/all/clusters.yml`.  You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
-- Google Cloud SDK need to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
++ Create a gcloud account.
++ Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally. 
+  + This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/\<clusterid\>/cluster_vars.yml`.  
+  + You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
++ Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
 
 ### DNS
 DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS Zone delegated to one of the following:
-- Bind9
-- Route53
++ Bind9
++ Route53
 
-Credentials to the DNS server will also be required. 
+Credentials to the DNS server will also be required. These are specified in the `cluster_vars.yml` file described below.
 
 ### Cloud credential management
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
@@ -44,15 +46,16 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
   + `export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>`
 + To encrypt (export `VAULT_PASSWORD_BUILDENV` first):
   + `ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox`
-+ To decrypt, either run the playbook with the correct `VAULT_PASSWORD_BUILDENV` and just `debug: msg=` the variable, or:
++ To decrypt, either run the playbook with the correct `VAULT_PASSWORD_BUILDENV` and just `debug: msg={{myvar}}`, or:
   + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
-  `86338616...33630313034' | ansible-vault decrypt --vault-id=sandbox@.vaultpass-client.py`  + or, to decrypt using a non-exported password:
+  `86338616...33630313034' | ansible-vault decrypt --vault-id=sandbox@.vaultpass-client.py`  
+  + **or**, to decrypt using a non-exported password:
   + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
   `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
 
 
 ### Cluster Variables
-The clusters are defined as code, within Ansible yaml file as below:
+The clusters are defined as code, within Ansible yaml files as below:
 
 #### group_vars/\<clusterid\>/cluster_vars.yml:
 ```
@@ -106,9 +109,9 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e create_gce_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 
 ### Tags
-- clusterverse_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
-- clusterverse_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
-- clusterverse_config: Updates packages, sets hostname, adds hosts to DNS
++ clusterverse_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
++ clusterverse_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
++ clusterverse_config: Updates packages, sets hostname, adds hosts to DNS
 
 
 ---
