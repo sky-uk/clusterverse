@@ -86,7 +86,7 @@
     when: item.set.value is defined
   when: cluster_vars.dns_server == "route53" and cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != ""
 
-- name: empty the inventory file
+- name: Delete the inventory file
   block:
     - stat: path={{inventory_file}}
       register: stat_inventory_file
@@ -96,11 +96,10 @@
         new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
 
     # Check the inventory_dir==playbook_dir, because the default inventory is /etc/ansible/hosts
-    - name: Create (empty) inventory file
-      copy:
-        content: ""
-        dest: "{{new_inventory_file}}"
-        force: yes
+    - name: Delete the inventory file
+      file:
+        path: "{{new_inventory_file}}"
+        state: absent
 
     - name: Refresh inventory
       meta: refresh_inventory

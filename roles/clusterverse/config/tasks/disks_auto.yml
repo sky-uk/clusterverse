@@ -41,6 +41,9 @@
     force: no
   with_items: "{{ hostvols }}"
   register: created_filesystem
+  retries: 5
+  delay: 1
+  until: created_filesystem is not failed
 
 - name: autodisks | Mount created filesytem(s) persistently
   become: yes
