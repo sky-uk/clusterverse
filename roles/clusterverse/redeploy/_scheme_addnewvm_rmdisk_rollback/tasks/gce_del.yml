@@ -24,6 +24,15 @@
       run_once: true
       when: "cluster_vars[buildenv].deletion_protection == 'yes'"
 
+#    - name: Remove deletion protection (broken)
+#      gcp_compute_instance:
+#        name: "{{item.name}}"
+#        project: "{{cluster_vars.project_id}}"
+#        zone: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
+#        auth_kind: "serviceaccount"
+#        service_account_file: "{{gcp_credentials_file}}"
+#        deletion_protection: no
+
     - name: Delete GCE VMs asynchronously
       gcp_compute_instance:
         name: "{{item.name}}"

@@ -1,6 +1,6 @@
 ---
 
-- debug: msg="Stop {{host_to_del.hostname}}"
+- debug: msg="Delete {{host_to_del.hostname}}"
 
 - name: Delete GCE instance
   block:
@@ -49,6 +49,19 @@
           when: item.set.value is defined
       when: cluster_vars[clusterid].dns_server == "route53" and cluster_vars[clusterid].dns_zone_external is defined and cluster_vars[clusterid].dns_zone_external != ""
 
+    - name: Remove deletion protection
+      command: "gcloud compute instances update {{host_to_del.hostname}} --no-deletion-protection --zone {{cluster_vars[clusterid].region}}-{{host_to_del.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+      when: "cluster_vars[buildenv].deletion_protection == 'yes'"
+
+#    - name: Remove deletion protection (broken)
+#      gcp_compute_instance:
+#        name: "{{host_to_del.hostname}}"
+#        project: "{{cluster_vars.project_id}}"
+#        zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+#        auth_kind: "serviceaccount"
+#        service_account_file: "{{gcp_credentials_file}}"
+#        deletion_protection: no
+
     - name: Delete GCE VM
       gcp_compute_instance:
         name: "{{host_to_del.hostname}}"
@@ -58,14 +71,3 @@
         service_account_file: "{{gcp_credentials_file}}"
         status: "absent"
       register: gcp_compute_instance
-      async: 7200
-      poll: 0
-      delegate_to: localhost
-
-    - name: Wait for gce instance stop to complete
-      async_status:
-        jid: "{{ gcp_compute_instance.ansible_job_id }}"
-      register: gcp_jobs
-      until: gcp_jobs.finished
-      retries: 300
-      delegate_to: localhost
