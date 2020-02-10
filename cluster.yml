@@ -3,8 +3,6 @@
 - name: Clean the cluster
   hosts: localhost
   connection: local
-  become: false
-  gather_facts: true
   roles:
     - role: clusterverse/clean
       when: clean is defined and clean|bool
@@ -13,22 +11,12 @@
 - name: Deploy the cluster
   hosts: localhost
   connection: local
-  become: false
-  gather_facts: true
   roles:
     - role: clusterverse/create
   tags: clusterverse_create
 
-- name: Wait for target connection to cluster nodes (NOTE - This cannot be within clusterverse/config as that gathers facts, which needs the connection already)
-  hosts: all
-  gather_facts: false
-  tasks:
-    - wait_for_connection:
-  tags: clusterverse_config
-
 - name: Perform config on the cluster
   hosts: all
-  become: false
   roles:
     - role: clusterverse/config
   tags: clusterverse_config

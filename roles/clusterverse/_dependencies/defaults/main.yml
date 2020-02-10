@@ -2,6 +2,9 @@
 # Ansible interpreter
 ansible_python_interpreter: "/usr/bin/python3"
 
+# Identifies the application version that is being deployed (optional)
+release_version: ""
+
 # Default redeploy scheme
 redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
 
