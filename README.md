@@ -55,7 +55,7 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 
 ### Cluster Variables
-The clusters are defined as code, within Ansible yaml files as below:
+The clusters are defined as code, within Ansible yaml file as below:
 
 #### group_vars/\<clusterid\>/cluster_vars.yml:
 ```
@@ -71,7 +71,7 @@ cluster_vars:
       <hosttype>: {...}
 ```
 
-#### group_vars/\<clusterid\>/cluster_vars.yml:
+#### group_vars/\<clusterid\>/app_vars.yml:
 Contains your application-specific variables
 
 ---

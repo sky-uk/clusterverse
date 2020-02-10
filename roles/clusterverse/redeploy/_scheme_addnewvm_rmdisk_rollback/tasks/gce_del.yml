@@ -24,36 +24,14 @@
       run_once: true
       when: "cluster_vars[buildenv].deletion_protection == 'yes'"
 
-    - name: delete maintenance_mode label
-      gce_labels:
-        resource_name: "{{ item.name }}"
-        resource_type: instances
-        resource_location: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
-        project_id: "{{ cluster_vars.project_id }}"
-        credentials_file: "{{ gcp_credentials_file }}"
-        labels:
-          maintenance_mode: "{{ maintenance_mode_tag }}"
-        state: absent
-      delegate_to: localhost
-      run_once: true
-      vars:
-        maintenance_mode_tag: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.name + '`].labels.maintenance_mode | [] | [0]')}}"
-      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
-      when: maintenance_mode_tag != ""
-
-    - name: remove_maintenance_mode
-      gce_labels:
-        resource_name: "{{item.name}}"
-        resource_type: instances
-        resource_location: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
-        project_id: "{{cluster_vars.project_id}}"
-        credentials_file: "{{gcp_credentials_file}}"
-        labels:
-          maintenance_mode: "true"
-        state: present
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{gcp_compute_instance_info.results | json_query('[].resources[]')}}"
+#    - name: Remove deletion protection (broken)
+#      gcp_compute_instance:
+#        name: "{{item.name}}"
+#        project: "{{cluster_vars.project_id}}"
+#        zone: "{{item.zone | regex_replace('.*/(.*)$', '\\1')}}"
+#        auth_kind: "serviceaccount"
+#        service_account_file: "{{gcp_credentials_file}}"
+#        deletion_protection: no
 
     - name: Delete GCE VMs asynchronously
       gcp_compute_instance:

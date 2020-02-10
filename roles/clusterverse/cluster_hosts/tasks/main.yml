@@ -9,8 +9,8 @@
     cluster_hosts_flat: |
       {% set res = [] -%}
       {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
-        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].az -%}
-          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].count_per_az|int) -%}
+        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
+          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
             {% set _dummy = res.extend([{
               'hosttype': hostttype,
               'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string,
@@ -22,24 +22,6 @@
         {%- endfor %}
       {%- endfor %}
       {{ res }}
-
-- name: get other hosts
-  set_fact:
-    other_hosts: "{{ (hostvars[ansible_play_hosts[0]].cluster_hosts_flat | json_query('[].hostname') + ['localhost']) | unique | symmetric_difference(ansible_play_hosts) }}"
-  run_once: true
-
-#- name: other_hosts
-#  debug: msg={{other_hosts}}
-#  run_once: true
-
-- name: set the cluster_hosts_flat variable on all other hosts
-  set_fact:
-    cluster_hosts_flat: "{{hostvars['localhost'].cluster_hosts_flat}}"
-    cacheable: true
-  delegate_to: "{{item}}"
-  delegate_facts: True
-  run_once: true
-  with_items: "{{ other_hosts }}"
 
 - include_tasks: aws.yml
   when: cluster_vars.type == "aws"
