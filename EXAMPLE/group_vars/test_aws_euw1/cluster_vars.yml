@@ -1,0 +1,72 @@
+---
+
+app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
+app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
+
+dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
+
+## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
+cloud_agent:
+#  tenable:
+#    service: "nessusagent"
+#    debpackage: ""
+#    bin_path: "/opt/nessus_agent/sbin"
+#    nessus_key_id: ""
+#    nessus_group_id: ""
+#    proxy: {host: "", port: ""}
+#  qualys:
+#    service: "qualys-cloud-agent"
+#    debpackage: ""
+#    bin_path: "/usr/local/qualys/cloud-agent/bin"
+#    config_path: "/etc/default/qualys-cloud-agent"
+#    activation_id: ""
+#    customer_id: ""
+#    proxy: {host: "", port: ""}
+
+## Bind configuration and credentials, per environment
+bind9:
+  sandbox:
+    server:
+    key_name:
+    key_secret:
+
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
+
+cluster_vars:
+  type: &cloud_type "aws"
+  image: "ami-07042e91d04b1c30d"    #eu-west-1, 18.04, amd64, hvm:ebs-ssd, 20200131.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+  region: &region "eu-west-1"
+  dns_zone_internal: "{{_region}}.compute.internal"         # eu-west-1, us-west-2
+  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "yes"
+  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  instance_profile_name: ""
+  route53_private_zone: true        # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
+  secgroups_existing: []
+  secgroup_new:
+    - proto: "tcp"
+      ports: ["22"]
+      cidr_ip: 0.0.0.0/0
+      rule_desc: "SSH Access"
+    - proto: "tcp"
+      ports: ["{{prometheus_node_exporter_port}}"]
+      group_name: ["{{buildenv}}-private-sg"]
+      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
+    - proto: all
+      group_name: ["{{cluster_name}}-sg"]
+      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+  sandbox:
+    hosttype_vars:
+      sys: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3.micro, auto_volumes: []}
+      #sysdisks: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3.micro, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/var/log/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/var/log/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+      #sysnvme_multi: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc2", fstype: ext4, volume_size: 2500}]} } }
+      #sysnvme_lvm: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "100%FREE"} } }
+    aws_access_key: ""
+    aws_secret_key: ""
+    vpc_name: "test{{buildenv}}"
+    vpc_subnet_name_prefix: "{{buildenv}}-test-{{_region}}"
+    key_name: "test__id_rsa"
+    termination_protection: "no"
+_cloud_type: *cloud_type
+_region: *region

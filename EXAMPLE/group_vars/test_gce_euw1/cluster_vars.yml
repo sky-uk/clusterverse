@@ -1,0 +1,75 @@
+---
+
+# GCP credentials
+gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
+gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
+
+app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
+app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
+
+dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
+
+## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
+cloud_agent:
+#  tenable:
+#    service: "nessusagent"
+#    debpackage: ""
+#    bin_path: "/opt/nessus_agent/sbin"
+#    nessus_key_id: ""
+#    nessus_group_id: ""
+#    proxy: {host: "", port: ""}
+#  qualys:
+#    service: "qualys-cloud-agent"
+#    debpackage: ""
+#    bin_path: "/usr/local/qualys/cloud-agent/bin"
+#    config_path: "/etc/default/qualys-cloud-agent"
+#    activation_id: ""
+#    customer_id: ""
+#    proxy: {host: "", port: ""}
+
+## Bind configuration and credentials, per environment
+bind9:
+  sandbox:
+    server:
+    key_name:
+    key_secret:
+
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
+
+cluster_vars:
+  type: &cloud_type "gce"
+  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
+  region: &region "europe-west1"
+  dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
+  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "yes"
+  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  project_id: "{{gcp_credentials_json.project_id}}"
+  ip_forward: "false"
+  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
+  network_fw_tags: ["{{cluster_name}}-nwtag"]
+  firewall_rules:
+    - name: "{{cluster_name}}-extssh"
+      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
+      source_ranges: "{{_ssh_guard_whitelist}}"
+      description: "SSH Access"
+    - name: "{{cluster_name}}-prometheus-node-exporter"
+      allowed: [{ip_protocol: "tcp", ports: ["{{prometheus_node_exporter_port}}"]}]
+      source_tags: ["{{cluster_name}}-nwtag"]
+      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
+    - name: "{{cluster_name}}-nwtag"
+      allowed: [{ip_protocol: "all"}]
+      source_tags: ["{{cluster_name}}-nwtag"]
+      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
+  sandbox:
+    hosttype_vars:
+      sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
+      #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
+    vpc_network_name: "test-{{buildenv}}"
+    vpc_subnet_name: ""
+    preemptible: "false"
+    deletion_protection: "no"
+_cloud_type: *cloud_type
+_region: *region
+_ssh_guard_whitelist: *ssh_guard_whitelist

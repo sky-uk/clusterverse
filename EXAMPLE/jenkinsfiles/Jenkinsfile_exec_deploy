@@ -20,7 +20,7 @@ pipeline {
           if (GENUINE_BUILD == "false"){
             error "Parameters not specified, Tick the GENUINE_BUILD box to run the job"
           }
-        }
+        }          
         sh 'env'
         sh 'pipenv install --python /usr/bin/python3'
       }
@@ -29,7 +29,7 @@ pipeline {
       environment {
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
         DEPLOY_ENV="${params.DEPLOY_ENV}"
-      }
+      }  
       when {
         expression { params.DEPLOY_TYPE == 'Deploy' }
       }
@@ -37,7 +37,7 @@ pipeline {
         withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=false'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=false'
         }
       }
     }
@@ -47,7 +47,7 @@ pipeline {
         DEPLOY_ENV="${params.DEPLOY_ENV}"
         CANARY="-e canary=${params.CANARY}"
         MYHOSTTYPES="-e myhosttypes=${params.MYHOSTTYPES}"
-      }
+      }      
       when {
         expression { params.DEPLOY_TYPE == 'ReDeploy' && params.MYHOSTTYPES != ""}
       }
@@ -55,7 +55,7 @@ pipeline {
         withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES'
         }
       }
     }
@@ -64,7 +64,7 @@ pipeline {
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
         DEPLOY_ENV="${params.DEPLOY_ENV}"
         CANARY="-e canary=${params.CANARY}"
-      }
+      }      
       when {
         expression { params.DEPLOY_TYPE == 'ReDeploy' && params.MYHOSTTYPES == ""}
       }
@@ -72,15 +72,15 @@ pipeline {
         withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY'
         }
       }
-    }
+    }    
     stage('Execute Clean Playbook') {
       environment {
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
-        DEPLOY_ENV="${params.DEPLOY_ENV}"
-      }
+        DEPLOY_ENV="${params.DEPLOY_ENV}"   
+      }      
       when {
         expression { params.DEPLOY_TYPE == 'Clean' }
       }
@@ -88,9 +88,9 @@ pipeline {
         withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=true'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=true'
         }
-      }
+      }            
     }
   }
 }

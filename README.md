@@ -1,5 +1,5 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
-Full-lifecycle, immutable cloud infrastructure cluster management, using Ansible.
+A full-lifecycle, immutable cloud infrastructure cluster management **role**, using Ansible.
 + **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS and GCP
 + **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
 + **Scale (e.g. add a node):**  If you change the config yaml and rerun the deploy, new nodes will be added.
@@ -22,18 +22,18 @@ To active the pipenv:
 
 ### AWS
 + AWS account with IAM rights to create EC2 VMs + Security Groups in the chosen VPC/Subnets
-+ Already created VPCs
-+ Already created Subnets
++ Preexisting VPCs
++ Preexisting subnets
 
 ### GCP
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally. 
-  + This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/\<clusterid\>/cluster_vars.yml`.  
+  + This file is used in the `GCP_CREDENTIALS` environment variable that is read in `group_vars/<clusterid>/cluster_vars.yml`.  
   + You need to export this variable (e.g. `export GCP_CREDENTIALS=/home/<user>/src/gcp.json`).
-+ Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to enable delete protection) - this is handled by `pipenv install`
++ Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
 
 ### DNS
-DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS Zone delegated to one of the following:
+DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS zone delegated to one of the following:
 + Bind9
 + Route53
 
@@ -54,102 +54,50 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
   `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
 
 
+---
+## Usage
+**clusterverse** is an Ansible _role_, and as such must be imported into your \<project\>/roles directory.  There is a full-featured example in the [/EXAMPLE](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE) subdirectory.
+
+To import the role into your project, create a `requirements.yml` file containing:
+```
+- src: https://github.com/sky-uk/clusterverse
+  version: master           ## or hash, or version 
+  name: clusterverse
+```
+To install the role into a project's `roles` directory: 
++ `ansible-galaxy install -r requirements.yml -p /<project>/roles/`
+
+
 ### Cluster Variables
-The clusters are defined as code, within Ansible yaml file as below:
-
-#### group_vars/\<clusterid\>/cluster_vars.yml:
-```
-buildenv: ""                      # The environment (dev, stage, etc), which must be an attribute of cluster_vars
-release_version: ""               # Identifies the application version that is being deployed (optional)
-app_name: "nginx"                 # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
-app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
-
-cluster_vars:
-  <buildenv>:
-    ...
-    hosttype_vars:
-      <hosttype>: {...}
-```
-
-#### group_vars/\<clusterid\>/app_vars.yml:
-Contains your application-specific variables
-
----
-## Invocation examples: _deploy_
-The `cluster.yml` playbook deploys a cluster from the config defined above.
-
-### AWS:
-```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true -e release_version=v1.0.1
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true -e release_version=v1.0.1
-```
-### GCP:
-```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e skip_package_upgrade=true
-```
-
-### Mandatory command-line variables:
-+ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
-
-### Optional extra variables:
-+ `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
-+ `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
-+ `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
-+ `-e dns_tld_external=<test.example.com>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.
-+ `-e clean=true` - Deletes all existing VMs and security groups before creating
-+ `-e skip_package_upgrade=true` - Does not upgrade the OS packages (saves a lot of time during debugging)
-+ `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
-+ `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
-+ `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
-+ `-e filebeat_install=false` - Does not install filebeat
-+ `-e create_gce_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
-
-### Tags
-+ clusterverse_clean: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
-+ clusterverse_create: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
-+ clusterverse_config: Updates packages, sets hostname, adds hosts to DNS
++ The clusters are defined as code, within Ansible yaml files that are automatically imported.
++ One of the mandatory command-line variables is `clusterid`, which defines the name of the directory under `group_vars`, from which variable files will be imported.
++ Please see the full AWS and GCP [example group_vars](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE/group_vars/) 
 
 
----
+### Invocation
 
-## Invocation examples: _redeploy_
-The `redeploy.yml` playbook will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
+_**For full invocation examples and command-line arguments, please see the [example README.md](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/README.md)**_
 
-### AWS:
-```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-```
-### GCP:
-```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
-```
-
-### Mandatory command-line variables:
-+ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
-
-### Extra variables:
-+ `-e 'redeploy_scheme'=<subrole_name>` - The scheme corresponds to one defined in 
-+ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
-+ `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
+The role is designed to run in two modes:
+#### Deploy (also performs _scaling_ and _repairs_)
++ A playbook based on the [cluster.yml example](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE/cluster.yml) will be needed.
++ The `cluster.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again it will do nothing.  If the cluster_vars are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster).
 
 
-The redeploy playbook supports pluggable infrastructure redeployment schemes.  Two are provided:
+#### Redeploy
++ A playbook based on the [redeploy.yml example](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE/redeploy.yml) will be needed.
++ The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
 + It contains callback hooks:
-  + `mainclusteryml`: This is the name of the deployment playbook.
-  + `predeleterole`: This is the name of a role that should be called prior to deleting a VM
+  + `mainclusteryml`: This is the name of the deployment playbook.  It is called to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
+  + `predeleterole`: This is the name of a role that should be called prior to deleting a VM.
++ It supports pluggable infrastructure redeployment schemes.  Two are provided:
+  + **_scheme_rmvm_rmdisks_only**
+    This scheme runs a very basic rolling redeployment of the cluster.
+      + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
+      + **This assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+  + **_scheme_addnewvm_rmdisk_rollback**
+    This scheme runs a more advanced rolling redeployment of the cluster.
+      + For each VM, firstly, a new VM is created, and then the old one is shut down.
+      + If the process proceeds correctly for all the VMs, the old (now shut-down) VMs, are terminated
+      + If the process fails for any reason, the old VMs are reinstated.
 
-### _scheme_rmvm_rmdisks_only
-This scheme runs a very basic rolling redeployment of the cluster.
-+ For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
-+ **This assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
-
-### _scheme_addnewvm_rmdisk_rollback
-This scheme runs a more advanced rolling redeployment of the cluster.
-+ For each VM, firstly, a new VM is created, and then the old one is shut down.
-+ If the process proceeds correctly for all the VMs, the old (now shut-down) VMs, are terminated
-+ If the process fails for any reason, the old VMs are reinstated.
