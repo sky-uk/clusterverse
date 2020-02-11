@@ -10,7 +10,7 @@ redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
 
 # Default Prometheus node exporter configurations
 prometheus_node_exporter_install: true                    # Whether to install the prometheus node_exporter tool
-prometheus_node_exporter_port: 19100                      # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
+prometheus_node_exporter_port: "19100"                    # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
 prometheus_node_exporter_version: 0.18.1                  # Version of prometheus node_exporter tool to install
 prometheus_node_exporter_options: "--collector.systemd "  # Extra options for node_exporter
 prometheus_set_unset_maintenance_mode: true               # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.

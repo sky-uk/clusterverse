@@ -16,7 +16,7 @@ pipeline {
     stage('Init Environment') {
       environment {
         GENUINE_BUILD="${params.GENUINE_BUILD}"
-      }
+      }      
       steps {
         script{
           if (GENUINE_BUILD == "false"){
@@ -26,8 +26,8 @@ pipeline {
         sh 'env'
         sh 'pipenv install --python /usr/bin/python3'
       }
-    }
-    stage('ReDeploy Release') {
+    }    
+    stage('ReDeploy Release') { 
       environment {
         DEPLOY_ENV="${params.DEPLOY_ENV}"
         RELEASE ="${params.RELEASE}"
@@ -35,7 +35,7 @@ pipeline {
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
         CANARY="-e canary=${params.CANARY}"
         MYHOSTTYPES="-e myhosttypes=${params.MYHOSTTYPES}"
-      }
+      }             
       steps {
         script {
           try {
@@ -43,13 +43,13 @@ pipeline {
             sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@github.com/sky-uk/clusterverse.git"
             sh 'git fetch --tags'
             sh 'git checkout ${RELEASE}'
-            withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
+            withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
               sh 'env'
               sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)"'
-              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
-            }
+              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
+            }    
           } catch (err) {
-            // echo "Failed: ${err} - Version ${broken_version} will be deleted and the previous version will be deployed."
+            // echo "Failed: ${err} - Version ${broken_version} will be deleted and the previous version will be deployed."  
             // def stable_version = sh(returnStdout: true, script: "git describe --abbrev=0 --tags `git rev-list --tags --skip=1 --max-count=1`").trim()
             // def broken_version = sh(returnStdout: true, script: "git describe --tags `git rev-list --tags --max-count=1`").trim()
             //   sh "git checkout -b ${broken_version}-broken-version"
@@ -57,15 +57,15 @@ pipeline {
             //   sh "git push --delete origin ${broken_version}"
             //   sh 'git fetch --tags'
             //   sh "git checkout ${stable_version}"
-            //   withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
+            //   withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
             //   sh 'env'
             //   sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-            //   sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  -e skip_package_upgrade=true --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=true --tags=clusterverse_clean'
+            //   sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml -e clean=true --tags=clusterverse_clean'
             // }
-              error "${RELEASE} deployment failed"
+              error "${RELEASE} deployment failed"               
           }
-        }
+        }        
       }
-    }
+    }       
   }
 }

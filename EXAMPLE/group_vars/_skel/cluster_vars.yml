@@ -1,60 +1,58 @@
 ---
 
-# Google Cloud credentials lookup
+# GCP credentials
 gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
 gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
 
-dns_tld_external: ""              # Top-level domain (above the level defined per clusterid)
+app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
+app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
+
+dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
 
 ## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
-  tenable:
-    service: "nessusagent"
-    debpackage: ""
-    bin_path: "/opt/nessus_agent/sbin"
-    nessus_key_id: ""
-    nessus_group_id: ""
-    proxy: {host: "", port: ""}
-  qualys:
-    service: "qualys-cloud-agent"
-    debpackage: ""
-    bin_path: "/usr/local/qualys/cloud-agent/bin"
-    config_path: "/etc/default/qualys-cloud-agent"
-    activation_id: ""
-    customer_id: ""
-    proxy: {host: "", port: ""}
+#  tenable:
+#    service: "nessusagent"
+#    debpackage: ""
+#    bin_path: "/opt/nessus_agent/sbin"
+#    nessus_key_id: ""
+#    nessus_group_id: ""
+#    proxy: {host: "", port: ""}
+#  qualys:
+#    service: "qualys-cloud-agent"
+#    debpackage: ""
+#    bin_path: "/usr/local/qualys/cloud-agent/bin"
+#    config_path: "/etc/default/qualys-cloud-agent"
+#    activation_id: ""
+#    customer_id: ""
+#    proxy: {host: "", port: ""}
 
-# Bind configurations and credentials
+## Bind configuration and credentials, per environment
 bind9:
   sandbox:
     server:
     key_name:
     key_secret:
 
-# The global {{cluster_name}} is prefixed with {{app_name}}
-cluster_name: "{{app_name}}-{{buildenv}}"
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 ### AWS example
 #cluster_vars:
-#  type: aws
-#  image: ""     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-##  image: "ami-0987ee37af7792903"    #eu-west-1	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
-##  image: "ami-04c58523038d79132"    #eu-west-1	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
-##  image: "ami-0bbe9b07c5fe8e86e"    #us-west-2	xenial	16.04 LTS	amd64	hvm:ebs-ssd	20191114
-##  image: "ami-0a7d051a1c4b54f65"    #us-west-2	bionic	18.04 LTS	amd64	hvm:ebs-ssd	20191113
+#  type: &cloud_type "aws"
+#  image: "ami-07042e91d04b1c30d"    #eu-west-1, 18.04, amd64, hvm:ebs-ssd, 20200131.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  region: &region "eu-west-1"
-#  dns_zone_internal: "{{_region}}.compute.internal" # eu-west-1, us-west-2
-#  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. aws_euw1, gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-#  dns_server: ""    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
-#  assign_public_ip: "no"
-#  inventory_ip: "private"   # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
-#  instance_profile_name: "vpc_lock_{{buildenv}}"
-#  route53_private_zone: true # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
+#  dns_zone_internal: "{{_region}}.compute.internal"         # eu-west-1, us-west-2
+#  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+#  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+#  assign_public_ip: "yes"
+#  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+#  instance_profile_name: ""
+#  route53_private_zone: true        # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
 #  secgroups_existing: []
 #  secgroup_new:
 #    - proto: "tcp"
 #      ports: ["22"]
-#      cidr_ip: 10.0.0.0/8
+#      cidr_ip: 0.0.0.0/0
 #      rule_desc: "SSH Access"
 #    - proto: "tcp"
 #      ports: ["{{prometheus_node_exporter_port}}"]
@@ -71,33 +69,34 @@ cluster_name: "{{app_name}}-{{buildenv}}"
 #      #sysnvme_lvm: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "100%FREE"} } }
 #    aws_access_key: ""
 #    aws_secret_key: ""
-#    vpc_name: "<team_name>-{{buildenv}}"
-#    vpc_subnet_name_prefix: "{{buildenv}}-private-subnet-{{_region}}"
-#    key_name: ""
+#    vpc_name: "test{{buildenv}}"
+#    vpc_subnet_name_prefix: "{{buildenv}}-test-{{_region}}"
+#    key_name: "test__id_rsa"
 #    termination_protection: "no"
+#_cloud_type: *cloud_type
 #_region: *region
 
 
 ### GCE example
 #cluster_vars:
-#  type: gce
+#  type: &cloud_type "gce"
 #  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
 #  region: &region "europe-west1"
 #  dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-#  dns_zone_external: "{%- if dns_tld_external -%} <cloud+region e.g. gce_euw1>.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-#  dns_server: ""    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+#  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+#  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
 #  assign_public_ip: "yes"
-#  inventory_ip: "public"     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+#  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
 #  project_id: "{{gcp_credentials_json.project_id}}"
 #  ip_forward: "false"
+#  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
 #  network_fw_tags: ["{{cluster_name}}-nwtag"]
-#  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']
 #  firewall_rules:
 #    - name: "{{cluster_name}}-extssh"
 #      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
 #      source_ranges: "{{_ssh_guard_whitelist}}"
 #      description: "SSH Access"
-#    - name: "{{cluster_name}}-prometheus_node_exporter"
+#    - name: "{{cluster_name}}-prometheus-node-exporter"
 #      allowed: [{ip_protocol: "tcp", ports: ["{{prometheus_node_exporter_port}}"]}]
 #      source_tags: ["{{cluster_name}}-nwtag"]
 #      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
@@ -109,9 +108,10 @@ cluster_name: "{{app_name}}-{{buildenv}}"
 #    hosttype_vars:
 #      sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
 #      #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
-#    vpc_network_name: "<team_name>-{{buildenv}}"
+#    vpc_network_name: "test-{{buildenv}}"
 #    vpc_subnet_name: ""
 #    preemptible: "false"
 #    deletion_protection: "no"
+#_cloud_type: *cloud_type
 #_region: *region
 #_ssh_guard_whitelist: *ssh_guard_whitelist
