@@ -50,11 +50,13 @@ cluster_vars:
       cidr_ip: 0.0.0.0/0
       rule_desc: "SSH Access"
     - proto: "tcp"
-      ports: ["{{prometheus_node_exporter_port}}"]
+      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
       group_name: ["{{buildenv}}-private-sg"]
+      group_desc: "Access from all VMs attached to {{buildenv}}-private-sg"
       rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
     - proto: all
       group_name: ["{{cluster_name}}-sg"]
+      group_desc: "{{ cluster_name }} rules"
       rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
   sandbox:
     hosttype_vars:

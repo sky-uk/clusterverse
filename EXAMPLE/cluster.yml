@@ -1,33 +1,23 @@
 ---
 
-- name: Clean the cluster
-  hosts: localhost
-  connection: local
-  roles:
-    - role: clusterverse/clean
-      when: clean is defined and clean|bool
-  tags: clusterverse_clean
-
 - name: Deploy the cluster
   hosts: localhost
   connection: local
   roles:
-    - role: clusterverse/create
-  tags: clusterverse_create
+    - { role: clusterverse/clean, tags: [clusterverse_clean], when: clean is defined and clean|bool }
+    - { role: clusterverse/create, tags: [clusterverse_create] }
+    - { role: clusterverse/dynamic_inventory, tags: [clusterverse_dynamic_inventory] }
 
-- name: Perform config on the cluster
+- name: Configure the cluster
   hosts: all
-  roles:
-    - role: clusterverse/config
-  tags: clusterverse_config
+  roles: [ { role: clusterverse/config, tags: [clusterverse_config] } ]
 
-## ...
 ## Application roles
-## ...
-
-- name: Perform cluster readiness operations (e.g. remove maintenance_mode tag from VMs).
+- name: Test application role
   hosts: all
-  roles:
-    - role: clusterverse/readiness
-  tags: clusterverse_readiness
+  roles: [ { role: testrole, tags: [testrole] } ]
+##
 
+- name: Perform cluster readiness operations
+  hosts: all
+  roles: [ { role: clusterverse/readiness, tags: [clusterverse_readiness] } ]

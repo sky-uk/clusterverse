@@ -1,6 +1,5 @@
 ---
 
-
 - debug: msg="Rescuing"
 
 - name: gce_restore | Get GCP instance facts

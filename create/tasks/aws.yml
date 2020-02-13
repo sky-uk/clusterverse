@@ -122,12 +122,3 @@
         tags:
           Name: "{{ item.hostname }}--{{item.device_name | regex_replace('^.*\\/(.*)', '\\1')}}"
       with_items: "{{ebsdata}}"
-
-
-    - set_fact:
-        dynamic_inventory_flat: |
-          {%- if cluster_vars.inventory_ip == 'private' -%}
-            {{ aws_jobs.results | json_query('[*].{hosttype: tagged_instances[0].tags.hosttype, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, public_ip: tagged_instances[0].public_ip, inventory_ip: tagged_instances[0].private_ip}') }}
-          {%- else -%}
-            {{ aws_jobs.results | json_query('[*].{hosttype: tagged_instances[0].tags.hosttype, hostname: tagged_instances[0].tags.Name, private_ip: tagged_instances[0].private_ip, public_ip: tagged_instances[0].public_ip, inventory_ip: tagged_instances[0].public_ip}') }}
-          {%- endif -%}

@@ -3,8 +3,6 @@
 - name: Redeploy (reprovision one at a time).
   hosts: localhost
   connection: local
-  become: false
-  gather_facts: true
   tasks:
     - name: Run redeploy
       import_role:

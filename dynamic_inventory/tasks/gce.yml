@@ -1,0 +1,28 @@
+---
+
+# Note: 'scopes' comes from here (https://developers.google.com/identity/protocols/googlescopes#computev1)
+- name: Get GCP instance facts
+  gcp_compute_instance_info:
+    zone: "{{cluster_vars.region}}-{{item}}"
+    filters:
+      - "name = {{cluster_name}}*"
+      - "status = RUNNING"            # gcloud compute instances list --filter="status=RUNNING"
+    project: "{{cluster_vars.project_id}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+  register: r__gcp_compute_instance_info
+  delegate_to: localhost
+  run_once: true
+
+- debug: msg={{r__gcp_compute_instance_info}}
+
+- set_fact:
+    dynamic_inventory_flat: |
+      {%- if cluster_vars.inventory_ip == 'private' -%}
+        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
+      {%- else -%}
+        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
+      {%- endif -%}
+

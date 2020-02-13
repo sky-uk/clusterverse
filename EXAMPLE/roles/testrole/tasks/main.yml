@@ -1,0 +1,7 @@
+---
+
+- name: Debug role path
+  debug: msg="{{role_path}}"
+
+- name: Debug hosttype_vars
+  debug: msg="{{cluster_vars[buildenv].hosttype_vars}}"
