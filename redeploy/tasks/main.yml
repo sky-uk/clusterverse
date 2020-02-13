@@ -1,6 +1,4 @@
 ---
-- name: Include cluster variables
-  include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
 
 - name: Preflight check
   block:

@@ -1,0 +1,22 @@
+---
+
+- name: get existing instance facts
+  ec2_instance_info:
+    filters:
+      "tag:cluster_name": "{{cluster_name}}"
+      "instance-state-name": ["running"]
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{cluster_vars.region}}"
+  register: r__ec2_instance_info
+  delegate_to: localhost
+
+#- debug: msg={{r__ec2_instance_info}}
+
+- set_fact:
+    dynamic_inventory_flat: |
+      {%- if cluster_vars.inventory_ip == 'private' -%}
+        {{ r__ec2_instance_info.instances | json_query('[*].{hosttype: tags.hosttype, hostname: tags.Name, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: private_ip_address}') }}
+      {%- else -%}
+        {{ r__ec2_instance_info.instances | json_query('[*].{hosttype: tags.hosttype, hostname: tags.Name, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: public_ip_address}') }}
+      {%- endif -%}

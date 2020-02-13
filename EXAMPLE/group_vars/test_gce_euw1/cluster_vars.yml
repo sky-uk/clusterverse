@@ -55,7 +55,7 @@ cluster_vars:
       source_ranges: "{{_ssh_guard_whitelist}}"
       description: "SSH Access"
     - name: "{{cluster_name}}-prometheus-node-exporter"
-      allowed: [{ip_protocol: "tcp", ports: ["{{prometheus_node_exporter_port}}"]}]
+      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
       source_tags: ["{{cluster_name}}-nwtag"]
       description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
     - name: "{{cluster_name}}-nwtag"
