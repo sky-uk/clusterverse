@@ -1,0 +1,26 @@
+---
+
+- name: Stop AWS VMs
+  block:
+    - name: get existing instance
+      ec2_instance_info:
+        filters:
+          "tag:cluster_name": "{{cluster_name}}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+      register: r__ec2_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Stop EC2 instance
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "stopped"
+        instance_ids: "{{ r__ec2_instance_info.instances | json_query(\"[?contains(`\" + hosts_to_stop | join(',') + \"`, tags.Name)].instance_id\")}}"
+        wait: true
+      delegate_to: localhost
+      run_once: true

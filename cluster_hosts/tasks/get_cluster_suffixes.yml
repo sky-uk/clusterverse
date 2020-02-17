@@ -1,0 +1,85 @@
+---
+
+- block:
+    - name: Get existing AWS instance info
+      ec2_instance_info:
+        filters:
+          "tag:cluster_name": "{{cluster_name}}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+      register: r__ec2_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - set_fact:
+        cluster_suffixes_dict: "{{r__ec2_instance_info.instances | json_query(\"[].tags\") | dict_agg('operational_state') }}"
+#        cluster_suffixes_current: "{{r__ec2_instance_info.instances | json_query(\"[?tags.operational_state == 'current'].tags.cluster_suffix\") | unique }}"
+  when: cluster_vars.type == "aws"
+
+- block:
+    - name: Get existing GCP instance info (per AZ)
+      gcp_compute_instance_info:
+        zone: "{{cluster_vars.region}}-{{item}}"
+        filters:
+          - "labels.cluster_name = {{cluster_name}}"
+        project: "{{cluster_vars.project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+      register: r_gcp_compute_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - set_fact:
+        cluster_suffixes_dict: "{{r_gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].labels\") | dict_agg('operational_state') }}"
+#        cluster_suffixes_current: "{{r_gcp_compute_instance_info.results | json_query(\"[].resources[?labels.operational_state=='current'][].labels.cluster_suffix\") | unique }}"
+  when: cluster_vars.type == "gce"
+
+- block:
+    - name: Get existing VMware instance info
+      vmware_vm_info:
+        username: "{{ cluster_vars.esxi_username }}"
+        password: "{{ cluster_vars.esxi_password }}"
+        hostname: "{{ cluster_vars.esxi_ip }}"
+        validate_certs: no
+      register: r__vmware_vm_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get existing VMware instance facts
+      vmware_guest_info:
+        username: "{{ cluster_vars.esxi_username }}"
+        password: "{{ cluster_vars.esxi_password }}"
+        hostname: "{{ cluster_vars.esxi_ip }}"
+        validate_certs: no
+        datacenter: None
+        uuid: "{{item.uuid}}"
+      with_items: "{{ r__vmware_vm_info.virtual_machines | to_json | from_json | json_query(\"[?starts_with(guest_name, '\"+cluster_name+\"')]\") }}"
+      register: r__vmware_guest_info
+      delegate_to: localhost
+      run_once: true
+
+    - set_fact:
+        cluster_suffixes_dict: "{{ r__vmware_guest_info.results | json_query(\"[].instance.annotation\") | map('json_loads_loose') | list | dict_agg('operational_state') }}"
+
+#    - set_fact:
+#        cluster_suffixes_current: "{{ (cluster_suffixes_current | default([])) | union([item.cluster_suffix]) }}"
+#      loop: "{{ r__vmware_guest_info.results | json_query(\"[].instance.annotation\") | map('json_loads_loose') | list | json_query(\"[?operational_state == 'current']\") }}"
+  when: cluster_vars.type == "esxifree"
+
+- debug: msg="{{cluster_suffixes_dict}}"
+  when: cluster_suffixes_dict is defined
+
+- set_fact:
+    cluster_suffixes_current: "{{ cluster_suffixes_dict.current | default({}) | map(attribute='cluster_suffix') | list }}"
+
+- assert: { that: "cluster_suffixes_current | unique | length <= 1", msg: "Multiple current suffixes running ({{cluster_suffixes_current | join(',')}}) - abort" }
+  when: cluster_suffixes_current is defined
+
+- set_fact:
+    cluster_suffix_current: "{{ cluster_suffixes_current[0] | default('') }}"
+
+- debug: msg="cluster_suffix_current {{cluster_suffix_current }}"

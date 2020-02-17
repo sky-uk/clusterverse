@@ -1,0 +1,29 @@
+---
+
+- name: Change operational_state label
+  block:
+    - name: Get existing AWS instance info
+      ec2_instance_info:
+        filters:
+          "tag:cluster_name": "{{cluster_name}}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+      register: r__ec2_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Change operational_state label
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        resource: "{{ item.instance_id }}"
+        tags:
+          operational_state: "{{new_state}}"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ v__items }}"
+      vars:
+        v__items: "{%- if old_state != '_all_'-%}{{r__ec2_instance_info.instances | json_query(\"[?tags.operational_state == '\"+old_state+\"']\")}}{%- else -%}{{r__ec2_instance_info.instances}}{%- endif -%}"

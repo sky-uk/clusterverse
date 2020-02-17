@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 
-import json
+from ansible.utils.display import Display
 
+display = Display()
+# display.v(u"json_loads_loose - input type: %s" % type(inStr))
 
 # Create an aggregation on aggkey within the dictarr array of dicts.  Differs from the builtin jinja2 filter 'groupby' in that it returns a dict for each aggregation, rather than putting it at array elem 0.
 def dict_agg(dictarr, aggkey):
+    import json
     results = {}
 
-    for dictItem in dictarr:
-        if dictItem[aggkey] not in results:
-            results[dictItem[aggkey]] = []
+    display.v(u"dictarr: %s" % type(dictarr))
 
-        results[dictItem[aggkey]].append(dictItem)
+    if dictarr:
+        for dictItem in dictarr:
+            if dictItem[aggkey] not in results:
+                results[dictItem[aggkey]] = []
+
+            results[dictItem[aggkey]].append(dictItem)
 
     return json.dumps(results, indent=4)
 

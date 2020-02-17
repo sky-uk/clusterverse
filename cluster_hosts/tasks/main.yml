@@ -1,8 +1,20 @@
 ---
 
-- name: Set current time (epoch)
+- name: Get the cluster suffix for the currently running cluster VMs (if any)
+  include_tasks: get_cluster_suffixes.yml
+
+- name: Set cluster suffix to suffix of current live VMs
   set_fact:
-    epoch_time: "{{ansible_date_time.epoch}}"
+    cluster_suffix: "{{cluster_suffix_current}}"
+  when: cluster_suffix_current is defined and cluster_suffix_current != ""
+
+- name: Create new cluster suffix, unless already set (e.g. it will be overridden by -e on command line)
+  set_fact:
+    cluster_suffix: "{{ansible_date_time.epoch}}"
+  when: cluster_suffix_current is not defined or cluster_suffix_current == ""
+
+- debug: msg="cluster_suffix = {{cluster_suffix}}"
+
 
 # Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
 - set_fact:
@@ -13,7 +25,7 @@
           {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
             {% set _dummy = res.extend([{
               'hosttype': hostttype,
-              'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string,
+              'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string + '-' + cluster_suffix|string,
               'az_name': azname|string,
               'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
               'release': release_version
