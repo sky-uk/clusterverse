@@ -48,14 +48,14 @@ The `cluster.yml` sub-role immutably deploys a cluster from the config defined a
 ### AWS:
 ```
 ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true -e release_version=v1.0.1
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.1
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_ -e release_version=v1.0.1
 ```
 ### GCP:
 ```
 ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=true
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=true
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
@@ -67,7 +67,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 + `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
 + `-e dns_tld_external=<test.example.com>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.
-+ `-e clean=true` - Deletes all existing VMs and security groups before creating
++ `-e clean=[<instance_state> | _all_]` - Deletes VMs in `instance_state`, or `_all_` and security groups
 + `-e do_package_upgrade=true` - Upgrade the OS packages (not good for determinism)
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
 + `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
@@ -76,7 +76,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e create_gce_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 
 ### Tags
-+ `clusterverse_clean`: Deletes all VMs and security groups (also needs `-e clean=true` on command line)
++ `clusterverse_clean`: Deletes all VMs and security groups (also needs `-e clean=<>` on command line)
 + `clusterverse_create`: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
 + `clusterverse_config`: Updates packages, sets hostname, adds hosts to DNS
 

@@ -20,4 +20,4 @@
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
-    instance_to_create: "{{ existing | json_query('instances[0].tags.Name') | regex_replace('-(?!.*-).*') + '-'+epoch_time}}"
+    instance_to_create: "{{ existing | json_query('instances[0].tags.Name') | regex_replace('-(?!.*-).*') + '-'+cluster_suffix}}"

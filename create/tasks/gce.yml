@@ -97,8 +97,10 @@
           env: "{{buildenv}}"
           release: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}{{rescuing}}{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}{{item.release}}{%- else -%}{{item.current_release}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
-          owner: "{{ lookup('env','USER')| lower }}"
+          cluster_suffix: "{{cluster_suffix}}"
+          owner: "{{ lookup('env','USER')| lower  }}"
           maintenance_mode: "true"
+          operational_state: "current"
           deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
         network_interfaces:
           - network: "{{ gcp_compute_network_info['items'][0] | default({}) }}"

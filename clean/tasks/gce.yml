@@ -1,11 +1,44 @@
 ---
 
-- name: Remove deletion protection
-  command: "gcloud compute instances update {{item.hostname}} --no-deletion-protection --zone {{cluster_vars.region}}-{{item.az_name}}"
-  with_items: "{{cluster_hosts_flat}}"
+- name: Get existing GCP instance info (per AZ)
+  gcp_compute_instance_info:
+    zone: "{{cluster_vars.region}}-{{item}}"
+    filters:
+      - "labels.cluster_name = {{cluster_name}}"
+    project: "{{cluster_vars.project_id}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+  register: r_gcp_compute_instance_info
   delegate_to: localhost
   run_once: true
-  when: "cluster_vars[buildenv].deletion_protection == 'yes'"
+
+- set_fact:
+    hosts_to_del: "{{ r_gcp_compute_instance_info.results | json_query(\"[].resources[?labels.operational_state=='\"+clean+\"'][]\") }}"
+  when: clean != '_all_'
+- set_fact:
+    hosts_to_del: "{{ r_gcp_compute_instance_info.results | json_query(\"[].resources[]\") }}"
+  when: clean == '_all_'
+
+- debug: msg="Deleting {{hosts_to_del | json_query(\"[].name\") | join(', ')}}"
+
+- name: Remove deletion protection
+  command: "gcloud compute instances update {{item.name}} --no-deletion-protection --zone {{item.zone | regex_replace('^.*/(.*)$', '\\1')}}"
+  with_items: "{{hosts_to_del}}"
+  delegate_to: localhost
+  run_once: true
+  when: item.deletionProtection|bool
+
+#- name: Remove deletion protection (broken)
+#  gcp_compute_instance:
+#    name: "{{item.hostname}}"
+#    project: "{{cluster_vars.project_id}}"
+#    zone: "{{cluster_vars.region}}-{{item.az_name}}"
+#    auth_kind: "serviceaccount"
+#    service_account_file: "{{gcp_credentials_file}}"
+#    deletion_protection: no
+#  when: item.deletionProtection|bool
 
 #- name: Remove deletion protection (broken)
 #  gcp_compute_instance:
@@ -18,14 +51,14 @@
 
 - name: Delete GCE VMs asynchronously
   gcp_compute_instance:
-    name: "{{item.hostname}}"
+    name: "{{item.name}}"
     project: "{{cluster_vars.project_id}}"
-    zone: "{{cluster_vars.region}}-{{item.az_name}}"
+    zone: "{{item.zone | regex_replace('^.*/(.*)$', '\\1')}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     state: "absent"
   register: gcp_compute_instance
-  with_items: "{{cluster_hosts_flat}}"
+  with_items: "{{hosts_to_del}}"
   async: 7200
   poll: 0
 
@@ -37,20 +70,22 @@
   retries: 300
   with_items: "{{gcp_compute_instance.results}}"
 
-- name: Delete GCP cluster firewalls
-  gcp_compute_firewall:
-    name: "{{ item.name }}"
-    state: "absent"
-    auth_kind: "serviceaccount"
-    service_account_file: "{{gcp_credentials_file}}"
-    project: "{{cluster_vars.project_id}}"
-  with_items: "{{ cluster_vars.firewall_rules }}"
+- block:
+    - name: Delete GCP cluster firewalls
+      gcp_compute_firewall:
+        name: "{{ item.name }}"
+        state: "absent"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        project: "{{cluster_vars.project_id}}"
+      with_items: "{{ cluster_vars.firewall_rules }}"
 
-- name: Delete the GCP network (if -e create_gce_network=true)
-  gcp_compute_network:
-    name: "{{cluster_vars[buildenv].vpc_network_name}}"
-    auth_kind: "serviceaccount"
-    service_account_file: "{{gcp_credentials_file}}"
-    project: "{{cluster_vars.project_id}}"
-    state: absent
-  when: create_gce_network is defined and create_gce_network|bool
+    - name: Delete the GCP network (if -e create_gce_network=true)
+      gcp_compute_network:
+        name: "{{cluster_vars[buildenv].vpc_network_name}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        project: "{{cluster_vars.project_id}}"
+        state: absent
+      when: create_gce_network is defined and create_gce_network|bool
+  when: clean == '_all_'

@@ -2,43 +2,34 @@
 
 - name: Delete EC2 instances
   block:
-    - name: get existing instance facts
-      ec2_instance_facts:
+    - name: Get existing AWS instance info
+      ec2_instance_info:
         filters:
-          "tag:Name": "{{item.hostname}}"
+          "tag:cluster_name": "{{cluster_name}}"
           "instance-state-name": ["running", "stopped"]
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{cluster_vars.region}}"
-      register: ec2_existing
+      register: r__ec2_instance_info
       delegate_to: localhost
-      with_items: "{{ cluster_hosts_flat }}"
+      run_once: true
 
     - set_fact:
-        uids_to_del: "{{ec2_existing | json_query(\"results[].instances[].{state: state.name, id: instance_id}\") }}"
+        instances_to_del: "{{r__ec2_instance_info.instances | json_query(\"[?tags.operational_state == '\"+clean+\"']\") }}"
+      when: clean != '_all_'
+    - set_fact:
+        instances_to_del: "{{r__ec2_instance_info.instances}}"
+      when: clean == '_all_'
 
     - name: Remove EC2 instances termination protection
       ec2:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{ cluster_vars.region }}"
-        state: "{{ item.state }}"
+        state: "{{ item.state.name }}"
         termination_protection: "no"
-        instance_ids: "{{ item.id }}"
-      with_items: "{{ uids_to_del }}"
-
-    - name: set maintenance_mode to true
-      ec2_tag:
-        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-        region: "{{cluster_vars.region}}"
-        resource: "{{ item.id }}"
-        tags:
-          maintenance_mode: "true"
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{ uids_to_del }}"
-      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
+        instance_ids: "{{ item.instance_id }}"
+      with_items: "{{ instances_to_del }}"
 
     - name: Delete EC2 instances
       ec2:
@@ -46,9 +37,9 @@
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{ cluster_vars.region }}"
         state: "absent"
-        instance_ids: "{{ uids_to_del | json_query(\"[].id\") }}"
+        instance_ids: "{{ instances_to_del | json_query(\"[].instance_id\") }}"
         wait: true
-      when: uids_to_del|length > 0
+      when: instances_to_del|length > 0
 
 
 - name: Delete security group
@@ -59,3 +50,4 @@
     aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
     state: absent
+  when: clean == '_all_'

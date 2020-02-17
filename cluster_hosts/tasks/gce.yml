@@ -64,31 +64,31 @@
     current_cluter_size: "{{gcp_compute_instance_info.results | json_query('[*].resources[]') | length}}"
   run_once: true
 
-- name: Update cluster_hosts_flat with running_instance_fact data
-  set_fact:
-    cluster_hosts_flat: |
-      {% set res = cluster_hosts_flat -%}
-      {%- for host in res -%}
-        {%- if running_instance_fact[0] is defined and running_instance_fact[0] != None -%}
-          {%- for real_hostname in running_instance_fact -%}
-            {%- if real_hostname.name == host.hostname-%}
-              {%- set _dummy = host.update({'hostname': host.hostname,'gdplabel': 'exactmatch'})-%}
-            {%- elif host.hostname in real_hostname.name -%}
-              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
-              {%- else -%}
-                {%- set _dummy = host.update({'hostname': real_hostname.name,'gdplabel': 'beginningmatchmatch'})-%}
-              {% endif -%}
-            {% endif -%}
-          {%- endfor -%}
-        {%- else -%}
-          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string,'gdplabel': 'new cluster'})-%}
-        {%- endif -%}
-        {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
-          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string,'gdplabel': 'missingEpoch'})-%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ res }}
-  run_once: true
+#- name: Update cluster_hosts_flat with running_instance_fact data
+#  set_fact:
+#    cluster_hosts_flat: |
+#      {% set res = cluster_hosts_flat -%}
+#      {%- for host in res -%}
+#        {%- if running_instance_fact[0] is defined and running_instance_fact[0] != None -%}
+#          {%- for real_hostname in running_instance_fact -%}
+#            {%- if real_hostname.name == host.hostname-%}
+#              {%- set _dummy = host.update({'hostname': host.hostname,'gdplabel': 'exactmatch'})-%}
+#            {%- elif host.hostname in real_hostname.name -%}
+#              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
+#              {%- else -%}
+#                {%- set _dummy = host.update({'hostname': real_hostname.name,'gdplabel': 'beginningmatchmatch'})-%}
+#              {% endif -%}
+#            {% endif -%}
+#          {%- endfor -%}
+#        {%- else -%}
+#          {%- set _dummy = host.update({'hostname': host.hostname + '-' + cluster_suffix|string,'gdplabel': 'new cluster'})-%}
+#        {%- endif -%}
+#        {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
+#          {%- set _dummy = host.update({'hostname': host.hostname + '-' + cluster_suffix|string,'gdplabel': 'missingEpoch'})-%}
+#        {%- endif -%}
+#      {%- endfor -%}
+#      {{ res }}
+#  run_once: true
 
 - name: delete deploy_status label
   gce_labels:
