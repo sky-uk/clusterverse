@@ -18,4 +18,4 @@
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:
-    instance_to_create: "{{ gcp_compute_instance_info | json_query('resources[0].name') | regex_replace('-(?!.*-).*') + '-'+epoch_time}}"
+    instance_to_create: "{{ gcp_compute_instance_info | json_query('resources[0].name') | regex_replace('-(?!.*-).*') + '-'+cluster_suffix}}"

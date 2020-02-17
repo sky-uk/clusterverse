@@ -87,30 +87,30 @@
     running_instance_fact: "{{ec2_existing.instances | json_query('[*].{name: tags.Name, deploy_status: tags.deploy_status}')}}"
     current_cluter_size: "{{ec2_existing.instances | length}}"
 
-- name: Update cluster_hosts_flat with running_instance_fact data
-  set_fact:
-    cluster_hosts_flat: |
-      {% set res = cluster_hosts_flat -%}
-      {%- for host in res -%}
-        {%- if running_instance_fact[0] is defined -%}
-          {%- for real_hostname in running_instance_fact -%}
-            {%- if real_hostname.name == host.hostname-%}
-              {%- set _dummy = host.update({'hostname': host.hostname})-%}
-            {%- elif host.hostname in real_hostname.name -%}
-              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
-              {%- else -%}
-                {%- set _dummy = host.update({'hostname': real_hostname.name})-%}
-              {% endif -%}
-            {% endif -%}
-          {%- endfor -%}
-        {%- else -%}
-          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string})-%}
-        {%- endif -%}
-        {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
-          {%- set _dummy = host.update({'hostname': host.hostname + '-' + epoch_time|string})-%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ res }}
+#- name: Update cluster_hosts_flat with running_instance_fact data
+#  set_fact:
+#    cluster_hosts_flat: |
+#      {% set res = cluster_hosts_flat -%}
+#      {%- for host in res -%}
+#        {%- if running_instance_fact[0] is defined -%}
+#          {%- for real_hostname in running_instance_fact -%}
+#            {%- if real_hostname.name == host.hostname-%}
+#              {%- set _dummy = host.update({'hostname': host.hostname})-%}
+#            {%- elif host.hostname in real_hostname.name -%}
+#              {%- if(instance_to_create is defined and instance_to_create ==  real_hostname.name) or (rescuing_instance is defined and rescuing_instance ==  real_hostname.name)-%}
+#              {%- else -%}
+#                {%- set _dummy = host.update({'hostname': real_hostname.name})-%}
+#              {% endif -%}
+#            {% endif -%}
+#          {%- endfor -%}
+#        {%- else -%}
+#          {%- set _dummy = host.update({'hostname': host.hostname + '-' + cluster_suffix|string})-%}
+#        {%- endif -%}
+#        {%- if host.hostname | regex_search('-([0-9]{10})$') | bool != false -%}
+#          {%- set _dummy = host.update({'hostname': host.hostname + '-' + cluster_suffix|string})-%}
+#        {%- endif -%}
+#      {%- endfor -%}
+#      {{ res }}
 
 - name: set deploy_status tag
   ec2_tag:
