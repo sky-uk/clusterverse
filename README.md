@@ -42,10 +42,22 @@ Credentials to the DNS server will also be required. These are specified in the 
 ### Cloud credential management
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
 + Because multiple environments are supported, it is recommended to use [vault-ids](https://docs.ansible.com/ansible/latest/user_guide/vault.html#multiple-vault-passwords), and have credentials per environment (e.g. to help avoid accidentally running a deploy on prod).
-+ There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible.  This is particularly useful for running under Jenkins.
++ There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible. Setting this variable is mandatory within Clusterverse as if you need to decrypt sensitive data within `ansible-vault`, the password set within the variable will be used. This is particularly useful for running within Jenkins.
   + `export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>`
-+ To encrypt (export `VAULT_PASSWORD_BUILDENV` first):
++ To encrypt sensitive information, you must ensure that your current working dir can see the script `.vaultpass-client.py` and `VAULT_PASSWORD_BUILDENV` has been set:
   + `ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox`
+    + An example of setting a sensitive value could be your `aws_secret_key`. When running the cmd above, a prompt will appear such as:
+    ```
+    ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox
+    Reading plaintext input from stdin. (ctrl-d to end input)
+    ```
+    + Enter your plaintext input, then when finished press `CTRL-D` on your keyboard. Sometimes scrambled text will appear after pressing the combination such as `^D`, press the same combination again and your scrambled hash will be displayed. Copy this as a value for your string within your `cluster_vars.yml` or `app_vars.yml` files. Example below:
+    ```
+    aws_secret_key: !vault |-
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      306164313163633832323236323462333438323061663737666331366631303735666466626434393830356461363464633264623962343262653433383130390a343964393336343564393862316132623734373132393432396366626231376232636131666430666366636466393664353435323561326338333863633131620a66393563663736353032313730613762613864356364306163363338353330383032313130663065666264396433353433363062626465303134613932373934
+    ```
+    + Notice `!vault |-` this is compulsory in order for the hash to be successfully decrypted
 + To decrypt, either run the playbook with the correct `VAULT_PASSWORD_BUILDENV` and just `debug: msg={{myvar}}`, or:
   + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
   `86338616...33630313034' | ansible-vault decrypt --vault-id=sandbox@.vaultpass-client.py`  
