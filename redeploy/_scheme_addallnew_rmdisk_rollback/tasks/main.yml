@@ -2,7 +2,8 @@
 
 - name: Attempt redeploy.  Restore old if fails
   block:
-    - block:
+    - name: Move instances in 'current' state to 'retiring' state
+      block:
         - assert: { that: "'retiring' not in cluster_suffixes_dict.keys()", msg: "ERROR - There are already machines in the 'retiring' state." }
 
         - include_tasks: set_operational_state_aws.yml
@@ -10,31 +11,32 @@
 
         - include_tasks: set_operational_state_gce.yml
           when: cluster_vars.type == "gce"
-      vars:
-        old_state: "current"
-        new_state: "retiring"
 
-    - name: "Run {{mainclusteryml}} to provision new cluster"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
-      register: r_mainclusteryml
+        - name: "Run {{mainclusteryml}} to provision new cluster"
+          shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+          register: r_mainclusteryml
 
-    - debug: msg={{r_mainclusteryml}}
+        - debug: msg={{r_mainclusteryml}}
+      vars: { old_state: "current", new_state: "retiring" }
+      when: canary=="start" or canary=="none"
 
-    - name: run pre-delete role
-      include_role:
-        name: "{{predeleterole}}"
-      vars:
-        hosts_to_del: "{{cluster_hosts_flat}}"
-      when: predeleterole is defined and predeleterole != ""
+    - block:
+        - name: run pre-delete role
+          include_role:
+            name: "{{predeleterole}}"
+          vars:
+            hosts_to_del: "{{cluster_hosts_flat}}"
+          when: predeleterole is defined and predeleterole != ""
 
-#    - fail:
-#      when: true
+#        - fail:
+#          when: true
 
-    - name: "Run {{mainclusteryml}} to delete retired cluster"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e clean='retiring' --tags=clusterverse_clean"
-      register: r_mainclusteryml
+        - name: "Run {{mainclusteryml}} to delete retired cluster"
+          shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e clean='retiring' --tags=clusterverse_clean"
+          register: r_mainclusteryml
 
-    - debug: msg={{r_mainclusteryml}}
+        - debug: msg={{r_mainclusteryml}}
+      when: canary=="finish" or canary=="none"
 
   rescue:
     - name: re-acquire cluster_hosts
@@ -50,7 +52,8 @@
         hosts_to_del: "{{cluster_hosts_flat}}"
       when: predeleterole is defined and predeleterole != ""
 
-    - block:
+    - name: Move instances in 'current' state to 'redeployfail' state
+      block:
         - assert: { that: "'retiring' in cluster_suffixes_dict.keys()", msg: "ERROR - There are no machines in the 'retiring' state." }
 
         - include_tasks: set_operational_state_aws.yml
@@ -58,11 +61,10 @@
 
         - include_tasks: set_operational_state_gce.yml
           when: cluster_vars.type == "gce"
-      vars:
-        old_state: "current"
-        new_state: "redeployfail"
+      vars: { old_state: "current", new_state: "redeployfail" }
 
-    - block:
+    - name: Move instances in 'retiring' state back to 'current' state
+      block:
         - assert: { that: "'retiring' in cluster_suffixes_dict.keys()", msg: "ERROR - There are no machines in the 'retiring' state." }
 
         - include_tasks: set_operational_state_aws.yml
@@ -70,9 +72,7 @@
 
         - include_tasks: set_operational_state_gce.yml
           when: cluster_vars.type == "gce"
-      vars:
-        old_state: "retiring"
-        new_state: "current"
+      vars: { old_state: "retiring", new_state: "current" }
 
     - block:
         - include_tasks: stop_aws.yml
