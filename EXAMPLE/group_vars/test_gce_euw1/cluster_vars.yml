@@ -41,8 +41,9 @@ cluster_vars:
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
   region: &region "europe-west1"
   dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+  # dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
+  dns_zone_external: "clusterverse.vtp.com."
+  dns_server: "clouddns"                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   project_id: "{{gcp_credentials_json.project_id}}"
@@ -66,8 +67,8 @@ cluster_vars:
     hosttype_vars:
       sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
       #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
-    vpc_network_name: "test-{{buildenv}}"
-    vpc_subnet_name: ""
+    vpc_network_name: "default"
+    vpc_subnet_name: "default"
     preemptible: "false"
     deletion_protection: "no"
 _cloud_type: *cloud_type
