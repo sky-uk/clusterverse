@@ -27,7 +27,7 @@ app_name: "nginx"                 # The name of the application cluster (e.g. 'c
 app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
 cluster_vars:
-  region: ""  
+  region: ""
   image: ""
   ...
   <buildenv>:
@@ -36,7 +36,7 @@ cluster_vars:
     ...
 ```
 
-Variable defined in here override defaults in `roles/clusterverse/_dependencies/defaults/main.yml`, and can be overriden by defining them on the command-line.
+Variables defined in here override defaults in `roles/clusterverse/_dependencies/defaults/main.yml`, and can be overriden by defining them on the command-line.
 
 #### group_vars/\<clusterid\>/app_vars.yml:
 Contains your application-specific variables

@@ -1,5 +1,26 @@
 ---
 
+- name: disable and kill unattended upgrades to prevent dpkg locks
+  block:
+    - name: Disable timers for unattended upgrade, so that none will be triggered by the `date -s` call.
+      command: systemctl disable --now {{item}}
+      become: true
+      with_items:
+        - 'apt-daily.timer'
+        - 'apt-daily-upgrade.timer'
+
+    - name: Reload systemctl daemon to apply the new changes
+      command: systemctl daemon-reload
+      become: true
+
+    - name: Wait for any possibly running unattended upgrade to finish
+      command: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+      become: true
+
+    - name: Purge unattended upgrades
+      command: apt-get -y purge unattended-upgrades
+      become: true
+
 - name: Disable requiretty in sudoers to enable pipelining
   become: yes
   lineinfile:
