@@ -7,7 +7,7 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
+dns_tld_external: "clusterverse.vtp.com."              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
 
 ## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
@@ -41,8 +41,7 @@ cluster_vars:
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
   region: &region "europe-west1"
   dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
-  # dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-  dns_zone_external: "clusterverse.vtp.com."
+  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
   dns_server: "clouddns"                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'

@@ -95,7 +95,7 @@
 - name: Gather info for a pre-existing GCP Managed Zone and store as dict
   gcp_dns_managed_zone_info:
     auth_kind: serviceaccount
-    dns_name: "{{cluster_vars.dns_zone_external}}"
+    dns_name: "{{dns_tld_external}}"
     project: "{{ GOOGLE_PROJECT }}"
     service_account_file: "{{gcp_credentials_file}}"
   register: gcp_dns_managed_zone_info
