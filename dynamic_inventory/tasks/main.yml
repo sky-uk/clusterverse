@@ -6,6 +6,9 @@
 - include_tasks: gce.yml
   when: cluster_vars.type == "gce"
 
+
+- assert: { that: "dynamic_inventory_flat is defined", msg: "dynamic_inventory_flat is not defined" }
+
 - debug: msg="{{dynamic_inventory_flat}}"
 
 - name: Wait for port 22 to become open and contain "OpenSSH".
