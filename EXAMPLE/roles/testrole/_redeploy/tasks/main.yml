@@ -1,0 +1,9 @@
+---
+
+- name: redeploy | hosts_to_redeploy
+  debug: msg="{{hosts_to_redeploy}}"
+  when: hosts_to_del is defined
+
+- name: redeploy | host_to_redeploy
+  debug: msg="{{host_to_redeploy}}"
+  when: host_to_redeploy is defined

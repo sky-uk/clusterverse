@@ -9,7 +9,7 @@ app_class: "test"                 # The class of application (e.g. 'database', '
 
 dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
 
-## Vulnerablity scanners - Tenable and/ or Qualys cloud agents:
+## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
 #  tenable:
 #    service: "nessusagent"

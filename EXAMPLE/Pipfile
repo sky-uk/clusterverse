@@ -15,7 +15,6 @@ dnspython = "*"
 google-auth = "*"
 netaddr = "*"
 passlib = "*"
-shade = "*"
 apache-libcloud = "*"
 google-api-python-client = "*"
 
