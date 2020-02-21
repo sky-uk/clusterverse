@@ -98,8 +98,8 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeplo
 ### Mandatory command-line variables:
 + `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
++ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
 
 ### Extra variables:
 + `-e 'redeploy_scheme'=<subrole_name>` - The scheme corresponds to one defined in 
-+ `-e canary=['start', 'finish', 'none']` - Specify whether to start or finish a canary deploy, or 'none' deploy
 + `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types
