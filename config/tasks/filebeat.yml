@@ -7,3 +7,13 @@
   register: apt_jobs
   until: apt_jobs is success
   retries: 5
+  when: ansible_os_family == 'Debian'
+
+- name: Filebeat | Download and install filebeat from elastic.co
+  become: yes
+  yum:
+    name: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-x86_64.rpm"
+  register: yum_jobs
+  until: yum_jobs is success
+  retries: 5
+  when: ansible_os_family == 'RedHat'
