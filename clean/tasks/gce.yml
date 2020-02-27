@@ -79,6 +79,7 @@
       service_account_file: "{{gcp_credentials_file}}"
     register: gcp_dns_resource_record_set_info
     with_items: "{{ cluster_hosts_flat }}"
+    when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and cluster_vars.dns_server=="clouddns" and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
   
   - name: Remove related clusterverse A records from clouddns only
     gcp_dns_resource_record_set:
