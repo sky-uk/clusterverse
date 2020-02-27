@@ -71,6 +71,13 @@
       block:
         #- debug: msg={{nvmevols | map(attribute='device') | join(',')}}
 
+        - name: autodisks | Install logical volume management tooling. (yum - RedHat/CentOS)
+          become: true
+          yum:
+            name: "lvm*"
+            state: present
+          when: ansible_os_family == 'RedHat'
+
         - name: autodisks | Create a volume group from all nvme devices
           become: yes
           lvg:
