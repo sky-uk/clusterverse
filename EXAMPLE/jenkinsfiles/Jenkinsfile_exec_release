@@ -42,13 +42,14 @@ pipeline {
         }
       }
     }
-    stage('Trigger deploy') {
-      steps {
-        script {
-          println "Release ${VERSION_TO_DEPLOY} is being deployed in sandbox"
-          build job: "clusterverse-release-deploy", wait: false, parameters: [string(name: 'GENUINE_BUILD', value: "true"), string(name: 'DEPLOY_ENV', value: "sandbox"), string(name: 'RELEASE', value: "${VERSION_TO_DEPLOY}")]
-        }
-      }
-    }        
+    // Uncomment the stage below as to trigger a downstream deployment job.
+    // stage('Trigger deploy') {
+    //   steps {
+    //     script {
+    //       println "Release ${VERSION_TO_DEPLOY} is being deployed in sandbox"
+    //       build job: "clusterverse-release-deploy", wait: false, parameters: [string(name: 'GENUINE_BUILD', value: "true"), string(name: 'DEPLOY_ENV', value: "sandbox"), string(name: 'RELEASE', value: "${VERSION_TO_DEPLOY}")]
+    //     }
+    //   }
+    // }        
   }
 }
