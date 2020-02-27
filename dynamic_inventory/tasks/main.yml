@@ -11,14 +11,13 @@
 
 - debug: msg="{{dynamic_inventory_flat}}"
 
-- name: Wait for port 22 to become open and contain "OpenSSH".
-  wait_for:
-    port: 22
-    host: "{{ item.inventory_ip }}"
-    search_regex: OpenSSH
-    delay: 1
+# The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
+# this is particularly useful if using a jumphost to access the destination host, and the ansible-running-machine doesn't have direct
+- name: Wait for SSH connectivity
+  ping:
+  delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
-  connection: local
+  retries: 120
 
 - name: Add hosts to dynamic inventory
   add_host:
