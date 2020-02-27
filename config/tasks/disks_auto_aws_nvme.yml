@@ -1,18 +1,19 @@
 ---
 #- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme_volumes }}
-
+- debug: msg={{ ansible_facts.devices }}
 - block:
-    - name: autodisks | Get block devices as json
-      shell: lsblk -Jb
-      register: lsblk
-
-#    - debug: msg={{ lsblk.stdout | from_json }}
-
-    - name: autodisks | Retrieve unused (i.e. unmounted, with unmounted child partitions), 'disk' devices (i.e. not cdroms or loopback)
+    - name: autodisks | Get unused block devices
       set_fact:
-        lsblk_volumes: "{{ lsblk.stdout | from_json | json_query(\"blockdevices[?type=='disk' && !mountpoint && (!children || length(children[?mountpoint])==`0`)].{dev: name, size_b: size}\") }}"
+        block_devices: "{{ {'dev': item, 'size_b': (ansible_facts.devices[item].sectors|int) * (ansible_facts.devices[item].sectorsize|int)} }}"
+      with_items: "{{ ansible_facts.devices }}"
+      register: block_devices_list
+      when: item | regex_search("nvme") and ansible_facts.devices[item].partitions == {}
 
-#    - debug: msg={{ lsblk_volumes }}
+    - name: autodisks | Create unused block devices list
+      set_fact:
+        lsblk_volumes: "{{ block_devices_list.results | map(attribute='ansible_facts.block_devices') | select('defined') | list }}"
+
+    - debug: msg={{ lsblk_volumes }}
 
     - name: autodisks | Create 'nvmevols' fact that contains a list of available host nvme devices (lsblk) mapped to the mountpoints defined in cluster_vars. Handles single mounting points with LV/VG
       set_fact:
@@ -62,13 +63,20 @@
             mode: "{{ item.perms.mode | default(omit)}}"
             owner: "{{ item.perms.owner | default(omit)}}"
             group: "{{ item.perms.group | default(omit)}}"
-          with_items: "{{ hostvols }}"
+          with_items: "{{ nvmevols }}"
       when: (nvmevols | map(attribute='mountpoint') | list | unique | count == nvmevols | map(attribute='mountpoint') | list | count)
 
     # The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
     - name: autodisks | Mount nvme volumes in a single mountpoint through LV/VG
       block:
         #- debug: msg={{nvmevols | map(attribute='device') | join(',')}}
+
+        - name: autodisks | Install logical volume management tooling. (yum - RedHat/CentOS)
+          become: true
+          yum:
+            name: "lvm*"
+            state: present
+          when: ansible_os_family == 'RedHat'
 
         - name: autodisks | Create a volume group from all nvme devices
           become: yes

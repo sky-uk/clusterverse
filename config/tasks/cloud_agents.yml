@@ -2,17 +2,33 @@
 
 - name: cloud_agents | Qualys cloud agent
   block:
-    - name: cloud_agents | Remove existing Qualys cloud agent pkg
+    - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
       apt:
         name: "{{ cloud_agent.qualys.service }}"
         state: absent
+      when: ansible_os_family == 'Debian'
 
-    - name: cloud_agents | Download and install Qualys cloud agent pkg
+    - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
       become: yes
       apt:
         deb: "{{ cloud_agent.qualys.debpackage }}"
         state: present
+      when: ansible_os_family == 'Debian'
+    
+    - name: cloud_agents | Remove existing Qualys cloud agent pkg RedHat
+      become: yes
+      yum:
+        name: "{{ cloud_agent.qualys.service }}"
+        state: absent
+      when: ansible_os_family == 'RedHat'
+
+    - name: cloud_agents | Download and install Qualys cloud agent pkg RedHat
+      become: yes
+      yum:
+        name: "{{ cloud_agent.qualys.rpmpackage }}"
+        state: present
+      when: ansible_os_family == 'RedHat'
 
     - name: cloud_agents | link Qualys cloud agent
       become: yes
@@ -58,4 +74,3 @@
         state: started
         enabled: yes
   when: "'tenable' in cloud_agent"
-
