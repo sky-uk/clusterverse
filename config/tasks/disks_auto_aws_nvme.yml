@@ -63,7 +63,7 @@
             mode: "{{ item.perms.mode | default(omit)}}"
             owner: "{{ item.perms.owner | default(omit)}}"
             group: "{{ item.perms.group | default(omit)}}"
-          with_items: "{{ hostvols }}"
+          with_items: "{{ nvmevols }}"
       when: (nvmevols | map(attribute='mountpoint') | list | unique | count == nvmevols | map(attribute='mountpoint') | list | count)
 
     # The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
