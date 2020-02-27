@@ -17,7 +17,7 @@
   ping:
   delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
-  retries: 120
+  retries: 12
 
 - name: Add hosts to dynamic inventory
   add_host:
