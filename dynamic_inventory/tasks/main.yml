@@ -12,7 +12,7 @@
 - debug: msg="{{dynamic_inventory_flat}}"
 
 # The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
-# this is particularly useful if using a jumphost to access the destination host, and the ansible-running-machine doesn't have direct
+# this is particularly useful if using a jumphost to access the destination host, and the ansible-running machine doesn't have direct access to it.
 - name: Wait for SSH connectivity
   ping:
   delegate_to: "{{ item.inventory_ip }}"
