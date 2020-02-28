@@ -1,25 +1,27 @@
 ---
 
-- name: disable and kill unattended upgrades to prevent dpkg locks
+- name: Disable unattended-upgrades and apt-daily services & timers. Wait for in-flight updates to finish.
   block:
-    - name: Disable timers for unattended upgrade, so that none will be triggered by the `date -s` call.
-      command: systemctl disable --now {{item}}
+    - name: Disable unattended-upgrades and apt-daily services & timers
+      systemd:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+        daemon_reload: yes
       become: true
-      with_items:
+      loop:
         - 'apt-daily.timer'
+        - 'apt-daily.service'
         - 'apt-daily-upgrade.timer'
+        - 'apt-daily-upgrade.service'
+        - 'unattended-upgrades.service'
 
-    - name: Reload systemctl daemon to apply the new changes
-      command: systemctl daemon-reload
+    - name: Wait for in-flight updates to finish
       become: true
-
-    - name: Wait for any possibly running unattended upgrade to finish
-      command: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
-      become: true
-
-    - name: Purge unattended upgrades
-      command: apt-get -y purge unattended-upgrades
-      become: true
+      shell: "while fuser /var/lib/dpkg/{{ item }} >/dev/null 2>&1; do sleep 5; done;"
+      loop:
+        - lock
+        - lock-frontend
   when: ansible_os_family == 'Debian'
 
 - name: Disable requiretty in sudoers to enable pipelining
@@ -194,7 +196,7 @@
   with_items: "{{ cluster_hosts_flat }}"
   when: cluster_vars.dns_server == "route53" and instance_to_create is undefined and rescuing_instance is undefined
 
-  - name: Create/Update DNS CNAME records in Cloud DNS via GCP
+- name: Create/Update DNS CNAME records in Cloud DNS via GCP
   gcp_dns_resource_record_set:
     auth_kind: serviceaccount
     managed_zone:
