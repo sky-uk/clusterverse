@@ -16,19 +16,12 @@
         - 'apt-daily-upgrade.service'
         - 'unattended-upgrades.service'
 
-    - name: Check if dpkg lock is released
-      command: "systemctl is-active {{ item }}"
-      register: is_active
-      retries: 5
-      delay: 10
-      until: is_active.stdout == 'inactive'
-      failed_when: "is_active.rc == 999"
-      changed_when: no
+    - name: Wait for updates to finish
       become: true
+      shell: "while fuser /var/lib/dpkg/{{ item }} >/dev/null 2>&1; do sleep 5; done;"
       loop:
-        - 'apt-daily.service'
-        - 'apt-daily-upgrade.service'
-        - 'unattended-upgrades.service'
+        - lock
+        - lock-frontend
   when: ansible_os_family == 'Debian'
 
 - name: Disable requiretty in sudoers to enable pipelining
