@@ -1,8 +1,8 @@
 ---
 
-- name: disable and kill unattended upgrades to prevent dpkg locks
+- name: Disable unattended-upgrades and apt-daily services & timers. Wait for in-flight updates to finish.
   block:
-    - name: Disable apt-daily timer services and mask them
+    - name: Disable unattended-upgrades and apt-daily services & timers
       systemd:
         name: "{{ item }}"
         enabled: no
@@ -16,7 +16,7 @@
         - 'apt-daily-upgrade.service'
         - 'unattended-upgrades.service'
 
-    - name: Wait for updates to finish
+    - name: Wait for in-flight updates to finish
       become: true
       shell: "while fuser /var/lib/dpkg/{{ item }} >/dev/null 2>&1; do sleep 5; done;"
       loop:
