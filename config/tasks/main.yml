@@ -138,7 +138,7 @@
     project: "{{ GOOGLE_PROJECT }}"
     service_account_file: "{{gcp_credentials_file}}"
     state: present    
-    target: "{%- if gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_private_host'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
+    target: "{%- if gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
     type: A
     ttl: 60
   become: false
