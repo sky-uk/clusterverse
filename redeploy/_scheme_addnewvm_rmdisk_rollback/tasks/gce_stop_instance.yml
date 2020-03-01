@@ -69,7 +69,7 @@
         gcp_dns_managed_zone_info:
           auth_kind: serviceaccount
           dns_name: "{{dns_tld_external}}"
-          project: "{{ GOOGLE_PROJECT }}"
+          project: "{{cluster_vars.project_id}}"
           service_account_file: "{{gcp_credentials_file}}"
         register: gcp_dns_managed_zone_info
         become: false
@@ -83,7 +83,7 @@
           managed_zone:
             name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
             dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
-          project: "{{ GOOGLE_PROJECT }}"
+          project: "{{cluster_vars.project_id}}"
           service_account_file: "{{gcp_credentials_file}}"
         register: gcp_dns_resource_record_set_info
 
@@ -94,7 +94,7 @@
             name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
             dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"        
           name: "{{ cluster_hosts_flat | json_query('[? hostname == `' + host_to_stop.hostname + '`].hostname|[0]')}}.{{cluster_vars.dns_zone_external}}"
-          project: "{{ GOOGLE_PROJECT }}"
+          project: "{{cluster_vars.project_id}}"
           service_account_file: "{{gcp_credentials_file}}"
           state: absent    
           target: "{{ gcp_dns_resource_record_set_info | json_query('resources[?type == `A`].rrdatas|[]|[0]')}}" 
