@@ -120,7 +120,7 @@
   gcp_dns_managed_zone_info:
     auth_kind: serviceaccount
     dns_name: "{{dns_tld_external}}"
-    project: "{{ GOOGLE_PROJECT }}"
+    project: "{{cluster_vars.project_id}}"
     service_account_file: "{{gcp_credentials_file}}"
   register: gcp_dns_managed_zone_info
   become: false
@@ -135,10 +135,10 @@
       name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
       dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
     name: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
-    project: "{{ GOOGLE_PROJECT }}"
+    project: "{{cluster_vars.project_id}}"
     service_account_file: "{{gcp_credentials_file}}"
     state: present    
-    target: "{%- if gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_private_host'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
+    target: "{%- if gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
     type: A
     ttl: 60
   become: false
@@ -203,7 +203,7 @@
       name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
       dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
     name: "{{item.hostname | regex_replace('-(?!.*-)[0-9]{10}$')}}.{{cluster_vars.dns_zone_external}}"
-    project: "{{ GOOGLE_PROJECT }}"
+    project: "{{cluster_vars.project_id}}"
     service_account_file: "{{gcp_credentials_file}}"
     state: present
     target: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"

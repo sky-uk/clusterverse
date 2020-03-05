@@ -23,7 +23,6 @@
   add_host:
     name: "{{ item.hostname }}"
     groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}"]
-    ansible_private_host: "{%- if cluster_vars.inventory_ip == 'public' and cluster_vars.inventory_ip !='' -%} {{ item.private_ip }} {%- endif -%}" 
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
   with_items: "{{ dynamic_inventory_flat }}"
@@ -42,7 +41,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} ansible_private_host={{ hostvars[hostname].ansible_private_host }}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }}
       {% endfor %}
 
       {% endif %}
