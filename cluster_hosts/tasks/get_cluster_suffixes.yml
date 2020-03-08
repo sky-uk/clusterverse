@@ -82,4 +82,4 @@
 - set_fact:
     cluster_suffix_current: "{{ cluster_suffixes_current[0] | default('') }}"
 
-- debug: msg="cluster_suffix_current {{cluster_suffix_current }}"
+- debug: msg="cluster_suffix_current {{ cluster_suffix_current | default('') }}"

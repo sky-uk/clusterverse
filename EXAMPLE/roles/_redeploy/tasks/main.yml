@@ -1,4 +1,0 @@
----
-
-- name: redeploy | hosts_to_del
-  debug: msg="{{hosts_to_del}}"
