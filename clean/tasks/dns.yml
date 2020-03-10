@@ -28,7 +28,7 @@
 
 - name: Delete DNS entries from route53
   block:
-    - name: Get DNS entries from route53
+    - name: Get A records from route53
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -40,7 +40,7 @@
       register: dns_rec
       with_items: "{{ hosts_to_clean }}"
 
-    - name: Remove DNS entries from route53
+    - name: Remove A records from route53
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -54,7 +54,7 @@
       with_items: "{{ dns_rec.results }}"
       when: item.set.value is defined
 
-    - name: Get CNAME entries from route53
+    - name: Get CNAME records from route53
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -66,7 +66,7 @@
       register: dns_rec
       with_items: "{{ hosts_to_clean }}"
 
-    - name: Remove DNS entries from route53
+    - name: Remove CNAME records from route53
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -91,9 +91,6 @@
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: gcp_dns_managed_zone_info
-      become: false
-      delegate_to: localhost
-      run_once: true
 
     - name: Get DNS entries from clouddns
       gcp_dns_resource_record_set_info:
@@ -104,9 +101,8 @@
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: gcp_dns_resource_record_set_info
-      with_items: "{{ cluster_hosts_flat }}"
 
-    - name: Remove related clusterverse A records from clouddns
+    - name: Remove A records from clouddns
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
@@ -116,15 +112,12 @@
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: absent
-        target: "{{ item.rrdatas[0] }}"
+        target: "{{ item.rrdatas }}"
         type: A
-        ttl: "{{ item.ttl }}"
-      become: false
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{ gcp_dns_resource_record_set_info.results.0.resources }}"
+      with_items: "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
+      when: (item.name | regex_replace('^(.*?)\\..*$', '\\1')) in hosts_to_clean
 
-    - name: Remove related clusterverse CNAME records from clouddns
+    - name: Remove CNAME records from clouddns
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
@@ -134,11 +127,10 @@
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: absent
-        target: "{{ item.rrdatas[0] }}"
+        target: "{{ item.rrdatas }}"
         type: CNAME
-        ttl: "{{ item.ttl }}"
-      become: false
-      delegate_to: localhost
-      run_once: true
-      with_items: "{{ gcp_dns_resource_record_set_info.results.0.resources }}"
+      with_items: "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
+      vars:
+        cnames_to_clean: "{{ hosts_to_clean | map('regex_replace', '-(?!.*-).*') | list }}"
+      when: (item.name | regex_replace('^(.*?)\\..*$', '\\1')) in cnames_to_clean
   when: cluster_vars.dns_server=="clouddns"

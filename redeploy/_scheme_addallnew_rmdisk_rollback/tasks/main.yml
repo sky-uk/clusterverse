@@ -2,7 +2,7 @@
 
 - name: Attempt redeploy.  Restore old if fails
   block:
-    - name: Move instances in 'current' state to 'retiring' state
+    - name: canary=="start" or canary=="none"
       block:
         - assert: { that: "'retiring' not in cluster_suffixes_dict.keys()", msg: "ERROR - There are already machines in the 'retiring' state." }
 
@@ -21,6 +21,7 @@
         - debug: msg={{r_mainclusteryml}}
       when: canary=="start" or canary=="none"
 
+    - name: canary=="finish" or canary=="none"
     - block:
         - name: re-acquire cluster_hosts and cluster_suffixes_dict
           import_role:
