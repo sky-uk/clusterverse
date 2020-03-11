@@ -2,7 +2,7 @@
 
 - name: Attempt redeploy.  Restore old if fails
   block:
-    - name: canary=="start" or canary=="none"
+    - name: canary==start or canary==none
       block:
         - assert: { that: "'retiring' not in cluster_suffixes_dict.keys()", msg: "ERROR - There are already machines in the 'retiring' state." }
 
@@ -21,12 +21,13 @@
         - debug: msg={{r_mainclusteryml}}
       when: canary=="start" or canary=="none"
 
-    - name: canary=="finish" or canary=="none"
-    - block:
-        - name: re-acquire cluster_hosts and cluster_suffixes_dict
-          import_role:
-            name: clusterverse/cluster_hosts
+    - name: re-acquire cluster_hosts and cluster_suffixes_dict
+      import_role:
+        name: clusterverse/cluster_hosts
+      when: canary=="none"
 
+    - name: canary==finish or canary==none
+      block:
         - assert: { that: "'retiring' in cluster_suffixes_dict.keys()", msg: "ERROR - There are no machines in the 'retiring' state." }
 
         - name: run pre-delete role
@@ -47,7 +48,7 @@
       when: canary=="finish" or canary=="none"
 
   rescue:
-    - name: re-acquire cluster_hosts
+    - name: re-acquire cluster_hosts and cluster_suffixes_dict
       import_role:
         name: clusterverse/cluster_hosts
 

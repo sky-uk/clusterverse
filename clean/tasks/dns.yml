@@ -1,8 +1,8 @@
 ---
 
-- name: Delete DNS entries from route53
+- name: clean/dns | Delete DNS entries from bind (nsupdate)
   block:
-    - name: Delete DNS A records using nsupdate (if applicable)
+    - name: clean/dns/nsupdate | Delete A records
       nsupdate:
         key_name: "{{bind9[buildenv].key_name}}"
         key_secret: "{{bind9[buildenv].key_secret}}"
@@ -12,7 +12,7 @@
         record: "{{item}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
       with_items: "{{ hosts_to_clean }}"
 
-    - name: "Delete CNAME records"
+    - name: clean/dns/nsupdate | Delete CNAME records
       nsupdate:
         key_name: "{{bind9[buildenv].key_name}}"
         key_secret: "{{bind9[buildenv].key_secret}}"
@@ -23,24 +23,27 @@
         type: CNAME
         state: absent
       with_items: "{{ hosts_to_clean }}"
-      when: instance_to_create is undefined or rescuing_instance is undefined
+      vars:
+        cname_to_check: "{{ item | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_zone_external}}."
+        cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+bind9[buildenv].server) }}"
+      when: (item + '.' + cluster_vars.dns_zone_external + "." == cname_value)  and  (instance_to_create is undefined or rescuing_instance is undefined)
   when: cluster_vars.dns_server == "nsupdate"
 
-- name: Delete DNS entries from route53
+- name: clean/dns/route53 | Delete DNS entries from route53
   block:
-    - name: Get A records from route53
+    - name: clean/dns/route53 | Get A records
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: "get"
-        zone: "{{cluster_vars.dns_zone_external}}"
+        zone: "{{dns_tld_external}}"
         record: "{{item}}.{{cluster_vars.dns_zone_external}}"
         type: "A"
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
       register: dns_rec
       with_items: "{{ hosts_to_clean }}"
 
-    - name: Remove A records from route53
+    - name: clean/dns/route53 | Delete A records
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -54,37 +57,39 @@
       with_items: "{{ dns_rec.results }}"
       when: item.set.value is defined
 
-    - name: Get CNAME records from route53
+    - name: clean/dns/route53 | Get CNAME records
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: "get"
-        zone: "{{cluster_vars.dns_zone_external}}"
+        zone: "{{dns_tld_external}}"
         record: "{{item | regex_replace('-(?!.*-)[0-9]{10}$')}}.{{cluster_vars.dns_zone_external}}"
         type: "CNAME"
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
       register: dns_rec
       with_items: "{{ hosts_to_clean }}"
 
-    - name: Remove CNAME records from route53
+    - name: clean/dns/route53 | Delete CNAME records
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: "absent"
-        zone: "{{ item.set.zone }}"
-        record: "{{ item.set.record }}"
-        type: "{{ item.set.type }}"
-        ttl: "{{ item.set.ttl }}"
-        value: ["{{ item.set.value }}"]
+        zone: "{{ item.1.set.zone }}"
+        record: "{{ item.1.set.record }}"
+        type: "{{ item.1.set.type }}"
+        ttl: "{{ item.1.set.ttl }}"
+        value: ["{{ item.1.set.value }}"]
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
-      with_items: "{{ dns_rec.results }}"
-      when: item.set.value is defined
+      with_nested:
+        - "{{ hosts_to_clean }}"
+        - "{{ dns_rec.results }}"
+      when: (item.1.set.value is defined)  and  ((item.0 | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0 == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
   when: cluster_vars.dns_server == "route53"
 
 
 - name: Delete DNS entries from clouddns
   block:
-    - name: Gather info for a pre-existing GCP Managed Zone and store as dict
+    - name: clean/dns/clouddns | Get GCP Managed Zone
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{dns_tld_external}}"
@@ -92,7 +97,7 @@
         service_account_file: "{{gcp_credentials_file}}"
       register: gcp_dns_managed_zone_info
 
-    - name: Get DNS entries from clouddns
+    - name: clean/dns/clouddns | Get DNS entries
       gcp_dns_resource_record_set_info:
         auth_kind: serviceaccount
         managed_zone:
@@ -102,35 +107,37 @@
         service_account_file: "{{gcp_credentials_file}}"
       register: gcp_dns_resource_record_set_info
 
-    - name: Remove A records from clouddns
+    - name: clean/dns/clouddns | Delete A records
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
           name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
           dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
-        name: "{{ item.name }}"
+        name: "{{ item.1.name }}"
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: absent
-        target: "{{ item.rrdatas }}"
+        target: "{{ item.1.rrdatas }}"
         type: A
-      with_items: "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
-      when: (item.name | regex_replace('^(.*?)\\..*$', '\\1')) in hosts_to_clean
+      with_nested:
+        - "{{ hosts_to_clean }}"
+        - "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
+      when: item.0 == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1'))
 
-    - name: Remove CNAME records from clouddns
+    - name: clean/dns/clouddns | Delete CNAME records
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
           name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
           dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
-        name: "{{ item.name }}"
+        name: "{{ item.1.name }}"
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: absent
-        target: "{{ item.rrdatas }}"
+        target: "{{ item.1.rrdatas[0] }}"
         type: CNAME
-      with_items: "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
-      vars:
-        cnames_to_clean: "{{ hosts_to_clean | map('regex_replace', '-(?!.*-).*') | list }}"
-      when: (item.name | regex_replace('^(.*?)\\..*$', '\\1')) in cnames_to_clean
+      with_nested:
+        - "{{ hosts_to_clean }}"
+        - "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
+      when: ((item.0 |regex_replace('-(?!.*-).*')) == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0 == item.1.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
   when: cluster_vars.dns_server=="clouddns"

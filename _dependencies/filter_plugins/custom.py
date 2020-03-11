@@ -14,10 +14,11 @@ def dict_agg(dictarr, aggkey):
 
     if dictarr:
         for dictItem in dictarr:
-            if dictItem[aggkey] not in results:
-                results[dictItem[aggkey]] = []
+            if aggkey in dictItem:
+                if dictItem[aggkey] not in results:
+                    results[dictItem[aggkey]] = []
 
-            results[dictItem[aggkey]].append(dictItem)
+                results[dictItem[aggkey]].append(dictItem)
 
     return json.dumps(results, indent=4)
 
