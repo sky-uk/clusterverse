@@ -1,6 +1,6 @@
 ---
 
-- name: clean/dns | Delete DNS entries from bind (nsupdate)
+- name: clean/dns/nsupdate | Delete DNS entries from bind (nsupdate)
   block:
     - name: clean/dns/nsupdate | Delete A records
       nsupdate:
@@ -87,7 +87,7 @@
   when: cluster_vars.dns_server == "route53"
 
 
-- name: Delete DNS entries from clouddns
+- name: clean/dns/clouddns | Delete DNS entries from clouddns
   block:
     - name: clean/dns/clouddns | Get GCP Managed Zone
       gcp_dns_managed_zone_info:
