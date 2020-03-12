@@ -1,0 +1,13 @@
+- debug:
+    msg:
+      - "{{ loop_instance }}"
+      - "{{ loop_instance.hostname }}"
+      - "{{ loop_instance.index_per_hosttype }}"
+      - "{{ item }}"
+      - "{{ (r_ebs_snapshots.snapshots|json_query(_query))[0].snapshot_id }}"
+      - "{{ cluster_hosts_flat }}"
+  loop: "{{ loop_instance.auto_volumes }}"
+  when:
+    - item.snapshot_tags is defined
+  vars:
+    _query: "[?tags.backup_id == '{{ item.snapshot_tags['tag:backup_id']}}' && tags.node == '{{ loop_instance.index_per_hosttype }}']"

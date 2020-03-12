@@ -1,4 +1,40 @@
 ---
+- name: Get snapshots info
+  ec2_snapshot_info:
+    aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}"
+    aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+    region: "{{ cluster_vars.region }}"
+    filters: "{{ _snapshot_tags[0] }}"
+  register: r_ebs_snapshots
+  when: 
+    - _snapshot_tags|length > 0
+  vars:
+    _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
+
+- name: Assert that snapshots exists
+  assert:
+    that:
+      - item in _available_snapshots
+    quiet: true
+    fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
+  loop: "{{ _configuration_snapshots }}"
+  vars:
+    _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+    _configuration_snapshots: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
+    _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
+  when: 
+    - _snapshot_tags|length > 0
+
+- include_tasks: aws_disks.yml
+  loop_control:
+    loop_var: loop_instance
+  loop: "{{ cluster_hosts_flat|sort(attribute='hostname') }}"
+  # when:
+  #   - _available_snapshots|length > 0
+  vars:
+    _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+
+- meta: end_play
 
 - name: Create AWS security group
   ec2_group:
@@ -43,14 +79,56 @@
           owner: "{{ lookup('env','USER')| lower }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
-        volumes: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
+        # volumes: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
         count_tag:
           Name: "{{item.hostname}}"
         exact_count: 1
-      with_items: "{{cluster_hosts_flat}}"
+      # with_items: "{{cluster_hosts_flat}}"
       async: 7200
       poll: 0
       register: aws_instances
+
+
+
+
+
+# - block:
+
+#   - name: create | Create volumes
+#     ec2_vol:
+#       aws_access_key: "{{ provision_aws_access_key }}"
+#       aws_secret_key: "{{ provision_aws_secret_key }}"
+#       security_token: "{{ provision_security_token }}"
+#       profile: "{{ provision_profile }}"
+#       region: "{{ provision_region }}"
+#       # this option managed on ansible level on not on AWS, therefore removed  
+#       # to identify this volume as created by this role - new tag will be added
+#       # delete_on_termination: "{{ item.value['delete_on_termination'] }}"
+#       iops: "{% if item.value['volume_type'] == 'io1' %}{{ item.value['volume_iops'] | default(omit,true) }}{% endif %}"
+#       volume_size: "{{ item.value['volume_size'] }}"
+#       name: "{{ provision_ec2_instance_name }}-{{ item.key }}"
+#       volume_type: "{{ item.value['volume_type'] }}"
+#       encrypted: "{{ item.value['encrypted'] }}"
+#       zone: "{{ _ec2_vpc_subnet_facts.subnets[0].availability_zone  }}"
+#       tags: |-
+#         {{ item.value['tags'] | combine({ 
+#           'Hostname' : provision_ec2_instance_name,
+#           'Mountpoint' : item.value['mountpoint'],
+#           'Type' : provision_node_type,
+#           'Device' : item.key,
+#           'Fstype' : item.value['fstype'],
+#           'managed_by' : 'ansible'
+#       }) }}
+#   loop: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
+#   async: 7200
+#   poll: 0
+#   changed_when: false
+#   register: _volumes_data
+
+
+
+
+
 
     - name: Wait for aws instance creation to complete
       async_status:

@@ -4,24 +4,29 @@
   set_fact:
     epoch_time: "{{ansible_date_time.epoch}}"
 
-# Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
 - set_fact:
     cluster_hosts_flat: |
       {% set res = [] -%}
       {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
+        {%- set _count = [] %}
         {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
           {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
+            {%- set _c_dummy = _count.append(1) -%}
             {% set _dummy = res.extend([{
               'hosttype': hostttype,
               'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string,
               'az_name': azname|string,
               'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
-              'release': release_version
+              'release': release_version,
+              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes,
+              'index_per_hosttype': (_count|length - 1)
               }]) -%}
           {%- endfor %}
         {%- endfor %}
       {%- endfor %}
       {{ res }}
+
+
 
 - include_tasks: aws.yml
   when: cluster_vars.type == "aws"
@@ -30,3 +35,6 @@
   when: cluster_vars.type == "gce"
 
 #- debug: msg={{cluster_hosts_flat}}
+
+
+# Correcting @eyettea 's clean solution: Another solution that's a bit cleaner imo is to initialize an empty list {% set count = [ ] %}, add an item to the list in every loop {% set __ = count.append(1) %} and use the length to display the count count|length 
