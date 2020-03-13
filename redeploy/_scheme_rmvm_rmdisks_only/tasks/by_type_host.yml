@@ -2,11 +2,18 @@
 
 - debug: msg="Attempting to redeploy {{host_to_del}}"
 
-- include_tasks: gce_del.yml
+- include_tasks: del_gce.yml
   when: cluster_vars.type == "gce"
 
-- include_tasks: aws_del.yml
+- include_tasks: del_aws.yml
   when: cluster_vars.type == "aws"
+
+- include_role:
+    name: clusterverse/clean
+    tasks_from: dns.yml
+  vars:
+    hosts_to_clean: ["{{ host_to_del.hostname }}"]
+  when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
 
 - name: "set argument variables for {{mainclusteryml}}"
   set_fact:

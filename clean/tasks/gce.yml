@@ -40,15 +40,6 @@
 #    deletion_protection: no
 #  when: item.deletionProtection|bool
 
-#- name: Remove deletion protection (broken)
-#  gcp_compute_instance:
-#    name: "{{item.hostname}}"
-#    project: "{{cluster_vars.project_id}}"
-#    zone: "{{cluster_vars.region}}-{{item.az_name}}"
-#    auth_kind: "serviceaccount"
-#    service_account_file: "{{gcp_credentials_file}}"
-#    deletion_protection: no
-
 - name: Delete GCE VMs asynchronously
   gcp_compute_instance:
     name: "{{item.name}}"
