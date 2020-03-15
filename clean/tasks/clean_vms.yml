@@ -1,0 +1,77 @@
+---
+
+- debug: msg="{{hosts_to_clean}}"
+
+- block:
+    - name: clean/del_vms | Remove EC2 instances termination protection
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "{{ item.instance_state }}"
+        termination_protection: "no"
+        instance_ids: ["{{ item.instance_id }}"]
+      with_items: "{{ hosts_to_clean | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") }}"
+
+    - name: clean/del_vms | Delete EC2 instances
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "absent"
+        instance_ids: "{{ hosts_to_clean | json_query(\"[].instance_id\") }}"
+        wait: true
+      delegate_to: localhost
+      run_once: true
+  when: cluster_vars.type == "aws"
+
+- block:
+    - name: Get existing GCP instance info (per AZ)
+      gcp_compute_instance_info:
+        zone: "{{cluster_vars.region}}-{{item}}"
+        filters:
+          - "labels.cluster_name = {{cluster_name}}"
+        project: "{{cluster_vars.project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+      register: r__gcp_compute_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Remove deletion protection
+      command: "gcloud compute instances update {{item.name}} --no-deletion-protection --zone {{item.zone | regex_replace('^.*/(.*)$', '\\1')}}"
+      when: "cluster_vars[buildenv].deletion_protection == 'yes'"
+      with_items: "{{r_gcp_compute_instance_info.results | json_query(\"[].resources[?contains(`\" + hosts_to_clean | join(',') + \"`, name)][]\")}}"
+
+#    - name: Remove deletion protection (broken)
+#      gcp_compute_instance:
+#        name: "{{host_to_del.hostname}}"
+#        project: "{{cluster_vars.project_id}}"
+#        zone: "{{cluster_vars[clusterid].region}}-{{host_to_del.hostname | regex_replace('.*-([a-z])[0-9]-.*', '\\1')}}"
+#        auth_kind: "serviceaccount"
+#        service_account_file: "{{gcp_credentials_file}}"
+#        deletion_protection: no
+
+    - name: Delete GCE VM
+      gcp_compute_instance:
+        name: "{{item.name}}"
+        project: "{{cluster_vars[clusterid].project_id}}"
+        zone: "{{item.zone | regex_replace('^.*/(.*)$', '\\1')}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        status: "absent"
+      with_items: "{{r_gcp_compute_instance_info.results | json_query(\"[].resources[?contains(`\" + hosts_to_clean | join(',') + \"`, name)][]\")}}"
+      register: r__gcp_compute_instance
+      async: 7200
+      poll: 0
+
+    - name: Wait for gce instance stopping to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: async_jobs
+      until: async_jobs.finished
+      retries: 300
+      with_items: "{{r__gcp_compute_instance.results}}"
+  when: cluster_vars.type == "gce"

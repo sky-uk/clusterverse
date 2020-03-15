@@ -1,22 +1,28 @@
 ---
 
-- include_tasks: aws.yml
-  when: cluster_vars.type == "aws"
+- debug: msg="{{cluster_hosts_state}}"
 
-- include_tasks: gce.yml
-  when: cluster_vars.type == "gce"
+- name: clean | Delete the inventory file
+  block:
+    - name: clean | Delete VMs
+      include_tasks: clean_vms.yml
 
-- include_tasks: dns.yml
+    - name: clean | Delete Networking
+      include_tasks: clean_networking.yml
+
+    - name: clean | Delete DNS
+      include_tasks: clean_dns.yml
+      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
   vars:
     hosts_to_clean: |
       {%- if clean == '_all_' -%}
-      {{ cluster_suffixes_dict | json_query('*[].Name') }}
+      {{ cluster_hosts_state | json_query('[]') }}
       {%- else -%}
-      {{ cluster_suffixes_dict[clean] | default({}) | map(attribute='Name') | list }}
+      {{ cluster_hosts_state | json_query('[?tagslabels.lifecycle_state==`' + clean + '`]') }}
       {%- endif -%}
-  when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
 
-- name: Delete the inventory file
+
+- name: clean | Delete the inventory file
   block:
     - stat: path={{inventory_file}}
       register: stat_inventory_file

@@ -1,0 +1,10 @@
+---
+
+- name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
+  include_tasks: by_hosttype.yml
+  with_items: "{{ myhosttypes_array }}"
+  loop_control:
+    loop_var: hosttype
+  vars:
+    cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | dict_agg('hosttype')}}"
+    myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"

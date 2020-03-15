@@ -1,7 +1,7 @@
 ---
 
 - name: Get the cluster suffix for the currently running cluster VMs (if any)
-  include_tasks: get_cluster_suffixes.yml
+  include_tasks: get_cluster_hosts_state.yml
 
 - name: Set cluster suffix to suffix of current live VMs
   set_fact:
@@ -18,7 +18,7 @@
 
 # Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
 - set_fact:
-    cluster_hosts_flat: |
+    cluster_hosts_target: |
       {% set res = [] -%}
       {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
         {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
@@ -41,4 +41,4 @@
 - include_tasks: gce.yml
   when: cluster_vars.type == "gce"
 
-#- debug: msg={{cluster_hosts_flat}}
+- debug: msg={{cluster_hosts_target}}

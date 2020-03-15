@@ -48,7 +48,7 @@
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-      with_items: "{{cluster_hosts_flat}}"
+      with_items: "{{cluster_hosts_target}}"
       register: gcp_compute_instance_info
       delegate_to: localhost
 
@@ -66,7 +66,7 @@
       run_once: true
       vars:
         maintenance_mode_tag: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.hostname + '`].labels.maintenance_mode | [] | [0]')}}"
-      with_items: "{{cluster_hosts_flat}}"
+      with_items: "{{cluster_hosts_target}}"
       when: maintenance_mode_tag != ""
 
     - name: remove_maintenance_mode
@@ -81,5 +81,5 @@
         state: present
       delegate_to: localhost
       run_once: true
-      with_items: "{{cluster_hosts_flat}}"
+      with_items: "{{cluster_hosts_target}}"
   when: cluster_vars.type == "gce"

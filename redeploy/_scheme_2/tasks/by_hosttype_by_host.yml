@@ -1,0 +1,38 @@
+---
+
+- name: Create new cluster suffix, unless already set (e.g. it will be overridden by -e on command line)
+  set_fact:
+    cluster_suffix_new: "{{ansible_date_time.epoch}}"
+
+- name: Update cluster_hosts_target with new host
+  set_fact:
+    cluster_hosts_target: "{{ cluster_hosts_target + [new_host] }}"
+  vars:
+    new_host: "{{ host_to_del | combine({'hostname': host_to_del.hostname | regex_replace('(?!.*-).*', cluster_suffix_new)}) }}"
+
+- name: "Run {{mainclusteryml}} to add to cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{cluster_hosts_target | to_json}} }'"
+  register: r_mainclusteryml
+
+- debug: msg={{r_mainclusteryml}}
+
+- name: run pre-delete role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: ["{{ host_to_del }}"]
+  when: predeleterole is defined and predeleterole != ""
+
+- block:
+    - include_role:
+        name: clusterverse/redeploy/_scheme_addallnew_rmdisk_rollback
+        tasks_from: stop_vms.yml
+      vars:
+        hosts_to_stop: ["{{ host_to_del }}"]
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: clean_dns.yml
+      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+      vars:
+        hosts_to_clean: ["{{ host_to_del }}"]

@@ -45,7 +45,7 @@
           aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
           state: "get"
           zone: "{{cluster_vars.dns_zone_external}}"
-          record: "{{cluster_vars.region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
+          record: "{{cluster_vars.region}}-{{cluster_hosts_target  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
           type: "A"
         register: dns_rec
 
@@ -93,7 +93,7 @@
           managed_zone:
             name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
             dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"        
-          name: "{{ cluster_hosts_flat | json_query('[? hostname == `' + host_to_stop.hostname + '`].hostname|[0]')}}.{{cluster_vars.dns_zone_external}}"
+          name: "{{ cluster_hosts_target | json_query('[? hostname == `' + host_to_stop.hostname + '`].hostname|[0]')}}.{{cluster_vars.dns_zone_external}}"
           project: "{{cluster_vars.project_id}}"
           service_account_file: "{{gcp_credentials_file}}"
           state: absent    

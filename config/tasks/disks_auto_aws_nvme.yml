@@ -1,6 +1,6 @@
 ---
 #- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme_volumes }}
-- debug: msg={{ ansible_facts.devices }}
+#- debug: msg={{ ansible_facts.devices }}
 - block:
     - name: autodisks | Get unused block devices
       set_fact:

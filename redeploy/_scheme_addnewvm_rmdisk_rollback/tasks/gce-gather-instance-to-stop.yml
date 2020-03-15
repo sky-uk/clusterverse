@@ -4,7 +4,7 @@
 
 - name: gcp_gather | Get GCP instance facts
   gcp_compute_instance_info:
-    zone: "{{cluster_vars.region}}-{{cluster_hosts_flat  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
+    zone: "{{cluster_vars.region}}-{{cluster_hosts_target  | json_query('[? hostname == `' + host_to_stop.hostname + '`].az_name|[0]')}}"
     filters:
       - "name = {{host_to_stop.hostname}}*"
       - "status = RUNNING"

@@ -1,0 +1,62 @@
+---
+
+- name: Change lifecycle_state label AWS
+  block:
+    - name: Get existing AWS instance info
+      ec2_instance_info:
+        filters:
+          "tag:cluster_name": "{{cluster_name}}"
+          "instance-state-name": ["running", "stopped"]
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+      register: r__ec2_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Change lifecycle_state label
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        resource: "{{ item.instance_id }}"
+        tags:
+          lifecycle_state: "{{new_state}}"
+      delegate_to: localhost
+      run_once: true
+      with_items: "{{ v__items }}"
+      vars:
+        v__items: "{%- if old_state != '_all_'-%}{{r__ec2_instance_info.instances | json_query(\"[?tags.lifecycle_state == '\"+old_state+\"']\")}}{%- else -%}{{r__ec2_instance_info.instances}}{%- endif -%}"
+  when: cluster_vars.type == "aws"
+
+
+- name: Change lifecycle_state label GCE
+  block:
+    - name: Get existing GCP instance info (per AZ)
+      gcp_compute_instance_info:
+        zone: "{{cluster_vars.region}}-{{item}}"
+        filters:
+          - "labels.cluster_name = {{cluster_name}}"
+        project: "{{cluster_vars.project_id}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+      with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+      register: r_gcp_compute_instance_info
+      delegate_to: localhost
+      run_once: true
+
+    - name: Change lifecycle_state label
+      gcp_compute_instance:
+        name: "{{item.name}}"
+        project: "{{cluster_vars.project_id}}"
+        zone: "{{item.zone | regex_replace('^.*/(.*)$', '\\1')}}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        status: "{{item.status}}"
+        labels: "{{ item.labels | combine({'lifecycle_state': new_state}) }}"
+      with_items: "{{ v__items }}"
+      vars:
+        v__items: "{%- if old_state != '_all_'-%}{{r_gcp_compute_instance_info.results | json_query(\"[].resources[?labels.lifecycle_state=='\"+old_state+\"'][]\")}}{%- else -%}{{r_gcp_compute_instance_info.results | json_query(\"[].resources[]\")}}{%- endif -%}"
+  when: cluster_vars.type == "gce"
