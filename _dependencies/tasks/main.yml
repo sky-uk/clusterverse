@@ -1,7 +1,18 @@
 ---
 
-- name: Force include of group_vars on localhost (no inventory yet, so cannot import automatically)
-  include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+- block:
+  - name: Force include of group_vars on localhost (no inventory yet, so cannot import automatically)
+    include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+    when: 
+      - not merge_dict_vars|default(False)|bool
+
+  - name: Merge dict from different configuration files
+    merge_vars:
+        ignore_missing_files: True
+        from: "{{ merge_dict_vars_list }}"
+    when:
+      - merge_dict_vars|default(False)|bool
+
   tags: clusterverse_clean,clusterverse_create,clusterverse_dynamic_inventory,clusterverse_config,clusterverse_readiness
 
 - name: Preflight check

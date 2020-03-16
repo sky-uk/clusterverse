@@ -26,3 +26,5 @@ reboot_on_package_upgrade: false                          # when set to true, re
 # Vulnerability scanning agents configurations
 qualys_agent_pkg: ""
 nessus_agent_pkg: ""
+
+merge_dict_vars_list: []
