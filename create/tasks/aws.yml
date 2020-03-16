@@ -1,38 +1,41 @@
 ---
-- name: Get snapshots info
-  ec2_snapshot_info:
-    aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}"
-    aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
-    region: "{{ cluster_vars.region }}"
-    filters: "{{ _snapshot_tags[0] }}"
-  register: r_ebs_snapshots
-  when: 
-    - _snapshot_tags|length > 0
+- block:
+  - name: Get snapshots info
+    ec2_snapshot_info:
+      aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY_ID') }}"
+      aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+      region: "{{ cluster_vars.region }}"
+      filters: "{{ _snapshot_tags[0] }}"
+    register: r_ebs_snapshots
+
+  - name: Assert that snapshots exists
+    assert:
+      that:
+        - item in _available_snapshots
+      quiet: true
+      fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
+    loop: "{{ _configuration_snapshots }}"
+    vars:
+      _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+      _configuration_snapshots: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
+
+  - include_tasks: aws_disks.yml
+    loop_control:
+      loop_var: loop_instance
+    loop: "{{ cluster_hosts_flat|sort(attribute='hostname') }}"
+    vars:
+      _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+
+  - set_fact:
+      cluster_hosts_flat: "{{ cluster_hosts_flat_snapshots }}"
+      
   vars:
     _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
-
-- name: Assert that snapshots exists
-  assert:
-    that:
-      - item in _available_snapshots
-    quiet: true
-    fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
-  loop: "{{ _configuration_snapshots }}"
-  vars:
-    _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
-    _configuration_snapshots: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
-    _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
   when: 
     - _snapshot_tags|length > 0
 
-- include_tasks: aws_disks.yml
-  loop_control:
-    loop_var: loop_instance
-  loop: "{{ cluster_hosts_flat|sort(attribute='hostname') }}"
-  # when:
-  #   - _available_snapshots|length > 0
-  vars:
-    _available_snapshots: "{{ r_ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+- debug:
+    msg: "{{ cluster_hosts_flat }}"
 
 - meta: end_play
 
