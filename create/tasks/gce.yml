@@ -118,7 +118,7 @@
         _host_disks: "{{[_bootdisk] + _autodisks}}"
       register: gcp_compute_instance
       run_once: true
-      with_items: "{{cluster_hosts_target}}"
+      with_items: "{{cluster_hosts_flat}}"
       async: 7200
       poll: 0
 
@@ -133,7 +133,7 @@
 
     - name: set a fact containing newly-created hosts
       set_fact:
-        cluster_hosts_target_created: "{{ gce_jobs.results | json_query(\"[?item.changed==`true`].item.item\") }}"
+        cluster_hosts_flat_created: "{{ gce_jobs.results | json_query(\"[?item.changed==`true`].item.item\") }}"
       delegate_to: localhost
       run_once: true
 

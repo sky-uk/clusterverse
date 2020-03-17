@@ -6,5 +6,5 @@
   loop_control:
     loop_var: hosttype
   vars:
-    cluster_hosts_dict: "{{cluster_hosts_target | dict_agg('hosttype')}}"
+    cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
     myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"

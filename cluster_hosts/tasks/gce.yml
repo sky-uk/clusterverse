@@ -1,47 +1,47 @@
 ---
 
-- name: Update cluster_hosts_target with rootvol_size
+- name: Update cluster_hosts_flat with rootvol_size
   set_fact:
-    cluster_hosts_target: |
-      {% set res = cluster_hosts_target -%}
+    cluster_hosts_flat: |
+      {% set res = cluster_hosts_flat -%}
       {%- for host in res -%}
         {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
       {%- endfor %}
       {{ res }}
 
-- name: Add instance_to_create to cluster_hosts_target
+- name: Add instance_to_create to cluster_hosts_flat
   set_fact:
-    cluster_hosts_target: |
-      {% set res = cluster_hosts_target -%}
+    cluster_hosts_flat: |
+      {% set res = cluster_hosts_flat -%}
             {%- set _dummy = res.extend([{
-              'hosttype': cluster_hosts_target | json_query('[? hostname == `' + instance_to_create_clean + '`].hosttype|[0]'),
+              'hosttype': cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create_clean + '`].hosttype|[0]'),
               'hostname': instance_to_create,
-              'az_name': cluster_hosts_target | json_query('[? hostname == `' + instance_to_create_clean + '`].az_name|[0]'),
-              'flavor': cluster_hosts_target | json_query('[? hostname == `' + instance_to_create_clean + '`].flavor|[0]'),
+              'az_name': cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create_clean + '`].az_name|[0]'),
+              'flavor': cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create_clean + '`].flavor|[0]'),
               'release': release_version,
-              'rootvol_size':cluster_hosts_target | json_query('[? hostname == `' + instance_to_create_clean + '`].rootvol_size|[0]')
+              'rootvol_size':cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create_clean + '`].rootvol_size|[0]')
               }]) -%}
       {{ res }}
   vars:
      instance_to_create_clean: "{{instance_to_create | regex_replace('-(?!.*-).*')}}"
-  when: instance_to_create is defined and cluster_hosts_target | json_query('[? hostname == `' + instance_to_create + '`]') | length == 0
+  when: instance_to_create is defined and cluster_hosts_flat | json_query('[? hostname == `' + instance_to_create + '`]') | length == 0
 
-- name: Add rescuing_instance to cluster_hosts_target
+- name: Add rescuing_instance to cluster_hosts_flat
   set_fact:
-    cluster_hosts_target: |
-      {% set res = cluster_hosts_target -%}
+    cluster_hosts_flat: |
+      {% set res = cluster_hosts_flat -%}
             {%- set _dummy = res.extend([{
-              'hosttype': cluster_hosts_target | json_query('[? hostname == `' + rescuing_instance_clean + '`].hosttype|[0]'),
+              'hosttype': cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance_clean + '`].hosttype|[0]'),
               'hostname': rescuing_instance,
-              'az_name': cluster_hosts_target | json_query('[? hostname == `' + rescuing_instance_clean + '`].az_name|[0]'),
-              'flavor': cluster_hosts_target | json_query('[? hostname == `' + rescuing_instance_clean + '`].flavor|[0]'),
+              'az_name': cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance_clean + '`].az_name|[0]'),
+              'flavor': cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance_clean + '`].flavor|[0]'),
               'release': release_version,
-              'rootvol_size':cluster_hosts_target | json_query('[? hostname == `' + rescuing_instance_clean + '`].rootvol_size|[0]')
+              'rootvol_size':cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance_clean + '`].rootvol_size|[0]')
               }]) -%}
       {{ res }}
   vars:
      rescuing_instance_clean: "{{rescuing_instance | regex_replace('-(?!.*-).*')}}"
-  when: rescuing_instance is defined and cluster_hosts_target | json_query('[? hostname == `' + rescuing_instance + '`]') | length == 0
+  when: rescuing_instance is defined and cluster_hosts_flat | json_query('[? hostname == `' + rescuing_instance + '`]') | length == 0
 
 - name: Get GCP instance facts
   gcp_compute_instance_info:
@@ -64,10 +64,10 @@
     current_cluter_size: "{{gcp_compute_instance_info.results | json_query('[*].resources[]') | length}}"
   run_once: true
 
-#- name: Update cluster_hosts_target with running_instance_fact data
+#- name: Update cluster_hosts_flat with running_instance_fact data
 #  set_fact:
-#    cluster_hosts_target: |
-#      {% set res = cluster_hosts_target -%}
+#    cluster_hosts_flat: |
+#      {% set res = cluster_hosts_flat -%}
 #      {%- for host in res -%}
 #        {%- if running_instance_fact[0] is defined and running_instance_fact[0] != None -%}
 #          {%- for real_hostname in running_instance_fact -%}
@@ -104,7 +104,7 @@
   run_once: true
   vars:
     deploy_status_tag: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.hostname + '`].labels.deploy_status | [] | [0]')}}"
-  with_items: "{{cluster_hosts_target}}"
+  with_items: "{{cluster_hosts_flat}}"
   when: deploy_status_tag != ""
 
 - name: set deploy_status label
@@ -122,7 +122,7 @@
   vars:
     created_instance_name: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.hostname + '`].name | [] | [0]')}}"
     deploy_status_tag: "{{gcp_compute_instance_info.results | json_query('[].resources[?name==`' + item.hostname + '`].labels.deploy_status | [] | [0]')}}"
-  with_items: "{{cluster_hosts_target}}"
+  with_items: "{{cluster_hosts_flat}}"
   when: created_instance_name != ""
 
 - name: Get GCP instance facts
@@ -135,7 +135,7 @@
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  with_items: "{{cluster_hosts_target}}"
+  with_items: "{{cluster_hosts_flat}}"
   register: gcp_compute_instance_info_updated
   delegate_to: localhost
 
@@ -143,10 +143,10 @@
     current_release_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: labels.release, key: name}\") | items2dict}}"
     current_deploy_status_per_instance: "{{gcp_compute_instance_info_updated.results | json_query(\"[].resources[].{value: labels.deploy_status, key: name}\") | items2dict}}"
 
-- name: update cluster_hosts_target with current release and deploy_status
+- name: update cluster_hosts_flat with current release and deploy_status
   set_fact:
-    cluster_hosts_target: |
-      {% set res = cluster_hosts_target -%}
+    cluster_hosts_flat: |
+      {% set res = cluster_hosts_flat -%}
       {%- for host in res -%}
         {% if  current_release_per_instance[host.hostname] is  defined and current_deploy_status_per_instance[host.hostname] is defined%}
           {%- set _dummy = host.update({'current_release': current_release_per_instance[host.hostname] | string, 'current_deploy_status': current_deploy_status_per_instance[host.hostname] | string}) -%}

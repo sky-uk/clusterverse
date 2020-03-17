@@ -4,14 +4,14 @@
   set_fact:
     cluster_suffix_new: "{{ansible_date_time.epoch}}"
 
-- name: Update cluster_hosts_target with new host
+- name: Update cluster_hosts_flat with new host
   set_fact:
-    cluster_hosts_target: "{{ cluster_hosts_target + [new_host] }}"
+    cluster_hosts_flat: "{{ cluster_hosts_flat + [new_host] }}"
   vars:
     new_host: "{{ host_to_del | combine({'hostname': host_to_del.hostname | regex_replace('(?!.*-).*', cluster_suffix_new)}) }}"
 
 - name: "Run {{mainclusteryml}} to add to cluster"
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{cluster_hosts_target | to_json}} }'"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_flat': {{cluster_hosts_flat | to_json}} }'"
   register: r_mainclusteryml
 
 - debug: msg={{r_mainclusteryml}}

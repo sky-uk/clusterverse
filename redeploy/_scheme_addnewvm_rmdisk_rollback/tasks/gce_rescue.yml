@@ -11,7 +11,7 @@
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  with_items: "{{cluster_hosts_target}}"
+  with_items: "{{cluster_hosts_flat}}"
   register: gcp_compute_instance_info
   delegate_to: localhost
   run_once: true
