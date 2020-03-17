@@ -2,7 +2,7 @@
     auto_volumes_snapshots: "{{ auto_volumes_snapshots|default([]) + [_auto_instance] }}"
   loop: "{{ loop_instance.auto_volumes }}"
   vars:
-    _auto_instance: "{% if 'snapshot_tags' in item.keys() %}{{ item|combine({'snapshot_id': _snapshot_id }) }}{% else %}{{ item }}{% endif %}"
+    _auto_instance: "{% if 'snapshot_tags' in item.keys() %}{{ item|combine({'snapshot': _snapshot_id }) }}{% else %}{{ item }}{% endif %}"
     _snapshot_id: "{% if 'snapshot_tags' in item.keys() %}{{ (r_ebs_snapshots.snapshots|json_query(_query))[0].snapshot_id }}{% endif %}"
     _query: "{% if 'snapshot_tags' in item.keys() %}[?tags.backup_id == '{{ item.snapshot_tags['tag:backup_id']}}' && tags.node == '{{ loop_instance.index_per_hosttype }}']{% endif %}"
 
