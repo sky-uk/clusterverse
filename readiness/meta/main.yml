@@ -1,2 +1,5 @@
+---
+
 dependencies:
-  - role: '_dependencies'
+  - role: _dependencies
+  - role: cluster_hosts

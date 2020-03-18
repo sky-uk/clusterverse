@@ -1,7 +1,7 @@
 ---
 
 - name: Get the cluster suffix for the currently running cluster VMs (if any)
-  include_tasks: get_cluster_suffixes.yml
+  include_tasks: get_cluster_hosts_state.yml
 
 - name: Set cluster suffix to suffix of current live VMs
   set_fact:
@@ -41,4 +41,4 @@
 - include_tasks: gce.yml
   when: cluster_vars.type == "gce"
 
-#- debug: msg={{cluster_hosts_flat}}
+- debug: msg={{cluster_hosts_flat}}

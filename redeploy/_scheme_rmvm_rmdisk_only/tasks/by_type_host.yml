@@ -1,0 +1,28 @@
+---
+
+- debug: msg="Attempting to redeploy {{host_to_del}}"
+
+- name: run pre-delete role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: ["{{ host_to_del }}"]
+  when: predeleterole is defined and predeleterole != ""
+
+- block:
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: clean_vms.yml
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: clean_dns.yml
+      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+  vars:
+    hosts_to_clean: ["{{ host_to_del.hostname }}"]
+
+- name: "Run {{mainclusteryml}} to fix cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+  register: r__mainclusteryml
+
+- debug: msg={{r__mainclusteryml}}

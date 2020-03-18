@@ -2,7 +2,6 @@
 
 - name: Force include of group_vars on localhost (no inventory yet, so cannot import automatically)
   include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
-  tags: clusterverse_clean,clusterverse_create,clusterverse_dynamic_inventory,clusterverse_config,clusterverse_readiness
 
 - name: Preflight check
   block:
@@ -14,4 +13,3 @@
 
     - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars.type == "gce" or cluster_vars.type == "aws"
-  tags: clusterverse_clean,clusterverse_create,clusterverse_dynamic_inventory,clusterverse_config,clusterverse_readiness

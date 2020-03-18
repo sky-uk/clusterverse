@@ -39,7 +39,7 @@
 
     - name: "run {{mainclusteryml}}"
       shell: "{{maincluster_yml_args}} -e rescuing=true -e rescuing_instance={{ host_to_redeploy.hostname }}"
-      register: r_mainclusteryml
+      register: r__mainclusteryml
 
     - name: "Create CNAME record"
       nsupdate:

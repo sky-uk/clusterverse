@@ -24,9 +24,9 @@
   block:
     - name: "run {{mainclusteryml}}"
       shell: "{{maincluster_yml_args}} -e rescuing=false"
-      register: r_mainclusteryml
+      register: r__mainclusteryml
 
-    - debug: msg={{r_mainclusteryml}}
+    - debug: msg={{r__mainclusteryml}}
 
     - name: Create CNAME record with nsupdate
       nsupdate:

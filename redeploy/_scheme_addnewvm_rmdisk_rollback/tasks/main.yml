@@ -41,4 +41,4 @@
 
     - name: "run {{mainclusteryml}} to clean the inventory from stopped nodes"
       shell: "{{maincluster_yml_args}} -e rescuing=false"
-      register: r_mainclusteryml
+      register: r__mainclusteryml

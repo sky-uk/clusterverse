@@ -1,0 +1,42 @@
+---
+
+- name: Stop AWS VMs
+  block:
+    - name: Stop EC2 instance
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "stopped"
+        instance_ids: "{{ hosts_to_stop | json_query(\"[].instance_id\") }}"
+        wait: true
+      delegate_to: localhost
+      run_once: true
+  when: cluster_vars.type == "aws"
+
+
+- name: Stop GCE VMs
+  block:
+    - name: Stop GCE VMs
+      gcp_compute_instance:
+        name: "{{item.name}}"
+        project: "{{cluster_vars.project_id}}"
+        zone: "{{ item.regionzone }}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        status: "TERMINATED"
+        labels: "{{ item.tagslabels }}"
+      with_items: "{{ hosts_to_stop }}"
+      register: r__gcp_compute_instance
+      async: 7200
+      poll: 0
+
+    - name: Wait for gce instances to stop
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: async_jobs
+      until: async_jobs.finished
+      retries: 300
+      with_items: "{{r__gcp_compute_instance.results}}"
+  when: cluster_vars.type == "gce"

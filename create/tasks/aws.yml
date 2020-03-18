@@ -41,7 +41,7 @@
           deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
           cluster_name: "{{cluster_name}}"
           cluster_suffix: "{{cluster_suffix}}"
-          operational_state: "current"
+          lifecycle_state: "current"
           owner: "{{ lookup('env','USER')| lower  }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"

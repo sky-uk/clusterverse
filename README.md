@@ -103,7 +103,7 @@ The role is designed to run in two modes:
   + `mainclusteryml`: This is the name of the deployment playbook.  It is called to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
   + `predeleterole`: This is the name of a role that should be called prior to deleting a VM.
 + It supports pluggable infrastructure redeployment schemes.  Two are provided:
-  + **_scheme_rmvm_rmdisks_only**
+  + **_scheme_rmvm_rmdisk_only**
     This scheme runs a very basic rolling redeployment of the cluster.
       + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
       + **This assumes a resilient deployment (it can tolerate one node being removed from the cluster).**

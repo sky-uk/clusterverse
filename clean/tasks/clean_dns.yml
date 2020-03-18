@@ -9,7 +9,7 @@
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
         state: "absent"
-        record: "{{item}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        record: "{{item.name}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
       with_items: "{{ hosts_to_clean }}"
 
     - name: clean/dns/nsupdate | Delete CNAME records
@@ -18,15 +18,15 @@
         key_secret: "{{bind9[buildenv].key_secret}}"
         server: "{{bind9[buildenv].server}}"
         zone: "{{dns_tld_external}}"
-        record: "{{item | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-        value:  "{{item}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+        value:  "{{item.name}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
         type: CNAME
         state: absent
       with_items: "{{ hosts_to_clean }}"
       vars:
-        cname_to_check: "{{ item | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_zone_external}}."
+        cname_to_check: "{{ item.name | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_zone_external}}."
         cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+bind9[buildenv].server) }}"
-      when: (item + '.' + cluster_vars.dns_zone_external + "." == cname_value)  and  (instance_to_create is undefined or rescuing_instance is undefined)
+      when: (item.name + '.' + cluster_vars.dns_zone_external + "." == cname_value)  and  (instance_to_create is undefined or rescuing_instance is undefined)
   when: cluster_vars.dns_server == "nsupdate"
 
 - name: clean/dns/route53 | Delete DNS entries from route53
@@ -37,7 +37,7 @@
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: "get"
         zone: "{{dns_tld_external}}"
-        record: "{{item}}.{{cluster_vars.dns_zone_external}}"
+        record: "{{item.name}}.{{cluster_vars.dns_zone_external}}"
         type: "A"
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
       register: dns_rec
@@ -63,7 +63,7 @@
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: "get"
         zone: "{{dns_tld_external}}"
-        record: "{{item | regex_replace('-(?!.*-)[0-9]{10}$')}}.{{cluster_vars.dns_zone_external}}"
+        record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
         type: "CNAME"
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
       register: dns_rec
@@ -83,7 +83,7 @@
       with_nested:
         - "{{ hosts_to_clean }}"
         - "{{ dns_rec.results }}"
-      when: (item.1.set.value is defined)  and  ((item.0 | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0 == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
+      when: (item.1.set.value is defined)  and  ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
   when: cluster_vars.dns_server == "route53"
 
 
@@ -122,7 +122,7 @@
       with_nested:
         - "{{ hosts_to_clean }}"
         - "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
-      when: item.0 == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1'))
+      when: item.0.name == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1'))
 
     - name: clean/dns/clouddns | Delete CNAME records
       gcp_dns_resource_record_set:
@@ -139,5 +139,5 @@
       with_nested:
         - "{{ hosts_to_clean }}"
         - "{{ gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
-      when: ((item.0 |regex_replace('-(?!.*-).*')) == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0 == item.1.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
+      when: ((item.0.name |regex_replace('-(?!.*-).*')) == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
   when: cluster_vars.dns_server=="clouddns"
