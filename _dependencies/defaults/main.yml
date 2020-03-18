@@ -26,6 +26,3 @@ reboot_on_package_upgrade: false                          # when set to true, re
 # Vulnerability scanning agents configurations
 qualys_agent_pkg: ""
 nessus_agent_pkg: ""
-
-# supported formats are: native and tiered.
-cluster_vars_format: "native"
