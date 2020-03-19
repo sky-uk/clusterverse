@@ -33,8 +33,3 @@
 
 - include_tasks: gce.yml
   when: cluster_vars.type == "gce"
-
-#- debug: msg={{cluster_hosts_flat}}
-
-
-# Correcting @eyettea 's clean solution: Another solution that's a bit cleaner imo is to initialize an empty list {% set count = [ ] %}, add an item to the list in every loop {% set __ = count.append(1) %} and use the length to display the count count|length 
