@@ -1,4 +1,9 @@
 ---
 
-- include_tasks: remove_maintenance_mode.yml
+- name: readiness | Remove maintenance mode
+  include_tasks: remove_maintenance_mode.yml
   when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
+
+- name: readiness | create/update DNS CNAME records
+  include_tasks: config_dns_cname.yml
+  when: (instance_to_create is undefined and rescuing_instance is undefined)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")

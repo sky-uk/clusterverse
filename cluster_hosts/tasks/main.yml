@@ -1,32 +1,27 @@
 ---
 
-- name: Set current time (epoch)
-  set_fact:
-    epoch_time: "{{ansible_date_time.epoch}}"
+- name: Get the state of the VMs in the cluster
+  include_tasks: get_cluster_hosts_state.yml
 
-# Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
-- set_fact:
-    cluster_hosts_flat: |
-      {% set res = [] -%}
-      {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
-        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
-          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
-            {% set _dummy = res.extend([{
-              'hosttype': hostttype,
-              'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string,
-              'az_name': azname|string,
-              'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
-              'release': release_version
-              }]) -%}
-          {%- endfor %}
-        {%- endfor %}
-      {%- endfor %}
-      {{ res }}
 
-- include_tasks: aws.yml
-  when: cluster_vars.type == "aws"
+- name: Set the cluster_suffix based on the existing cluster; if there is no existing cluster, create cluster_suffix anew.  Overridden by command line for some redeploy schemes, e.g. '-e cluster_suffix=1234'
+  block:
+    - assert: { that: "cluster_suffixes_current | unique | length <= 1", msg: "Multiple 'current' suffixes running ({{cluster_suffixes_current | join(',')}}) - abort" }
 
-- include_tasks: gce.yml
-  when: cluster_vars.type == "gce"
+    - name: Set cluster_suffix to suffix of current live VMs
+      set_fact:
+        cluster_suffix: "{{cluster_suffixes_current[0]}}"
+      when: cluster_suffixes_current | unique | length==1
 
-#- debug: msg={{cluster_hosts_flat}}
+    - name: Create new cluster_suffix
+      set_fact:
+        cluster_suffix: "{{ansible_date_time.epoch}}"
+      when: cluster_suffixes_current | unique | length==0
+
+    - debug: msg="cluster_suffix = {{cluster_suffix}}"
+  vars:
+    cluster_suffixes_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].tagslabels.cluster_suffix\") }}"
+
+
+- name: Create cluster_hosts_flat from the cluster definition in cluster_vars, and add cloud-specific modifications
+  include_tasks: get_cluster_hosts_target.yml

@@ -1,0 +1,67 @@
+---
+
+- name: create/dns/cname/nsupdate | create/update CNAME records in bind (nsupdate)
+  nsupdate:
+    key_name: "{{bind9[buildenv].key_name}}"
+    key_secret: "{{bind9[buildenv].key_secret}}"
+    server: "{{bind9[buildenv].server}}"
+    zone: "{{dns_tld_external}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    value:  "{{item.hostname}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    type: CNAME
+    state: present
+    ttl: 30
+  with_items: "{{ cluster_hosts_flat }}"
+  delegate_to: localhost
+  run_once: true
+  when: cluster_vars.dns_server == "nsupdate"
+
+- name: create/dns/cname/route53 | create/update CNAME records in AWS (route53)
+  route53:
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    state: present
+    zone: "{{dns_tld_external}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-)[0-9]{10}$')}}.{{cluster_vars.dns_zone_external}}"
+    type: CNAME
+    ttl: 30
+    value: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
+    private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
+    overwrite: true
+  with_items: "{{ cluster_hosts_flat }}"
+  become: false
+  delegate_to: localhost
+  run_once: true
+  when: cluster_vars.dns_server == "route53"
+
+- name: create/dns/cname/clouddns | create/update CNAME records in clouddns
+  block:
+    - name: create/dns/cname/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
+      gcp_dns_managed_zone_info:
+        auth_kind: serviceaccount
+        dns_name: "{{dns_tld_external}}"
+        project: "{{cluster_vars.project_id}}"
+        service_account_file: "{{gcp_credentials_file}}"
+      register: gcp_dns_managed_zone_info
+      become: false
+      delegate_to: localhost
+      run_once: true
+
+    - name: create/dns/cname/clouddns | create/update CNAME records in GCP (clouddns)
+      gcp_dns_resource_record_set:
+        auth_kind: serviceaccount
+        managed_zone:
+          name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
+          dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
+        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
+        project: "{{cluster_vars.project_id}}"
+        service_account_file: "{{gcp_credentials_file}}"
+        state: present
+        target: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
+        type: CNAME
+        ttl: 60
+      with_items: "{{ cluster_hosts_flat }}"
+      become: false
+      delegate_to: localhost
+      run_once: true
+  when: cluster_vars.dns_server == "clouddns"

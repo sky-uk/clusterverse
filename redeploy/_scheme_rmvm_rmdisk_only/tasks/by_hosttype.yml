@@ -17,7 +17,7 @@
 
 
 - name: Run redeploy per host.  Delete one at a time, then reprovision.
-  include_tasks: by_type_host.yml
+  include_tasks: by_hosttype_by_host.yml
   with_items: "{{ hosts_to_del }}"
   loop_control:
     loop_var: host_to_del

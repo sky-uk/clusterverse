@@ -1,6 +1,6 @@
 ---
 
-- name: Redeploy (reprovision one at a time).
+- name: Redeploy
   hosts: localhost
   connection: local
   tasks:

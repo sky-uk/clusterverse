@@ -1,0 +1,23 @@
+---
+
+- debug: msg="Attempting to redeploy {{host_to_del}}"
+
+- name: run predeleterole role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: ["{{ host_to_del }}"]
+  when: predeleterole is defined and predeleterole != ""
+
+- import_role:
+    name: clusterverse/clean
+    tasks_from: clean_vms.yml
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del.hostname + \"`]\") }}"
+
+- name: "Run {{mainclusteryml}} to fix cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+  register: r__mainclusteryml
+
+- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
+  when: r__mainclusteryml.failed

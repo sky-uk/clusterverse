@@ -1,0 +1,36 @@
+---
+
+- name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_flat': [{{cluster_host_redeploying | to_json}}]}'"
+  register: r__mainclusteryml
+
+- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
+  when: r__mainclusteryml.failed
+
+- fail:
+  when: testfail is defined and testfail == "fail_1"
+
+- name: re-acquire cluster_hosts_flat and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
+
+- name: stop/ remove previous instance
+  block:
+    - name: run predeleterole role
+      include_role:
+        name: "{{predeleterole}}"
+      when: predeleterole is defined and predeleterole != ""
+
+    - name: Power off old VMs
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: poweroff_vms.yml
+      vars:
+        hosts_to_stop: "{{ hosts_to_remove }}"
+      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+
+    - fail:
+      when: testfail is defined and testfail == "fail_2"
+  vars:
+    _root_cluster_host_redeploying: "{{cluster_host_redeploying.hostname | regex_replace('-(?!.*-).*')}}"
+    hosts_to_remove: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state=='retiring' && starts_with(name, '\" + _root_cluster_host_redeploying + \"')]\") }}"

@@ -1,7 +1,9 @@
 ---
 
-- include_tasks: aws.yml
+- name: Create AWS cluster
+  include_tasks: aws.yml
   when: cluster_vars.type == "aws"
 
-- include_tasks: gce.yml
+- name: Create GCE cluster
+  include_tasks: gce.yml
   when: cluster_vars.type == "gce"

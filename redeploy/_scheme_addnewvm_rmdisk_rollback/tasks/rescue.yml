@@ -1,0 +1,57 @@
+---
+
+- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
+
+- name: rescue | Power-on the 'retiring' VMs
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: poweron_vms.yml
+  vars:
+    hosts_to_start: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+
+- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
+
+- name: rescue | Change lifecycle_state label from 'current' to 'redeployfail'
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: set_lifecycle_state_label.yml
+  vars:
+    hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
+    new_state: "redeployfail"
+
+- name: rescue | Change lifecycle_state label from 'retiring' to 'current'
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: set_lifecycle_state_label.yml
+  vars:
+    hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+    new_state: "current"
+
+- name: "Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME)"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}  --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+  register: r__mainclusteryml
+
+- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
+  when: r__mainclusteryml.failed
+
+- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
+
+- name: rescue | run predeleterole role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
+  when: predeleterole is defined and predeleterole != ""
+
+- name: rescue | Power-off the VMs
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: poweroff_vms.yml
+  vars:
+    hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"

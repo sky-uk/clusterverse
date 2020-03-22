@@ -4,7 +4,7 @@
   hosts: localhost
   connection: local
   roles:
-    - { role: clusterverse/clean, tags: [clusterverse_clean], when: clean is defined and clean|bool }
+    - { role: clusterverse/clean, tags: [clusterverse_clean], when: clean is defined }
     - { role: clusterverse/create, tags: [clusterverse_create] }
     - { role: clusterverse/dynamic_inventory, tags: [clusterverse_dynamic_inventory] }
 

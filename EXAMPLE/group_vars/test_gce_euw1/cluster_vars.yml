@@ -7,7 +7,7 @@ gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'proje
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-dns_tld_external: "clusterverse.vtp.com."              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
+dns_tld_external: ""              # Top-level domain for external access.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
 
 ## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
@@ -68,7 +68,7 @@ cluster_vars:
       #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
     vpc_network_name: "default"
     vpc_subnet_name: "default"
-    preemptible: "false"
+    preemptible: "no"
     deletion_protection: "no"
 _cloud_type: *cloud_type
 _region: *region
