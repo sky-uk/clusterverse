@@ -43,7 +43,7 @@
           owner: "{{ lookup('env','USER')| lower }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
-        volumes: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
+        volumes: "{{ item.auto_volumes | default([]) }}"
         count_tag:
           Name: "{{item.hostname}}"
         exact_count: 1
