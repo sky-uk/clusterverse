@@ -62,7 +62,8 @@
       retries: 300
       with_items: "{{aws_instances.results}}"
 
-  #    - debug: msg={{aws_jobs.results}}
+#    - name: create/aws | aws_jobs.results
+#      debug: msg={{aws_jobs.results}}
 
     - name: create/aws | Set a fact containing the newly-created hosts
       set_fact:
@@ -95,7 +96,8 @@
           {%- endfor %}
           {{ res }}
 
-#    - debug: msg={{ebsdata}}
+#    - name: create/aws | ebsdata
+#      debug: msg={{ebsdata}}
 
     - name: create/aws | Set the ec2 volume name tag
       ec2_tag:

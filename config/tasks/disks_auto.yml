@@ -13,7 +13,8 @@
       set_fact:
         lsblk_volumes: "{{ block_devices_list.results | map(attribute='ansible_facts.block_devices') | select('defined') | list }}"
 
-    - debug: msg={{ lsblk_volumes }}
+    - name: autodisks | lsblk_volumes
+      debug: msg={{ lsblk_volumes }}
 
 - name: autodisks | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
   set_fact:
@@ -32,7 +33,8 @@
         {%- endfor -%}
       {{ res }}
 
-#- debug: msg={{hostvols}}
+#- name: autodisks | hostvols
+#  debug: msg={{hostvols}}
 
 # Create partition-less filesystems.
 - name: autodisks | Create filesystem(s) on attached volume(s)

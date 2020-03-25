@@ -2,20 +2,21 @@
 #- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme_volumes }}
 #- debug: msg={{ ansible_facts.devices }}
 - block:
-    - name: autodisks | Get unused block devices
+    - name: autodisks_nvme | Get unused block devices
       set_fact:
         block_devices: "{{ {'dev': item, 'size_b': (ansible_facts.devices[item].sectors|int) * (ansible_facts.devices[item].sectorsize|int)} }}"
       with_items: "{{ ansible_facts.devices }}"
       register: block_devices_list
       when: item | regex_search("nvme") and ansible_facts.devices[item].partitions == {}
 
-    - name: autodisks | Create unused block devices list
+    - name: autodisks_nvme | Create unused block devices list
       set_fact:
         lsblk_volumes: "{{ block_devices_list.results | map(attribute='ansible_facts.block_devices') | select('defined') | list }}"
 
-    - debug: msg={{ lsblk_volumes }}
+    - name: autodisks_nvme | lsblk_volumes
+      debug: msg={{ lsblk_volumes }}
 
-    - name: autodisks | Create 'nvmevols' fact that contains a list of available host nvme devices (lsblk) mapped to the mountpoints defined in cluster_vars. Handles single mounting points with LV/VG
+    - name: autodisks_nvme | Create 'nvmevols' fact that contains a list of available host nvme devices (lsblk) mapped to the mountpoints defined in cluster_vars. Handles single mounting points with LV/VG
       set_fact:
         nvmevols: |
           {% set res = [] -%}
@@ -32,12 +33,13 @@
             {%- endfor -%}
           {{ res }}
 
-    # The following block mounts all nvme attached volumes that have individual mountpoints
-    - debug: msg={{ nvmevols | map(attribute='mountpoint') | list | unique }}
+    - name: autodisks_nvme | nvme mountpoints
+      debug: msg={{ nvmevols | map(attribute='mountpoint') | list | unique }}
 
-    - name: autodisks | Mount nvme volumes with different mountpoints
+    # The following block mounts all nvme attached volumes that have individual mountpoints
+    - name: autodisks_nvme | Mount nvme volumes with different mountpoints
       block:
-        - name: autodisks | Create filesystem(s) on attached nvme volume(s)
+        - name: autodisks_nvme | Create filesystem(s) on attached nvme volume(s)
           become: yes
           filesystem:
             fstype: "{{ item.fstype }}"
@@ -45,7 +47,7 @@
             force: no
           with_items: "{{ nvmevols }}"
 
-        - name: autodisks | Mount nvme created filesytem(s) persistently
+        - name: autodisks_nvme | Mount nvme created filesytem(s) persistently
           become: yes
           mount:
             path: "{{ item.mountpoint }}"
@@ -55,7 +57,7 @@
             opts: _netdev
           with_items: "{{ nvmevols }}"
 
-        - name: autodisks | change ownership of mountpoint (if set)
+        - name: autodisks_nvme | change ownership of mountpoint (if set)
           become: yes
           file:
             path: "{{ item.mountpoint }}"
@@ -67,38 +69,38 @@
       when: (nvmevols | map(attribute='mountpoint') | list | unique | count == nvmevols | map(attribute='mountpoint') | list | count)
 
     # The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
-    - name: autodisks | Mount nvme volumes in a single mountpoint through LV/VG
+    - name: autodisks_nvme | Mount nvme volumes in a single mountpoint through LV/VG
       block:
         #- debug: msg={{nvmevols | map(attribute='device') | join(',')}}
 
-        - name: autodisks | Install logical volume management tooling. (yum - RedHat/CentOS)
+        - name: autodisks_nvme | Install logical volume management tooling. (yum - RedHat/CentOS)
           become: true
           yum:
             name: "lvm*"
             state: present
           when: ansible_os_family == 'RedHat'
 
-        - name: autodisks | Create a volume group from all nvme devices
+        - name: autodisks_nvme | Create a volume group from all nvme devices
           become: yes
           lvg:
             vg:  "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}"
             pvs: "{{nvmevols | map(attribute='device') | join(',')}}"
 
-        - name: autodisks | Create a logical volume from volume group
+        - name: autodisks_nvme | Create a logical volume from volume group
           become: yes
           lvol:
             vg: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}"
             lv: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_name }}"
             size: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_size }}"
 
-        - name: autodisks | Create filesystem(s) on attached nvme volume(s)
+        - name: autodisks_nvme | Create filesystem(s) on attached nvme volume(s)
           become: yes
           filesystem:
             fstype: "{{ nvmevols | map(attribute='fstype') | list | unique | join('') }}"
             dev: "/dev/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.vg_name }}/{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].nvme.lvmparams.lv_name }}"
             force: no
 
-        - name: autodisks | Mount created filesytem(s) persistently
+        - name: autodisks_nvme | Mount created filesytem(s) persistently
           become: yes
           mount:
             path: "{{ nvmevols | map(attribute='mountpoint') | list | unique | join('') }}"

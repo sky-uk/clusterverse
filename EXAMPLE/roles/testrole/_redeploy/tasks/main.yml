@@ -2,6 +2,3 @@
 
 - name: redeploy | hosts_to_remove
   debug: msg="{{hosts_to_remove | default('')}}"
-
-- name: redeploy | cluster_host_redeploying
-  debug: msg="{{cluster_host_redeploying | default('')}}"
