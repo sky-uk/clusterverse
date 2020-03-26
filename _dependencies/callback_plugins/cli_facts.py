@@ -54,5 +54,5 @@ class CallbackModule(CallbackBase):
             # Ansible 2.9 (https://github.com/ansible/ansible/pull/58400) changed the 'host' type in ansible/vars/manager.py::set_host_variable() from type <class 'ansible.inventory.host.Host'> to type string.
             if CLI.version_info()['major'] >= 2 and CLI.version_info()['minor'] >= 9:
                 host = str(host)
-            variable_manager.set_host_variable(host, "cliargs", self._cliargs)
+            variable_manager.set_host_variable(host, "cliargs", dict(self._cliargs))
             variable_manager.set_host_variable(host, "argv", self._argv)

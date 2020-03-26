@@ -38,7 +38,7 @@ cluster_vars:
   region: &region "eu-west-1"
   dns_zone_internal: "{{_region}}.compute.internal"         # eu-west-1, us-west-2
   dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-  dns_server: ""                    # Specify DNS server. nsupdate or route53.  If empty string is specified, no DNS will be added.
+  dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   instance_profile_name: ""
