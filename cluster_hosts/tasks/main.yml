@@ -4,34 +4,19 @@
   include_tasks: get_cluster_hosts_state.yml
 
 
-- name: Set the version tag/label.  Set the cluster_suffix tag/label - either based on the existing cluster, or if there is no existing cluster, create cluster_suffix anew.  Overridden by command line for some redeploy schemes, e.g. '-e cluster_suffix=1234'
+- name: Set the cluster_suffix based on the existing cluster; if there is no existing cluster, create cluster_suffix anew.  Overridden by command line for some redeploy schemes, e.g. '-e cluster_suffix=1234'
   block:
     - assert: { that: "cluster_suffixes_current | unique | length <= 1", msg: "Multiple 'current' suffixes running ({{cluster_suffixes_current | join(',')}}) - abort" }
 
-    - name: Set variables when there is a cluster running
-      block:
-        - name: Ensure that the 'release' tag/label is consistent within a cluster.
-          block:
-             - assert: { that: "current_release_versions | unique | length <= 1", msg: "Multiple 'current' release_versions running ({{current_release_versions | join(',')}}) - abort" }
-
-             - assert: { that: "current_release_versions[0] == release_version", msg: "Command line release_version differs from 'version' tag/label applied ('{{current_release_versions[0]}}' != '{{release_version}}') - abort" }
-               when: (current_release_versions | length)  and  (release_version is defined and release_version != "")
-
-             - name: Set the release_version to that defined in the current cluster
-               set_fact:
-                 release_version: "{{ current_release_versions[0] | default('') }}"
-          vars:
-            current_release_versions: "{{ cluster_hosts_state | json_query(\"[].tagslabels.release\") }}"
-
-        - name: Set cluster_suffix to suffix of current live VMs
-          set_fact:
-            cluster_suffix: "{{cluster_suffixes_current[0]}}"
+    - name: Set cluster_suffix to suffix of current live VMs
+      set_fact:
+        cluster_suffix: "{{cluster_suffixes_current[0]}}"
       when: cluster_suffixes_current | unique | length==1
 
     - name: Create new cluster_suffix
       set_fact:
         cluster_suffix: "{{ansible_date_time.epoch}}"
-      when: cluster_suffixes_current | length==0
+      when: cluster_suffixes_current | unique | length==0
 
     - debug: msg="cluster_suffix = {{cluster_suffix}}"
   vars:

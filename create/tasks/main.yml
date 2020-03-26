@@ -1,5 +1,22 @@
 ---
 
+- name: Ensure that the 'release' tag/label is consistent within a cluster.  Perform this here (rather than roles/clusterverse/cluster_hosts/) to allow redeploy to change the version.
+  block:
+    - debug: msg="{{current_release_versions}}"
+    - assert: { that: "current_release_versions | unique | length <= 1", msg: "Multiple 'current' release_versions running ({{current_release_versions | join(',')}}) - abort" }
+
+    - assert: { that: "current_release_versions[0] == release_version", msg: "'version' tag/label applied differs from command line release_version: ('{{current_release_versions[0]}}' != '{{release_version}}') - abort" }
+      when: (current_release_versions | length)  and  (release_version is defined and release_version != "")
+
+    - name: Set the release_version to that defined in the current cluster
+      set_fact:
+        release_version: "{{ current_release_versions[0] | default('') }}"
+
+    - debug: msg="release_version = {{release_version}}"
+  vars:
+    current_release_versions: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].tagslabels.release\") | default([]) }}"
+
+
 - name: Create AWS cluster
   include_tasks: aws.yml
   when: cluster_vars.type == "aws"

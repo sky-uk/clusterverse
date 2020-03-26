@@ -15,6 +15,7 @@
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "redeployfail"
+      when: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))  and  'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))"
 
     - name: rescue | Change lifecycle_state label from 'retiring' to 'current' state
       include_role:
@@ -23,7 +24,7 @@
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
         new_state: "current"
-  when: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))  and  'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))"
+      when: "'current' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))  and  'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))"
 
 - name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
   import_role:
