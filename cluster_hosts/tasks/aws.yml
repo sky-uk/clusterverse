@@ -145,3 +145,42 @@
         {% endif %}
       {%- endfor %}
       {{ res }}
+
+- block:
+  - name: Get snapshots info
+    ec2_snapshot_info:
+      aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+      aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+      region: "{{ cluster_vars.region }}"
+      filters: "{{ _snapshot_tags[0] }}"
+    register: r__ebs_snapshots
+
+  - name: Assert that snapshots exists
+    assert:
+      that:
+        - item in _available_snapshots
+      quiet: true
+      fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
+    loop: "{{ _configuration_snapshots }}"
+    vars:
+      _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+      _configuration_snapshots: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
+
+  - name: update cluster_hosts_flat with snapshot_id 
+    set_fact:
+      cluster_hosts_flat: |
+        {%- for host in cluster_hosts_flat -%}
+          {%- set cluster_host_topology = host.hostname | regex_replace('^.*(-.*?-).*$', '\\1') -%}
+          {%- for vol in host.auto_volumes -%}
+            {%- set cur_snapshot = r__ebs_snapshots | default([]) | to_json | from_json | json_query('snapshots[?contains(tags.Name, \'' + cluster_host_topology + '\')]') -%}
+            {%- if cur_snapshot and 'snapshot_tags' in vol.keys() -%}
+              {%- set _dummy = vol.update({'shapshot_id': cur_snapshot[0].snapshot_id}) -%}
+              {%- set _dummy = vol.pop('snapshot_tags') -%}
+            {%- endif %}
+          {%- endfor %}
+        {%- endfor %}
+        {{ cluster_hosts_flat }}
+  vars:
+    _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
+  when: 
+    - _snapshot_tags|length > 0
