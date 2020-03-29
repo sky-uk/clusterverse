@@ -6,13 +6,6 @@
     - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none', 'tidy', 'revert'])", msg: "Canary must be 'start', 'finish', 'none', 'tidy' or 'revert'" }
     - assert: { that: "redeploy_scheme is defined" }
 
-    - assert:
-        that: "{{chf_hosts | symmetric_difference(chs_hosts) | length==0}}"
-        msg: "Topology has changed - cannot redeploy; [{{ chf_hosts | join(',') }}] != [{{ chs_hosts | join(',') }}]"
-      vars:
-        chf_hosts: "{{ cluster_hosts_flat | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
-        chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
-
 - name: "Run the {{redeploy_scheme}} redploy scheme"
   include_role:
     name: "{{role_path}}/{{redeploy_scheme}}"

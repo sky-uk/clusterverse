@@ -26,3 +26,6 @@ wait_for_dns: true
 
 # Whether to run the tidy (remove the replaced VMs and DNS entries) on successful redeploy
 canary_tidy_on_success: false
+
+# External DNS server for lookups when using external IPs (the default AWS resolver will resolve the VPC IPs)
+external_dns_resolver: "8.8.8.8"

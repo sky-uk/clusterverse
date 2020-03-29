@@ -27,7 +27,6 @@
         tasks_from: poweroff_vms.yml
       vars:
         hosts_to_stop: "{{ hosts_to_remove }}"
-      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
 
     - fail:
       when: testfail is defined and testfail == "fail_2"

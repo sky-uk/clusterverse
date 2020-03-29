@@ -106,6 +106,7 @@ The role is designed to run in two modes:
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
       + This is a very basic rolling redeployment of the cluster.
+      + _Supports redploying to bigger, but not smaller clusters_
       + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is no rollback in case of failure**
       + For each node in the cluster:
         + Run `predeleterole`
@@ -114,6 +115,7 @@ The role is designed to run in two modes:
       + If the process fails at any point:
         + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
+      + _Supports redploying to bigger or smaller clusters_
       + For each node in the cluster:
         + Create a new VM
         + Run `predeleterole` on the previous node
@@ -121,6 +123,7 @@ The role is designed to run in two modes:
       + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_addallnew_rmdisk_rollback**
+      + _Supports redploying to bigger or smaller clusters_
       + A full mirror of the cluster is deployed.
       + If the process proceeds correctly:
         + `predeleterole` is called with a list of the old VMs.

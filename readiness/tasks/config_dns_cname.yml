@@ -22,7 +22,7 @@
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
     state: present
     zone: "{{dns_tld_external}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-)[0-9]{10}$')}}.{{cluster_vars.dns_zone_external}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
     type: CNAME
     ttl: 30
     value: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"

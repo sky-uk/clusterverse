@@ -30,7 +30,7 @@
           vars:
             cname_to_check: "{{ item.name | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_zone_external}}."
             cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+bind9[buildenv].server) }}"
-          when: (item.name + '.' + cluster_vars.dns_zone_external + "." == cname_value)  and  (instance_to_create is undefined or rescuing_instance is undefined)
+          when: (item.name + '.' + cluster_vars.dns_zone_external + "." == cname_value)
       when: cluster_vars.dns_server == "nsupdate"
 
     - name: clean/dns/route53 | Delete DNS entries from route53

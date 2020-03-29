@@ -3,6 +3,13 @@
 - name: Get the state of the VMs in the cluster
   include_tasks: get_cluster_hosts_state.yml
 
+- assert:
+    that:
+      - "cluster_hosts_state | json_query('[?tagslabels.lifecycle_state]') | list | length"
+      - "cluster_hosts_state | json_query('[?tagslabels.cluster_suffix]') | list | length"
+    msg: "ERROR - A cluster exists, but does not contain the labels 'cluster_suffix' or 'lifecycle_state'.  If this was created using a previous version of clusterverse, please run 'clusterverse_label_upgrade_v1-v2.yml'."
+  when: cluster_hosts_state | length
+
 
 - name: Set the cluster_suffix based on the existing cluster; if there is no existing cluster, create cluster_suffix anew.  Overridden by command line for some redeploy schemes, e.g. '-e cluster_suffix=1234'
   block:
@@ -25,3 +32,4 @@
 
 - name: Create cluster_hosts_flat from the cluster definition in cluster_vars, and add cloud-specific modifications
   include_tasks: get_cluster_hosts_target.yml
+

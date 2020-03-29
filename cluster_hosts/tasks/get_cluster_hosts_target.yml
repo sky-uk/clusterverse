@@ -19,6 +19,8 @@
       {%- endfor %}
       {{ res }}
 
+- name: get_cluster_hosts_target | cluster_hosts_flat
+  debug: msg="{{cluster_hosts_flat}}"
 
 - name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_flat - add subnets.
   block:

@@ -24,18 +24,26 @@
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
         new_state: "current"
-      when: "'current' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))  and  'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))"
+      when: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))"
+
 
 - name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 
-- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME)"
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME).  Send cluster_hosts_flat that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_flat': {{_cluster_hosts_flat_prev | to_json}}}' --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
   register: r__mainclusteryml
+  vars:
+    _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].name\") }}"
+    _cluster_hosts_flat_prev: "{{ cluster_hosts_flat | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"
 
 - debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
   when: r__mainclusteryml.failed
+
+- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
 
 - name: rescue | run predeleterole role
   include_role:

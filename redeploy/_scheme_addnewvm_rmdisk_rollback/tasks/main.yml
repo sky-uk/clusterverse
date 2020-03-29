@@ -32,6 +32,22 @@
         cluster_hosts_flat_by_hosttype: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
         myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_flat_by_hosttype.keys() | list }} {%- endif -%}"
 
+    - name: Retire any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+      block:
+        - name: run predeleterole role on any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+          include_role:
+            name: "{{predeleterole}}"
+          when: predeleterole is defined and predeleterole != ""
+          vars:
+            hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+
+        - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+          include_role:
+            name: clusterverse/redeploy/__common
+            tasks_from: poweroff_vms.yml
+          vars:
+            hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+
   rescue:
     - debug: msg="Rescuing"
 
