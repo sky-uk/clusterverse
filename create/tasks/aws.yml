@@ -44,7 +44,7 @@
           release: "{{ release_version }}"
           lifecycle_state: "current"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
-        volumes: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].auto_volumes | default([])}}"
+        volumes: "{{ item.auto_volumes | default([]) }}"
         count_tag:
           Name: "{{item.hostname}}"
         exact_count: 1
