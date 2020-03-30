@@ -18,6 +18,8 @@
 - name: "Run {{mainclusteryml}} to fix cluster"
   shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
   register: r__mainclusteryml
-
-- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
-  when: r__mainclusteryml.failed
+  no_log: True
+  ignore_errors: yes
+- debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+  failed_when: r__mainclusteryml is failed
+  when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)

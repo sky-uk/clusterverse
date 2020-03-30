@@ -41,6 +41,6 @@
       meta: refresh_inventory
 
 
-    - name: clean | re-acquire cluster_hosts_flat and cluster_hosts_state (so the cluster_suffix will change)
+    - name: clean | re-acquire cluster_hosts_target and cluster_hosts_state (so the cluster_suffix will change)
       import_role:
         name: clusterverse/cluster_hosts

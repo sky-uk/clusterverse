@@ -52,7 +52,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #  secgroup_new:
 #    - proto: "tcp"
 #      ports: ["22"]
-#      cidr_ip: 0.0.0.0/0
+#      cidr_ip: "0.0.0.0/0"
 #      rule_desc: "SSH Access"
 #    - proto: "tcp"
 #      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
@@ -65,8 +65,8 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #    hosttype_vars:
 #      sys: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3a.nano, auto_volumes: []}
 #      #sysdisks: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3a.nano, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/var/log/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/var/log/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
-#      #sysnvme_multi: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc2", fstype: ext4, volume_size: 2500}]} } }
-#      #sysnvme_lvm: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} } }
+#      #hostnvme_multi: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc2", fstype: ext4, volume_size: 2500}]} } }
+#      #hostnvme_lvm: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} } }
 #      #hostssd: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: c3.large, auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
 #      #hosthdd: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: h1.2xlarge, auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
 #    aws_access_key: ""
@@ -86,9 +86,9 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #  region: &region "europe-west1"
 #  dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
 #  dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
-#  dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+#  dns_server: ""                            # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
 #  assign_public_ip: "yes"
-#  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+#  inventory_ip: "public"                    # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
 #  project_id: "{{gcp_credentials_json.project_id}}"
 #  ip_forward: "false"
 #  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.

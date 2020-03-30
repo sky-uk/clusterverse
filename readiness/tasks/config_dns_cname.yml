@@ -11,7 +11,7 @@
     type: CNAME
     state: present
     ttl: 30
-  with_items: "{{ cluster_hosts_flat }}"
+  with_items: "{{ cluster_hosts_target }}"
   delegate_to: localhost
   run_once: true
   when: cluster_vars.dns_server == "nsupdate"
@@ -28,7 +28,7 @@
     value: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
     private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
     overwrite: true
-  with_items: "{{ cluster_hosts_flat }}"
+  with_items: "{{ cluster_hosts_target }}"
   become: false
   delegate_to: localhost
   run_once: true
@@ -60,7 +60,7 @@
         target: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
         type: CNAME
         ttl: 60
-      with_items: "{{ cluster_hosts_flat }}"
+      with_items: "{{ cluster_hosts_target }}"
       become: false
       delegate_to: localhost
       run_once: true

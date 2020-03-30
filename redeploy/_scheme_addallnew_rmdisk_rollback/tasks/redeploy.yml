@@ -17,15 +17,17 @@
     - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
       shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness"
       register: r__mainclusteryml
+      no_log: True
+      ignore_errors: yes
+    - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+      failed_when: r__mainclusteryml is failed
+      when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
 
     - fail:
       when: testfail is defined and testfail == "fail_1"
-
-    - debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
-      when: r__mainclusteryml.failed
   when: canary=="start" or canary=="none"
 
-- name: re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
   when: canary=="none"
@@ -37,6 +39,11 @@
     - name: "Run {{mainclusteryml}} to perform readiness steps on new cluster (maintenance_mode, CNAME)"
       shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
       register: r__mainclusteryml
+      no_log: True
+      ignore_errors: yes
+    - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+      failed_when: r__mainclusteryml is failed
+      when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
 
     - name: run predeleterole role
       include_role:
@@ -47,9 +54,6 @@
 
     - fail:
       when: testfail is defined and testfail == "fail_2"
-
-    - debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
-      when: r__mainclusteryml.failed
 
     - name: Power off old VMs
       include_role:

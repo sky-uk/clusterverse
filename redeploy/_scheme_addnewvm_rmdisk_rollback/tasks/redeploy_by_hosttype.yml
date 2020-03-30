@@ -1,15 +1,15 @@
 ---
 
 - name: set hosts_to_redeploy if canary==start
-  set_fact: hosts_to_redeploy={{cluster_hosts_flat_by_hosttype[hosttype][:1]}}
+  set_fact: hosts_to_redeploy={{cluster_hosts_target_by_hosttype[hosttype][:1]}}
   when: (canary is defined and canary=="start")
 
 - name: set hosts_to_redeploy if canary==finish
-  set_fact: hosts_to_redeploy={{cluster_hosts_flat_by_hosttype[hosttype][1:]}}
+  set_fact: hosts_to_redeploy={{cluster_hosts_target_by_hosttype[hosttype][1:]}}
   when: (canary is defined and canary=="finish")
 
 - name: set hosts_to_redeploy if canary==none
-  set_fact: hosts_to_redeploy={{cluster_hosts_flat_by_hosttype[hosttype]}}
+  set_fact: hosts_to_redeploy={{cluster_hosts_target_by_hosttype[hosttype]}}
   when: (canary is defined and canary=="none")
 
 - debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_redeploy | json_query('[].hostname') | join(', ')}}]"

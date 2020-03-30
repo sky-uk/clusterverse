@@ -1,6 +1,6 @@
 ---
 
-- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 
@@ -11,7 +11,7 @@
   vars:
     hosts_to_start: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
 
-- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 
@@ -31,21 +31,23 @@
     hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
     new_state: "current"
 
-- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 
-- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME).  Send cluster_hosts_flat that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_flat': {{_cluster_hosts_flat_prev | to_json}}}' --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
-  register: r__mainclusteryml
+- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME).  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
   vars:
     _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].name\") }}"
-    _cluster_hosts_flat_prev: "{{ cluster_hosts_flat | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"
+    _cluster_hosts_target_prev: "{{ cluster_hosts_target | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"
+  register: r__mainclusteryml
+  no_log: True
+  ignore_errors: yes
+- debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+  failed_when: r__mainclusteryml is failed
+  when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
 
-- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
-  when: r__mainclusteryml.failed
-
-- name: rescue | re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 

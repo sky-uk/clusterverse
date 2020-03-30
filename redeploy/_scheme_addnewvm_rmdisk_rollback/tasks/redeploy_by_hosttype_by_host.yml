@@ -1,16 +1,18 @@
 ---
 
 - name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster"
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_flat': [{{cluster_host_redeploying | to_json}}]}'"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'"
   register: r__mainclusteryml
-
-- debug: msg={{r__mainclusteryml.stderr_lines + r__mainclusteryml.stdout_lines}}
-  when: r__mainclusteryml.failed
+  no_log: True
+  ignore_errors: yes
+- debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+  failed_when: r__mainclusteryml is failed
+  when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
 
 - fail:
   when: testfail is defined and testfail == "fail_1"
 
-- name: re-acquire cluster_hosts_flat and cluster_hosts_state
+- name: re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
 

@@ -30,6 +30,6 @@
     cluster_suffixes_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].tagslabels.cluster_suffix\") }}"
 
 
-- name: Create cluster_hosts_flat from the cluster definition in cluster_vars, and add cloud-specific modifications
+- name: Create cluster_hosts_target from the cluster definition in cluster_vars, and add cloud-specific modifications
   include_tasks: get_cluster_hosts_target.yml
 

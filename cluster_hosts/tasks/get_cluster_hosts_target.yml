@@ -1,9 +1,9 @@
 ---
 
 # Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
-- name: get_cluster_hosts_target | Create cluster_hosts_flat from the cluster definition in cluster_vars
+- name: get_cluster_hosts_target | Create cluster_hosts_target from the cluster definition in cluster_vars
   set_fact:
-    cluster_hosts_flat: |
+    cluster_hosts_target: |
       {% set res = [] -%}
       {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
         {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
@@ -20,10 +20,10 @@
       {%- endfor %}
       {{ res }}
 
-- name: get_cluster_hosts_target | cluster_hosts_flat
-  debug: msg="{{cluster_hosts_flat}}"
+- name: get_cluster_hosts_target | cluster_hosts_target
+  debug: msg="{{cluster_hosts_target}}"
 
-- name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_flat - add subnets.
+- name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_target - add subnets.
   block:
     # Dynamically look up VPC ID by name from aws
     - name: get_cluster_hosts_target | Looking up VPC facts to extract ID
@@ -54,10 +54,10 @@
       delegate_to: localhost
       run_once: true
 
-    - name: get_cluster_hosts_target/aws | Update cluster_hosts_flat with subnet_ids
+    - name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
       set_fact:
-        cluster_hosts_flat: |
-          {% set res = cluster_hosts_flat -%}
+        cluster_hosts_target: |
+          {% set res = cluster_hosts_target -%}
           {%- for host in res -%}
             {%- set _dummy = host.update({'vpc_subnet_id': subnet_ids_per_az[host.az_name][0].subnet_id | string}) -%}
           {%- endfor %}
@@ -84,10 +84,10 @@
           vars:
             _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
 
-        - name: get_cluster_hosts_target/aws | update cluster_hosts_flat with snapshot_id
+        - name: get_cluster_hosts_target/aws | update cluster_hosts_target with snapshot_id
           set_fact:
-            cluster_hosts_flat: |
-              {%- for host in cluster_hosts_flat -%}
+            cluster_hosts_target: |
+              {%- for host in cluster_hosts_target -%}
                 {%- set cluster_host_topology = host.hostname | regex_replace('^.*(-.*?-).*$', '\\1') -%}
                 {%- for vol in host.auto_volumes -%}
                   {%- set cur_snapshot = r__ebs_snapshots | default([]) | to_json | from_json | json_query('snapshots[?contains(tags.Name, \'' + cluster_host_topology + '\')]') -%}
@@ -97,24 +97,24 @@
                   {%- endif %}
                 {%- endfor %}
               {%- endfor %}
-              {{ cluster_hosts_flat }}
+              {{ cluster_hosts_target }}
       vars:
         _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
       when: _snapshot_tags|length > 0
   when: cluster_vars.type == "aws"
 
 
-- name: get_cluster_hosts_target/gce | GCE-specific modifications to cluster_hosts_flat - add rootvol size
+- name: get_cluster_hosts_target/gce | GCE-specific modifications to cluster_hosts_target - add rootvol size
   block:
-    - name: get_cluster_hosts_target/gce | Update cluster_hosts_flat with rootvol_size
+    - name: get_cluster_hosts_target/gce | Update cluster_hosts_target with rootvol_size
       set_fact:
-        cluster_hosts_flat: |
-          {% set res = cluster_hosts_flat -%}
+        cluster_hosts_target: |
+          {% set res = cluster_hosts_target -%}
           {%- for host in res -%}
             {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
           {%- endfor %}
           {{ res }}
   when: cluster_vars.type == "gce"
 
-- name: get_cluster_hosts_target | cluster_hosts_flat
-  debug: msg={{cluster_hosts_flat}}
+- name: get_cluster_hosts_target | cluster_hosts_target
+  debug: msg={{cluster_hosts_target}}

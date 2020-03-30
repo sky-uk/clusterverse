@@ -48,7 +48,7 @@
         count_tag:
           Name: "{{item.hostname}}"
         exact_count: 1
-      with_items: "{{cluster_hosts_flat}}"
+      with_items: "{{cluster_hosts_target}}"
       async: 7200
       poll: 0
       register: aws_instances

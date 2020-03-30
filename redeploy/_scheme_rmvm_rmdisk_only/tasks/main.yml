@@ -6,7 +6,7 @@
         that: "{{chs_hosts | difference(chf_hosts) | length==0}}"
         msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ chf_hosts | join(',') }}]"
       vars:
-        chf_hosts: "{{ cluster_hosts_flat | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
+        chf_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
         chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
 
 - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
@@ -15,5 +15,5 @@
   loop_control:
     loop_var: hosttype
   vars:
-    cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
+    cluster_hosts_dict: "{{cluster_hosts_target | dict_agg('hosttype')}}"
     myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
