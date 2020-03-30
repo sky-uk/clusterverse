@@ -24,7 +24,7 @@
       become: yes
       template:
         src: etc/metricbeat/metricbeat.yml.j2
-        dest: "{{ metricbeat_config_path }}/metricbeat.yml"
+        dest: "/etc/metricbeat/metricbeat.yml"
       notify: Metricbeat | Restart and enable metricbeat
 
     - name: Metricbeat | Copy metricbeat service

@@ -24,7 +24,7 @@
       become: yes
       template:
         src: etc/filebeat/filebeat.yml.j2
-        dest: "{{ filebeat_config_path }}/filebeat.yml"
+        dest: "/etc/filebeat/filebeat.yml"
       notify: Filebeat | Restart and enable filebeat
 
     - name: Filebeat | Copy filebeat service
