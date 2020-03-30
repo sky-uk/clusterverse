@@ -17,3 +17,20 @@
   until: yum_jobs is success
   retries: 5
   when: ansible_os_family == 'RedHat'
+  
+- name: Filebeat | Configure filebeat
+  block:
+    - name: Filebeat | Copy filebeat configuration
+      become: yes
+      template:
+        src: etc/filebeat/filebeat.yml.j2
+        dest: "{{ filebeat_config_path }}/filebeat.yml"
+      notify: Filebeat | Restart and enable filebeat
+
+    - name: Filebeat | Copy filebeat service
+      become: yes
+      template:
+        src: lib/systemd/system//filebeat.service.j2
+        dest: "/lib/systemd/system/filebeat.service"
+      notify: Filebeat | Restart and enable filebeat
+  when: logstash_endpoint is defined and logstash_endpoint != ""

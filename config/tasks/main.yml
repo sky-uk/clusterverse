@@ -68,6 +68,10 @@
   include_tasks: filebeat.yml
   when: (filebeat_install is defined and filebeat_install|bool)
 
+- name: Install elastic metricbeat
+  include_tasks: metricbeat.yml
+  when: (metricbeat_install is defined and metricbeat_install|bool)  
+
 - name: Install security cloud agent
   include_tasks: cloud_agents.yml
   when: (cloud_agent is defined and cloud_agent)
