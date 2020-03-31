@@ -86,7 +86,7 @@
       delay: 10
       with_items: "{{ cluster_hosts_target }}"
       vars:
-        new_fqdn: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}."
+        new_fqdn: "{{item.hostname}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.?$','\\1')}}."      # Add a '.' to the fadn, (but only if there's not one already)
         new_ip: "{{hostvars[item.hostname].ansible_host}}"
       become: false
       run_once: true
