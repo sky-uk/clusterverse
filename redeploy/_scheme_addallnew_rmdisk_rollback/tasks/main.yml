@@ -16,23 +16,28 @@
     - name: rescue
       include_tasks: rescue.yml
 
-    - name: rescue | end_play
+    - name: rescue | end_play to prevent tidying of pre-rescued VMs
       meta: end_play
   when: canary!="tidy"
 
 
-- name: Tidy up non-current instances
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
   block:
-    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state." }
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
 
     - import_role:
         name: clusterverse/clean
         tasks_from: clean_dns.yml
-      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
 
     - import_role:
         name: clusterverse/clean
         tasks_from: clean_vms.yml
+      when: (hosts_to_clean | length)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
+      when: hosts_to_clean | length == 0
   vars:
-    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current']\") }}"
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running', instance_state))]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)
