@@ -101,7 +101,7 @@
           maintenance_mode: "true"
           deploy_status: "{%- if rescuing is defined and rescuing != \"false\" and instance_to_create is defined and instance_to_create == item.hostname -%}old{%- elif instance_to_create is defined and instance_to_create == item.hostname -%}new{%- else -%}{{item.current_deploy_status}}{%- endif -%}"
         network_interfaces:
-          - network: "{{ gcp_compute_network_info['items'][0] | default({}) }}"
+          - network: "{{ gcp_compute_network_info['resources'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
             access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
         tags: { items: "{{cluster_vars.network_fw_tags}}" }
