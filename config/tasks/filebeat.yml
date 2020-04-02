@@ -17,3 +17,20 @@
   until: yum_jobs is success
   retries: 5
   when: ansible_os_family == 'RedHat'
+  
+- name: Filebeat | Configure filebeat
+  block:
+    - name: Filebeat | Copy filebeat configuration
+      become: yes
+      template:
+        src: etc/filebeat/filebeat.yml.j2
+        dest: "/etc/filebeat/filebeat.yml"
+      notify: Filebeat | Restart and enable filebeat
+
+    - name: Filebeat | Copy filebeat service
+      become: yes
+      template:
+        src: lib/systemd/system//filebeat.service.j2
+        dest: "/lib/systemd/system/filebeat.service"
+      notify: Filebeat | Restart and enable filebeat
+  when: beats_target_hosts is defined and (beats_target_hosts | length)

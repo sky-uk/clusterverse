@@ -1,0 +1,36 @@
+---
+
+- name: Metricbeat | Download and install metricbeat from elastic.co
+  become: yes
+  apt:
+    deb: "https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-{{ metricbeat_version }}-amd64.deb"
+  register: apt_jobs
+  until: apt_jobs is success
+  retries: 5
+  when: ansible_os_family == 'Debian'
+
+- name: Metricbeat | Download and install filebeat from elastic.co
+  become: yes
+  yum:
+    name: "https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-{{ metricbeat_version }}-x86_64.rpm"
+  register: yum_jobs
+  until: yum_jobs is success
+  retries: 5
+  when: ansible_os_family == 'RedHat'
+  
+- name: Metricbeat | Configure metricbeat
+  block:
+    - name: Metricbeat | Copy metricbeat configuration
+      become: yes
+      template:
+        src: etc/metricbeat/metricbeat.yml.j2
+        dest: "/etc/metricbeat/metricbeat.yml"
+      notify: Metricbeat | Restart and enable metricbeat
+
+    - name: Metricbeat | Copy metricbeat service
+      become: yes
+      template:
+        src: lib/systemd/system//metricbeat.service.j2
+        dest: "/lib/systemd/system/metricbeat.service"
+      notify: Metricbeat | Restart and enable metricbeat
+  when: beats_target_hosts is defined and (beats_target_hosts | length)

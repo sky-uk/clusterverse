@@ -9,6 +9,8 @@ app_class: "test"                 # The class of application (e.g. 'database', '
 
 dns_tld_external: ""              # Top-level domain for external access.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
 
+beats_target_hosts: []            # The destination hosts for e.g. filebeat/ metricbeat logs
+
 ## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
 #  tenable:
@@ -64,6 +66,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #  sandbox:
 #    hosttype_vars:
 #      sys: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3a.nano, auto_volumes: []}
+#      #sysnobeats: {vms_by_az: {a: 1, b: 1, c: 1}, skip_beat_install:true, flavor: t3a.nano, auto_volumes: []
 #      #sysdisks: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3a.nano, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/var/log/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/var/log/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
 #      #hostnvme_multi: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc2", fstype: ext4, volume_size: 2500}]} } }
 #      #hostnvme_lvm: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} } }
