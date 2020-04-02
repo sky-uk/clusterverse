@@ -1,0 +1,16 @@
+---
+
+- name: Filebeat | Restart and enable filebeat
+  become: yes
+  service:
+    name: filebeat
+    state: restarted
+    enabled: yes
+
+
+- name: Metricbeat | Restart and enable metricbeat
+  become: yes
+  service:
+    name: metricbeat
+    state: restarted
+    enabled: true
