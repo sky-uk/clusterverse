@@ -33,4 +33,4 @@
         src: lib/systemd/system//filebeat.service.j2
         dest: "/lib/systemd/system/filebeat.service"
       notify: Filebeat | Restart and enable filebeat
-  when: logstash_endpoint is defined and logstash_endpoint != ""
+  when: beats_target_hosts is defined and beats_target_hosts != ""

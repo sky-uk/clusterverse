@@ -33,4 +33,4 @@
         src: lib/systemd/system//metricbeat.service.j2
         dest: "/lib/systemd/system/metricbeat.service"
       notify: Metricbeat | Restart and enable metricbeat
-  when: logstash_endpoint is defined and logstash_endpoint != ""
+  when: beats_target_hosts is defined and beats_target_hosts != ""

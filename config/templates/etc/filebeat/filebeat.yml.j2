@@ -162,7 +162,7 @@ setup.kibana:
 #----------------------------- Logstash output --------------------------------
 output.logstash:
   # The Logstash hosts
-  hosts: ["{{ logstash_endpoint }}"]
+  hosts: "{{ beats_target_hosts }}"
 
   # Optional SSL. By default is off.
   # List of root certificates for HTTPS server verifications
