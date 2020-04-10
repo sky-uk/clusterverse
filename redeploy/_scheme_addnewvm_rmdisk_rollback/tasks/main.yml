@@ -48,6 +48,11 @@
           vars:
             hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
 
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
+      import_role:
+        name: clusterverse/cluster_hosts
+      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
+
   rescue:
     - debug: msg="Rescuing"
 
