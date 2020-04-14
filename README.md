@@ -99,17 +99,34 @@ The role is designed to run in two modes:
 #### Redeploy
 + A playbook based on the [redeploy.yml example](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE/redeploy.yml) will be needed.
 + The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
++ It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `none` or `tidy`. 
 + It contains callback hooks:
   + `mainclusteryml`: This is the name of the deployment playbook.  It is called to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
-  + `predeleterole`: This is the name of a role that should be called prior to deleting a VM.
-+ It supports pluggable infrastructure redeployment schemes.  Two are provided:
-  + **_scheme_rmvm_rmdisks_only**
-    This scheme runs a very basic rolling redeployment of the cluster.
-      + For each node in the cluster, delete it, then run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
-      + **This assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+  + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs. 
++ It supports pluggable redeployment schemes.  The following are provided:
+  + **_scheme_rmvm_rmdisk_only**
+      + This is a very basic rolling redeployment of the cluster.
+      + _Supports redploying to bigger, but not smaller clusters_
+      + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is no rollback in case of failure**
+      + For each node in the cluster:
+        + Run `predeleterole`
+        + Delete the node
+        + Run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
+      + If the process fails at any point:
+        + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
-    This scheme runs a more advanced rolling redeployment of the cluster.
-      + For each VM, firstly, a new VM is created, and then the old one is shut down.
-      + If the process proceeds correctly for all the VMs, the old (now shut-down) VMs, are terminated
-      + If the process fails for any reason, the old VMs are reinstated.
-
+      + _Supports redploying to bigger or smaller clusters_
+      + For each node in the cluster:
+        + Create a new VM
+        + Run `predeleterole` on the previous node
+        + Shut down the previous node.
+      + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
+      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+  + **_scheme_addallnew_rmdisk_rollback**
+      + _Supports redploying to bigger or smaller clusters_
+      + A full mirror of the cluster is deployed.
+      + If the process proceeds correctly:
+        + `predeleterole` is called with a list of the old VMs.
+        + The old VMs are stopped.
+      + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
+      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'

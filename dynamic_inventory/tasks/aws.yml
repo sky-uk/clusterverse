@@ -1,6 +1,6 @@
 ---
 
-- name: get existing instance facts
+- name: dynamic_inventory/aws | Get AWS instance facts
   ec2_instance_info:
     filters:
       "tag:cluster_name": "{{cluster_name}}"
@@ -11,9 +11,8 @@
   register: r__ec2_instance_info
   delegate_to: localhost
 
-#- debug: msg={{r__ec2_instance_info}}
-
-- set_fact:
+- name: dynamic_inventory/aws | Set dynamic_inventory_flat
+  set_fact:
     dynamic_inventory_flat: |
       {%- if cluster_vars.inventory_ip == 'private' -%}
         {{ r__ec2_instance_info.instances | json_query('[*].{hosttype: tags.hosttype, hostname: tags.Name, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: private_ip_address}') }}

@@ -1,12 +1,13 @@
 ---
 
-- block:
-  - name: Force include of group_vars on localhost (no inventory yet, so cannot import automatically)
+- name: Load cluster definitions
+  block:
+  - name: Load native cluster definitions by forcing include of group_vars on localhost (no inventory yet, so cannot import automatically)
     include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
     when: 
       - cluster_vars_format|default('native') == 'native'
 
-  - name: Merge dict from different configuration files
+  - name: Derive cluster definitions by merging tiered configuration files
     merge_vars:
         ignore_missing_files: True
         from: "{{ merge_dict_vars_list }}"
@@ -14,7 +15,6 @@
       - cluster_vars_format|default('native') == 'tiered'
       - merge_dict_vars_list is defined and merge_dict_vars_list | length > 0
 
-  tags: clusterverse_clean,clusterverse_create,clusterverse_dynamic_inventory,clusterverse_config,clusterverse_readiness
 
 - name: Preflight check
   block:
@@ -26,4 +26,3 @@
 
     - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars.type == "gce" or cluster_vars.type == "aws"
-  tags: clusterverse_clean,clusterverse_create,clusterverse_dynamic_inventory,clusterverse_config,clusterverse_readiness

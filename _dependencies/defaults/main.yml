@@ -1,6 +1,4 @@
 ---
-# Ansible interpreter
-ansible_python_interpreter: "/usr/bin/python3"
 
 # Identifies the application version that is being deployed (optional)
 release_version: ""
@@ -27,6 +25,11 @@ metricbeat_version: 7.5.0
 pkgupdate: ""                                             # "always" or "onCreate".  Leave empty to prevent updating packages.
 reboot_on_package_upgrade: false                          # when set to true, restart after upgrading packages
 
-# Vulnerability scanning agents configurations
-qualys_agent_pkg: ""
-nessus_agent_pkg: ""
+# Whether to wait for DNS to resolve.  Useful for applications that rely on the FQDN.  NOTE: The TTL of the SOA must be short enough for this not to time-out.
+wait_for_dns: true
+
+# Whether to run the tidy (remove the replaced VMs and DNS entries) on successful redeploy
+canary_tidy_on_success: false
+
+# External DNS server for lookups when using external IPs (the default AWS resolver will resolve the VPC IPs)
+external_dns_resolver: "8.8.8.8"

@@ -1,44 +1,86 @@
 ---
 
-- name: Attempt redeploy.  Restore old if fails
+- name: Preflight check
   block:
-    - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
-      include_tasks: by_type.yml
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+
+- name: Redeploy by hosttype; rollback on fail
+  block:
+    - name: Change lifecycle_state label from 'current' to 'retiring'
+      import_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: set_lifecycle_state_label.yml
+      vars:
+        hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
+        new_state: "retiring"
+      when: (canary=="start" or canary=="none") and ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))
+
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse/cluster_hosts
+
+    - name: Run redeploy per hosttype.  Create one at a time, then stop previous.
+      include_tasks: redeploy_by_hosttype.yml
       with_items: "{{ myhosttypes_array }}"
       loop_control:
         loop_var: hosttype
       vars:
-        cluster_hosts_dict: "{{cluster_hosts_flat | dict_agg('hosttype')}}"
-        myhosttypes_array: "{%- if myhosttypes is defined and myhosttypes != '' -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
+        cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | dict_agg('hosttype')}}"
+        myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
 
-    - name: Clean stopped instance if deployment is succesfull
-      include_tasks: aws_del.yml
-      when: cluster_vars.type == "aws" and deployment_failed is not defined and deployment_failed != true
+    - name: Retire any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+      block:
+        - name: run predeleterole role on any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+          include_role:
+            name: "{{predeleterole}}"
+          when: predeleterole is defined and predeleterole != ""
+          vars:
+            hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
 
-    - name: Clean stopped instance if deployment is succesfull
-      include_tasks: gce_del.yml
-      when: cluster_vars.type == "gce" and deployment_failed is not defined and deployment_failed != true
+        - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+          include_role:
+            name: clusterverse/redeploy/__common
+            tasks_from: poweroff_vms.yml
+          vars:
+            hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
+      import_role:
+        name: clusterverse/cluster_hosts
+      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
 
   rescue:
-    - debug: msg="Restoring cluster"
+    - debug: msg="Rescuing"
 
-    - set_fact:
-        deployment_failed: true
+    - name: rescue
+      include_tasks: rescue.yml
 
-    - include_tasks: aws_rescue.yml
-      when: cluster_vars.type == "aws"
-      vars:
-        host_to_rescue: "{{host_to_redeploy}}"
+    - name: rescue | end_play to prevent tidying of pre-rescued VMs
+      meta: end_play
+  when: canary!="tidy"
 
-    - include_tasks: gce_rescue.yml
-      when: cluster_vars.type == "gce"
-      vars:
-        host_to_rescue: "{{host_to_redeploy}}"
 
-    - name: "set argument variables for {{mainclusteryml}}"
-      set_fact:
-        maincluster_yml_args: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
+  block:
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
 
-    - name: "run {{mainclusteryml}} to clean the inventory from stopped nodes"
-      shell: "{{maincluster_yml_args}} -e rescuing=false"
-      register: r_mainclusteryml
+    - import_role:
+        name: clusterverse/clean
+        tasks_from: clean_dns.yml
+      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+
+    - import_role:
+        name: clusterverse/clean
+        tasks_from: clean_vms.yml
+      when: (hosts_to_clean | length)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
+      when: hosts_to_clean | length == 0
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running', instance_state))]\") }}"
+  when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

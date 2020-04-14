@@ -1,0 +1,69 @@
+---
+
+- name: canary==start or canary==none
+  block:
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - There must be no machines not in the 'current' lifecycle_state.  [non_current_hosts | join(',')]"  }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current']\") }}"
+
+    - name: Change lifecycle_state label from 'current' to 'retiring'
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: set_lifecycle_state_label.yml
+      vars:
+        hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
+        new_state: "retiring"
+
+    - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness"
+      register: r__mainclusteryml
+      no_log: True
+      ignore_errors: yes
+    - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+      failed_when: r__mainclusteryml is failed
+      when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
+
+    - fail:
+      when: testfail is defined and testfail == "fail_1"
+  when: canary=="start" or canary=="none"
+
+- name: re-acquire cluster_hosts_target and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts
+  when: canary=="none"
+
+- name: canary==finish or canary==none
+  block:
+    - assert: { that: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - There are no machines in the 'retiring' state." }
+
+    - name: "Run {{mainclusteryml}} to perform readiness steps on new cluster (maintenance_mode, CNAME)"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+      register: r__mainclusteryml
+      no_log: True
+      ignore_errors: yes
+    - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+      failed_when: r__mainclusteryml is failed
+      when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
+
+    - name: run predeleterole role
+      include_role:
+        name: "{{predeleterole}}"
+      vars:
+        hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+      when: predeleterole is defined and predeleterole != ""
+
+    - fail:
+      when: testfail is defined and testfail == "fail_2"
+
+    - name: Power off old VMs
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: poweroff_vms.yml
+      vars:
+        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
+      import_role:
+        name: clusterverse/cluster_hosts
+      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
+  when: canary=="finish" or canary=="none"

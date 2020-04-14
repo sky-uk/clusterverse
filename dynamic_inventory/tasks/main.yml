@@ -1,25 +1,27 @@
 ---
 
-- include_tasks: aws.yml
+- name: dynamic_inventory | Derive dynamic inventory for AWS cluster
+  include_tasks: aws.yml
   when: cluster_vars.type == "aws"
 
-- include_tasks: gce.yml
+- name: dynamic_inventory | Derive dynamic inventory for GCE cluster
+  include_tasks: gce.yml
   when: cluster_vars.type == "gce"
-
 
 - assert: { that: "dynamic_inventory_flat is defined", msg: "dynamic_inventory_flat is not defined" }
 
-- debug: msg="{{dynamic_inventory_flat}}"
+- name: dynamic_inventory | dynamic_inventory_flat
+  debug: msg="{{dynamic_inventory_flat}}"
 
 # The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
 # this is particularly useful if using a jumphost to access the destination host, and the ansible-running machine doesn't have direct access to it.
-- name: Wait for SSH connectivity
+- name: dynamic_inventory | Wait for SSH connectivity
   ping:
   delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
   retries: 12
 
-- name: Add hosts to dynamic inventory
+- name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
     groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}"]
@@ -27,14 +29,12 @@
     hosttype: "{{ item.hosttype }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
-- stat: path={{inventory_file}}
+- name: dynamic_inventory | stat the inventory_file path
+  stat: path={{inventory_file}}
   register: stat_inventory_file
   when: inventory_file is defined
 
-- set_fact:
-    new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
-
-- name: Populate inventory file from dynamic inventory
+- name: dynamic_inventory | Populate inventory file from dynamic inventory
   copy:
     content: |
       {% for groupname in groups.keys() -%}
@@ -48,3 +48,6 @@
       {% endfor %}
     dest: "{{new_inventory_file}}"
     force: yes
+  vars:
+    new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
+

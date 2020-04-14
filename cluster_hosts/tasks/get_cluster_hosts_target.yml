@@ -1,0 +1,120 @@
+---
+
+# Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
+- name: get_cluster_hosts_target | Create cluster_hosts_target from the cluster definition in cluster_vars
+  set_fact:
+    cluster_hosts_target: |
+      {% set res = [] -%}
+      {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
+        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
+          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
+            {% set _dummy = res.extend([{
+              'hosttype': hostttype,
+              'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string + '-' + cluster_suffix|string,
+              'az_name': azname|string,
+              'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
+              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes
+              }]) -%}
+          {%- endfor %}
+        {%- endfor %}
+      {%- endfor %}
+      {{ res }}
+
+- name: get_cluster_hosts_target | cluster_hosts_target
+  debug: msg="{{cluster_hosts_target}}"
+
+- name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_target - add subnets.
+  block:
+    # Dynamically look up VPC ID by name from aws
+    - name: get_cluster_hosts_target | Looking up VPC facts to extract ID
+      ec2_vpc_net_facts:
+        region:         "{{ cluster_vars.region }}"
+        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
+        filters:
+          "tag:Name": "{{ cluster_vars[buildenv].vpc_name }}"
+      register: r__ec2_vpc_net_facts
+      delegate_to: localhost
+      run_once: true
+
+    - name: get_cluster_hosts_target/aws | Set VPC ID in variable
+      set_fact:
+        vpc_id: "{{ r__ec2_vpc_net_facts.vpcs[0].id }}"
+
+    - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
+      ec2_vpc_subnet_facts:
+        region:         "{{ cluster_vars.region }}"
+        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
+        filters:
+          "tag:Name": "{{ cluster_vars[buildenv].vpc_subnet_name_prefix }}{{item}}"
+          vpc-id:     "{{ vpc_id }}"
+      register: r__ec2_vpc_subnet_facts
+      with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
+      set_fact:
+        cluster_hosts_target: |
+          {% set res = cluster_hosts_target -%}
+          {%- for host in res -%}
+            {%- set _dummy = host.update({'vpc_subnet_id': subnet_ids_per_az[host.az_name][0].subnet_id | string}) -%}
+          {%- endfor %}
+          {{ res }}
+      vars:
+        subnet_ids_per_az: "{{r__ec2_vpc_subnet_facts.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"
+
+    - block:
+        - name: get_cluster_hosts_target/aws | Get snapshots info
+          ec2_snapshot_info:
+            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            region: "{{ cluster_vars.region }}"
+            filters: "{{ _snapshot_tags[0] }}"
+          register: r__ebs_snapshots
+
+        - name: get_cluster_hosts_target/aws | Assert that snapshots exists
+          assert:
+            that:
+              - item in _available_snapshots
+            quiet: true
+            fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
+          loop: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
+          vars:
+            _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+
+        - name: get_cluster_hosts_target/aws | update cluster_hosts_target with snapshot_id
+          set_fact:
+            cluster_hosts_target: |
+              {%- for host in cluster_hosts_target -%}
+                {%- set cluster_host_topology = host.hostname | regex_replace('^.*(-.*?-).*$', '\\1') -%}
+                {%- for vol in host.auto_volumes -%}
+                  {%- set cur_snapshot = r__ebs_snapshots | default([]) | to_json | from_json | json_query('snapshots[?contains(tags.Name, \'' + cluster_host_topology + '\')]') -%}
+                  {%- if cur_snapshot and 'snapshot_tags' in vol.keys() -%}
+                    {%- set _dummy = vol.update({'shapshot_id': cur_snapshot[0].snapshot_id}) -%}
+                    {%- set _dummy = vol.pop('snapshot_tags') -%}
+                  {%- endif %}
+                {%- endfor %}
+              {%- endfor %}
+              {{ cluster_hosts_target }}
+      vars:
+        _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
+      when: _snapshot_tags|length > 0
+  when: cluster_vars.type == "aws"
+
+
+- name: get_cluster_hosts_target/gce | GCE-specific modifications to cluster_hosts_target - add rootvol size
+  block:
+    - name: get_cluster_hosts_target/gce | Update cluster_hosts_target with rootvol_size
+      set_fact:
+        cluster_hosts_target: |
+          {% set res = cluster_hosts_target -%}
+          {%- for host in res -%}
+            {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
+          {%- endfor %}
+          {{ res }}
+  when: cluster_vars.type == "gce"
+
+- name: get_cluster_hosts_target | cluster_hosts_target
+  debug: msg={{cluster_hosts_target}}

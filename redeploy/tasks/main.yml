@@ -1,9 +1,9 @@
 ---
 
-- name: Preflight check
+- name: Preflight check - Redeploy
   block:
     - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
-    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none'])", msg: "Canary must be 'start', 'finish' or 'none'" }
+    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none', 'tidy', 'revert'])", msg: "Canary must be 'start', 'finish', 'none', 'tidy' or 'revert'" }
     - assert: { that: "redeploy_scheme is defined" }
 
 - name: "Run the {{redeploy_scheme}} redploy scheme"

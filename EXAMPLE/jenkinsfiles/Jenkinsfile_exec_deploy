@@ -88,7 +88,7 @@ pipeline {
         withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
           sh 'env'
           sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)  "'
-          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=true'
+          sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_'
         }
       }            
     }

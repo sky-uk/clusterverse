@@ -3,7 +3,7 @@
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-dns_tld_external: ""              # Top-level domain for external access.  Leave blank if no external DNS (use IPs only)
+dns_tld_external: ""              # Top-level domain for external access.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
 
 ## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
@@ -47,21 +47,19 @@ cluster_vars:
   secgroup_new:
     - proto: "tcp"
       ports: ["22"]
-      cidr_ip: 0.0.0.0/0
+      cidr_ip: "0.0.0.0/0"
       rule_desc: "SSH Access"
     - proto: "tcp"
       ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
       group_name: ["{{buildenv}}-private-sg"]
-      group_desc: "Access from all VMs attached to {{buildenv}}-private-sg"
       rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
     - proto: all
       group_name: ["{{cluster_name}}-sg"]
-      group_desc: "{{ cluster_name }} rules"
       rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
   sandbox:
     hosttype_vars:
-      sys: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3.nano, auto_volumes: []}
-#      sysdisks: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3.nano, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/var/log/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 3, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/var/log/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
+      sys: {vms_by_az: {a: 1, b: 1, c: 1}, flavor: t3a.nano, auto_volumes: []}
+#      sysdisks: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3a.nano, auto_volumes: [{"device_name": "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdc", mountpoint: "/var/log/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 3, ephemeral: False, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdd", mountpoint: "/var/log/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
 #      hostnvme_multi: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc2", fstype: ext4, volume_size: 2500}]} }
 #      hostnvme_lvm: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: i3en.2xlarge, auto_volumes: [], nvme: {volumes: [{mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}, {mountpoint: "/var/log/mysvc", fstype: ext4, volume_size: 2500}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} } }
 #      hostssd: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: c3.large, auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/var/log/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 2, ephemeral: False, encrypted: True, "delete_on_termination": true}]}
