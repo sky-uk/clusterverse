@@ -92,7 +92,7 @@
                 {%- for vol in host.auto_volumes -%}
                   {%- set cur_snapshot = r__ebs_snapshots | default([]) | to_json | from_json | json_query('snapshots[?contains(tags.Name, \'' + cluster_host_topology + '\')]') -%}
                   {%- if cur_snapshot and 'snapshot_tags' in vol.keys() -%}
-                    {%- set _dummy = vol.update({'shapshot_id': cur_snapshot[0].snapshot_id}) -%}
+                    {%- set _dummy = vol.update({'snapshot': cur_snapshot[0].snapshot_id}) -%}
                     {%- set _dummy = vol.pop('snapshot_tags') -%}
                   {%- endif %}
                 {%- endfor %}
