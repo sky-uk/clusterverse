@@ -73,6 +73,8 @@
             region: "{{ cluster_vars.region }}"
             filters: "{{ _snapshot_tags[0] }}"
           register: r__ebs_snapshots
+          delegate_to: localhost
+          run_once: true
 
         - name: get_cluster_hosts_target/aws | Assert that snapshots exists
           assert:
