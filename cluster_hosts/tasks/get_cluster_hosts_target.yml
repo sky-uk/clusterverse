@@ -76,7 +76,7 @@
           delegate_to: localhost
           run_once: true
 
-        - name: get_cluster_hosts_target/aws | Assert that snapshots exists
+        - name: get_cluster_hosts_target/aws | Assert that number of snapshots eq number of hosts
           assert:
             that:
               - _available_snapshots|length == cluster_hosts_target|length
