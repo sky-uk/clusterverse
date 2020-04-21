@@ -76,15 +76,14 @@
           delegate_to: localhost
           run_once: true
 
-        - name: get_cluster_hosts_target/aws | Assert that snapshots exists
+        - name: get_cluster_hosts_target/aws | Assert that number of snapshots eq number of hosts
           assert:
             that:
-              - item in _available_snapshots
+              - _available_snapshots|length == cluster_hosts_target|length
             quiet: true
-            fail_msg: "{{ item }}  not in available snapshots {{ _available_snapshots }}"
-          loop: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags.*[]')|unique }}"
+            fail_msg: "There are {{ _available_snapshots|length }} available snapshots and {{ cluster_hosts_target|length }} nodes. Snapshot restore available only to the same infrastructure size."
           vars:
-            _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].tags.backup_id')|unique }}"
+            _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].snapshot_id') }}"
 
         - name: get_cluster_hosts_target/aws | update cluster_hosts_target with snapshot_id
           set_fact:
