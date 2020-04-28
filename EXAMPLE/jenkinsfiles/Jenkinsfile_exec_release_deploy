@@ -31,6 +31,7 @@ pipeline {
       environment {
         DEPLOY_ENV="${params.DEPLOY_ENV}"
         RELEASE ="${params.RELEASE}"
+        CV_RELEASE ="${params.RELEASE.replace('.', '_')}"
         GIT_TOKEN = credentials("GITHUB_SVC_USER")
         VAULT_PASSWORD_BUILDENV = credentials("VAULT_PASSWORD_${params.DEPLOY_ENV.toUpperCase()}")
         CANARY="-e canary=${params.CANARY}"
@@ -40,13 +41,14 @@ pipeline {
         script {
           try {
             echo "RELEASE=  ${RELEASE}"
+            echo "CV_RELEASE=  ${CV_RELEASE}"
             sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@github.com/sky-uk/clusterverse.git"
             sh 'git fetch --tags'
             sh 'git checkout ${RELEASE}'
             withCredentials([sshUserPrivateKey(credentialsId: "VTP_${params.DEPLOY_ENV.toUpperCase()}_SSH_KEY", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {          
               sh 'env'
               sh 'echo "$DEPLOY_ENV: len $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/wc -c) sum $(echo -n $VAULT_PASSWORD_BUILDENV | /usr/bin/sum)"'
-              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$RELEASE'
+              sh 'pipenv run ansible-playbook  -u ${sshuser} --private-key=${keyfile}  -e buildenv=$DEPLOY_ENV -e clusterid=$CLUSTER_ID  --vault-id=$DEPLOY_ENV@.vaultpass-client.py redeploy.yml $CANARY $MYHOSTTYPES -e release_version=$CV_RELEASE'
             }    
           } catch (err) {
             // echo "Failed: ${err} - Version ${broken_version} will be deleted and the previous version will be deployed."  
