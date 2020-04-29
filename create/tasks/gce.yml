@@ -87,6 +87,8 @@
           ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }} {{ cliargs.remote_user }}"
         labels:
           hosttype: "{{item.hosttype}}"
+          az_name: "{{ item.az_name }}"
+          additional_services: "{{ item.additional_services|default(omit, true) }}"
           env: "{{buildenv}}"
           cluster_name: "{{cluster_name}}"
           cluster_suffix: "{{cluster_suffix}}"

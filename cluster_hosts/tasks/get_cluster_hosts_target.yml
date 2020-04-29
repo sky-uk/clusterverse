@@ -13,7 +13,8 @@
               'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string + '-' + cluster_suffix|string,
               'az_name': azname|string,
               'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
-              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes
+              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes,
+              'additional_services': cluster_vars[buildenv].hosttype_vars[hostttype].additional_services|default('')
               }]) -%}
           {%- endfor %}
         {%- endfor %}

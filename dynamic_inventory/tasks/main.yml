@@ -11,26 +11,29 @@
 - assert: { that: "dynamic_inventory_flat is defined", msg: "dynamic_inventory_flat is not defined" }
 
 - name: dynamic_inventory | dynamic_inventory_flat
-  debug: msg="{{dynamic_inventory_flat}}"
+  debug: msg="{{ dynamic_inventory_flat }}"
 
-# The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
-# this is particularly useful if using a jumphost to access the destination host, and the ansible-running machine doesn't have direct access to it.
 - name: dynamic_inventory | Wait for SSH connectivity
-  ping:
+  wait_for_connection:
+    timeout: 180
   delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
-  retries: 12
 
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
-    name: "{{ item.hostname }}"
-    groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}"]
+    name: "{{ item.tagslabels.Name }}"
+    groups: "{{ [cluster_name,clusterid] + _hosttype }}"
     ansible_host: "{{ item.inventory_ip }}"
-    hosttype: "{{ item.hosttype }}"
+    hosttype: "{{ _hosttype }}"
+    az_name: "{{ item.tagslabels.az_name }}"
+    additional_services: "{{ item.tagslabels.additional_services| default('') }}"
   with_items: "{{ dynamic_inventory_flat }}"
+  vars:
+    _hosttype: "{{ [item.tagslabels.hosttype] + _additional_services }}"
+    _additional_services: "{{ item.tagslabels.additional_services.split(',') if 'additional_services' in item.tagslabels.keys() else [] }}"
 
 - name: dynamic_inventory | stat the inventory_file path
-  stat: path={{inventory_file}}
+  stat: path={{ inventory_file }}
   register: stat_inventory_file
   when: inventory_file is defined
 
@@ -41,7 +44,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype|join(',') }} az_name={{ hostvars[hostname].az_name }}
       {% endfor %}
 
       {% endif %}

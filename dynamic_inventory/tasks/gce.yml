@@ -22,8 +22,8 @@
   set_fact:
     dynamic_inventory_flat: |
       {%- if cluster_vars.inventory_ip == 'private' -%}
-        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
+        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, tagslabels: labels, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].networkIP}') }}
       {%- else -%}
-        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
+        {{ r__gcp_compute_instance_info.results | json_query('[*].resources[].{hosttype: labels.hosttype, tagslabels: labels, hostname: name, private_ip: networkInterfaces[0].networkIP, public_ip: networkInterfaces[0].accessConfigs[0].natIP, inventory_ip: networkInterfaces[0].accessConfigs[0].natIP}') }}
       {%- endif -%}
 

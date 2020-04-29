@@ -4,10 +4,10 @@
   ec2_group:
     name: "{{ cluster_name }}-sg"
     description: "{{ cluster_name }} rules"
-    region: "{{cluster_vars.region}}"
-    vpc_id: "{{vpc_id}}"
-    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{ cluster_vars.region }}"
+    vpc_id: "{{ vpc_id }}"
+    aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+    aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
     tags:
       Name: "{{ cluster_name }}-sg"
       env: "{{ buildenv }}"
@@ -22,33 +22,35 @@
   block:
     - name: create/aws | Create EC2 VMs asynchronously
       ec2:
-        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-        region: "{{cluster_vars.region}}"
-        key_name: "{{cluster_vars[buildenv].key_name}}"
-        instance_type: "{{item.flavor}}"
-        instance_profile_name: "{{cluster_vars.instance_profile_name  | default(omit)}}"
-        image: "{{cluster_vars.image}}"
-        vpc_subnet_id: "{{item.vpc_subnet_id}}"
-        assign_public_ip: "{{cluster_vars.assign_public_ip}}"
+        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
+        region: "{{ cluster_vars.region }}"
+        key_name: "{{ cluster_vars[buildenv].key_name }}"
+        instance_type: "{{ item.flavor }}"
+        instance_profile_name: "{{ cluster_vars.instance_profile_name | default(omit) }}"
+        image: "{{ cluster_vars.image }}"
+        vpc_subnet_id: "{{ item.vpc_subnet_id }}"
+        assign_public_ip: "{{ cluster_vars.assign_public_ip }}"
         group: "{{ cluster_vars.secgroups_existing }} {%- if cluster_vars.secgroup_new | length > 0 -%} + {{ ([r__ec2_group.group_name | default()] | default())}} {%- endif -%}"
         wait: yes
         instance_tags:
-          Name: "{{item.hostname}}"
-          hosttype: "{{item.hosttype}}"
-          env: "{{buildenv}}"
-          cluster_name: "{{cluster_name}}"
-          cluster_suffix: "{{cluster_suffix}}"
-          owner: "{{ lookup('env','USER')| lower  }}"
+          Name: "{{ item.hostname }}"
+          az_name: "{{ item.az_name }}"
+          additional_services: "{{ item.additional_services | default(omit, true) }}"
+          hosttype: "{{ item.hosttype }}"
+          env: "{{ buildenv }}"
+          cluster_name: "{{ cluster_name }}"
+          cluster_suffix: "{{ cluster_suffix }}"
+          owner: "{{ lookup('env','USER')| lower }}"
           maintenance_mode: "{%- if prometheus_set_unset_maintenance_mode|bool -%}true{%- else -%}false{%- endif -%}"
           release: "{{ release_version }}"
           lifecycle_state: "current"
-        termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
+        termination_protection: "{{ cluster_vars[buildenv].termination_protection }}"
         volumes: "{{ item.auto_volumes | default([]) }}"
         count_tag:
-          Name: "{{item.hostname}}"
+          Name: "{{ item.hostname }}"
         exact_count: 1
-      with_items: "{{cluster_hosts_target}}"
+      with_items: "{{ cluster_hosts_target }}"
       async: 7200
       poll: 0
       register: aws_instances

@@ -15,7 +15,7 @@
   set_fact:
     dynamic_inventory_flat: |
       {%- if cluster_vars.inventory_ip == 'private' -%}
-        {{ r__ec2_instance_info.instances | json_query('[*].{hosttype: tags.hosttype, hostname: tags.Name, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: private_ip_address}') }}
+        {{ r__ec2_instance_info.instances | json_query('[*].{tagslabels: tags, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: private_ip_address}') }}
       {%- else -%}
-        {{ r__ec2_instance_info.instances | json_query('[*].{hosttype: tags.hosttype, hostname: tags.Name, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: public_ip_address}') }}
+        {{ r__ec2_instance_info.instances | json_query('[*].{tagslabels: tags, private_ip: private_ip_address, public_ip: public_ip_address, inventory_ip: public_ip_address}') }}
       {%- endif -%}
