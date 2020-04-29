@@ -48,6 +48,13 @@ cluster_vars:
   project_id: "{{gcp_credentials_json.project_id}}"
   ip_forward: "false"
   ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
+  custom_tagslabels:
+    inv_resident_id: "myresident"
+    inv_proposition_id: "myproposition"
+    inv_environment_id: "{{buildenv}}"
+    inv_service_id: "{{app_class}}"
+    inv_cluster_id: "{{cluster_name}}"
+    inv_cluster_type: "{{app_name}}"
   network_fw_tags: ["{{cluster_name}}-nwtag"]
   firewall_rules:
     - name: "{{cluster_name}}-extssh"
@@ -64,8 +71,8 @@ cluster_vars:
       description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
   sandbox:
     hosttype_vars:
-      sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: []}
-      #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
+      sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sys_version | default('')}}", auto_volumes: []}
+      #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""
     preemptible: "no"

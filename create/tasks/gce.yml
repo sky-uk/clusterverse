@@ -85,15 +85,7 @@
         metadata:
           startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
           ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }} {{ cliargs.remote_user }}"
-        labels:
-          hosttype: "{{item.hosttype}}"
-          env: "{{buildenv}}"
-          cluster_name: "{{cluster_name}}"
-          cluster_suffix: "{{cluster_suffix}}"
-          owner: "{{ lookup('env','USER')| lower  }}"
-          maintenance_mode: "true"
-          release: "{{ release_version }}"
-          lifecycle_state: "current"
+        labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
         network_interfaces:
           - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
             subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
@@ -108,6 +100,16 @@
         _autodisks: "{{__autodisksnames | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,mountname]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,mountname]), disk_size_gb: volume_size}} \") }}"
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
         _host_disks: "{{[_bootdisk] + _autodisks}}"
+        _labels:
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
+          hosttype: "{{item.hosttype}}"
+          cluster_name: "{{cluster_name}}"
+          cluster_suffix: "{{cluster_suffix}}"
+          owner: "{{ lookup('env','USER') | lower }}"
+          maintenance_mode: "true"
+          release: "{{ release_version }}"
+          lifecycle_state: "current"
       register: gcp_compute_instance
       with_items: "{{cluster_hosts_target}}"
       async: 7200

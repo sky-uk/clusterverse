@@ -89,6 +89,8 @@
 
 - name: get_cluster_hosts_state | cluster_hosts_state
   debug: msg="{{cluster_hosts_state}}"
+  delegate_to: localhost
+  run_once: true
   when: cluster_hosts_state is defined
 
 #- pause:
