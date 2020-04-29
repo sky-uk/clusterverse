@@ -27,6 +27,7 @@
     groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}"]
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
+    az_name: "{{ item.az_name[-1] }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 - name: dynamic_inventory | stat the inventory_file path
@@ -41,7 +42,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} az_name={{ hostvars[hostname].az_name }}
       {% endfor %}
 
       {% endif %}
