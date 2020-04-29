@@ -42,8 +42,8 @@
       vars:
         _instance_tags:
           Name: "{{item.hostname}}"
-          inv-node-version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
-          inv-node-type: "{{item.hosttype}}"
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
           hosttype: "{{item.hosttype}}"
           cluster_name: "{{cluster_name}}"
           cluster_suffix: "{{cluster_suffix}}"

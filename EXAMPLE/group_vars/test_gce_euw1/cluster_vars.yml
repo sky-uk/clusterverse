@@ -49,12 +49,12 @@ cluster_vars:
   ip_forward: "false"
   ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
   custom_tagslabels:
-    inv-resident-id: "myresident"
-    inv-proposition-id: "myproposition"
-    inv-environment-id: "{{buildenv}}"
-    inv-service-id: "{{app_class}}"
-    inv-cluster-id: "{{cluster_name}}"
-    inv-cluster-type: "{{app_name}}"
+    inv_resident_id: "myresident"
+    inv_proposition_id: "myproposition"
+    inv_environment_id: "{{buildenv}}"
+    inv_service_id: "{{app_class}}"
+    inv_cluster_id: "{{cluster_name}}"
+    inv_cluster_type: "{{app_name}}"
   network_fw_tags: ["{{cluster_name}}-nwtag"]
   firewall_rules:
     - name: "{{cluster_name}}-extssh"

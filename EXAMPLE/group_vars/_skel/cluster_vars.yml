@@ -50,7 +50,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
 #  instance_profile_name: ""
 #  route53_private_zone: true        # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
-#  custom_tagslabels: {inv-resident-id: "abc", inv-proposition-id: "def"}
+#  custom_tagslabels: {inv_resident_id: "abc", inv_proposition_id: "def"}
 #  secgroups_existing: []
 #  secgroup_new:
 #    - proto: "tcp"
@@ -96,7 +96,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #  project_id: "{{gcp_credentials_json.project_id}}"
 #  ip_forward: "false"
 #  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
-#  custom_tagslabels: {inv-resident-id: "abc", inv-proposition-id: "def"}
+#  custom_tagslabels: {inv_resident_id: "abc", inv_proposition_id: "def"}
 #  network_fw_tags: ["{{cluster_name}}-nwtag"]
 #  firewall_rules:
 #    - name: "{{cluster_name}}-extssh"

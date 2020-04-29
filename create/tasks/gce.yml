@@ -101,8 +101,8 @@
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
         _host_disks: "{{[_bootdisk] + _autodisks}}"
         _labels:
-          inv-node-version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
-          inv-node-type: "{{item.hosttype}}"
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
           hosttype: "{{item.hosttype}}"
           cluster_name: "{{cluster_name}}"
           cluster_suffix: "{{cluster_suffix}}"

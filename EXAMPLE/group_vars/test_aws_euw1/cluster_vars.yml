@@ -44,12 +44,12 @@ cluster_vars:
   instance_profile_name: ""
   route53_private_zone: true        # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
   custom_tagslabels:
-    inv-resident-id: "myresident"
-    inv-proposition-id: "myproposition"
-    inv-environment-id: "{{buildenv}}"
-    inv-service-id: "{{app_class}}"
-    inv-cluster-id: "{{cluster_name}}"
-    inv-cluster-type: "{{app_name}}"
+    inv_resident_id: "myresident"
+    inv_proposition_id: "myproposition"
+    inv_environment_id: "{{buildenv}}"
+    inv_service_id: "{{app_class}}"
+    inv_cluster_id: "{{cluster_name}}"
+    inv_cluster_type: "{{app_name}}"
   secgroups_existing: []
   secgroup_new:
     - proto: "tcp"
