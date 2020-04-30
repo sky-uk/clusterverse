@@ -42,7 +42,7 @@
       run_once: true
 
     # Use this because the gce_labels command does not replace existing labels.  https://github.com/ansible/ansible/pull/59891
-    - name: remove_maintenance_mode/gce | Delete maintenance_mode label
+    - name: remove_maintenance_mode/gce | Set maintenance_mode to false
       gcp_compute_instance:
         name: "{{item.name}}"
         project: "{{cluster_vars.project_id}}"

@@ -24,9 +24,10 @@
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
-    groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}"]
+    groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}","{{ item.regionzone }}"]
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
+    regionzone: "{{ item.regionzone }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 - name: dynamic_inventory | stat the inventory_file path
@@ -41,7 +42,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} regionzone={{ hostvars[hostname].regionzone }}
       {% endfor %}
 
       {% endif %}
