@@ -6,7 +6,7 @@ pipeline {
   agent any
   parameters {
     booleanParam(name: 'GENUINE_BUILD', defaultValue: false, description: 'Tick the box to run the job')
-    string(name: 'CLUSTER_ID', defaultValue:"vtp_aws_euw1", description: "MANDATORY FIELD - 'vtp_aws_euw1', 'csc_aws_euw1', 'vtp_gce_euw1', 'vtp_lsd_slo' - Specify which cloud/on-prem environment you want to deploy your release to")
+    string(name: 'CLUSTER_ID', defaultValue:"vtp_aws_euw1", description: "MANDATORY FIELD - 'vtp_aws_euw1', 'csc_aws_euw1', 'vtp_gcp_euw1', 'vtp_lsd_slo' - Specify which cloud/on-prem environment you want to deploy your release to")
     choice(name: 'DEPLOY_ENV', choices: ['sandbox', 'tools', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy")
     string(name: 'CANARY', defaultValue:"none", description: "MANDATORY FIELD - 'start', 'finish', 'none' - Specify whether to start or finish a canary deploy, or 'none' deploy")
     string(name: 'MYHOSTTYPES', defaultValue:"", description: "master,slave - In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types")

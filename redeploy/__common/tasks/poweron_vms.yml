@@ -4,9 +4,9 @@
   debug: msg="{{hosts_to_start}}"
 
 - block:
-    - name: poweron_vms | Power-on AWS VM(s)
+    - name: poweron_vms | Power-on AWS EC2 VM(s)
       block:
-        - name: poweron_vms | Power-on AWS VM(s)
+        - name: poweron_vms | Power-on AWS EC2 VM(s)
           ec2:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -19,9 +19,9 @@
       when: cluster_vars.type == "aws"
 
 
-    - name: poweron_vms | Power-on GCE VM(s) asynchronously
+    - name: poweron_vms | Power-on GCP GCE VM(s) asynchronously
       block:
-        - name: poweron_vms | Power-on GCE VM(s)
+        - name: poweron_vms | Power-on GCP GCE VM(s)
           gcp_compute_instance:
             name: "{{item.name}}"
             project: "{{cluster_vars.project_id}}"
@@ -36,12 +36,12 @@
           async: 7200
           poll: 0
 
-        - name: poweron_vms | Wait for gce instance(s) to power-on
+        - name: poweron_vms | Wait for GCP GCE instance(s) to power-on
           async_status:
             jid: "{{ item.ansible_job_id }}"
           register: async_jobs
           until: async_jobs.finished
           retries: 300
           with_items: "{{r__gcp_compute_instance.results}}"
-      when: cluster_vars.type == "gce"
+      when: cluster_vars.type == "gcp"
   when: hosts_to_start | length

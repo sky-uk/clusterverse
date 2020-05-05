@@ -53,9 +53,9 @@ ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
@@ -73,7 +73,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e filebeat_install=false` - Does not install filebeat
-+ `-e create_gce_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
++ `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 
 ### Tags
 + `clusterverse_clean`: Deletes all VMs and security groups (also needs `-e clean=[current|retiring|redeployfail|_all_]` on command line)
@@ -92,7 +92,7 @@ ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.ym
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_gce_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 
 ### Mandatory command-line variables:

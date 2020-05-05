@@ -2,7 +2,7 @@
 
 - name: get_cluster_hosts_state/aws | Get AWS cluster_hosts_state
   block:
-    - name: get_cluster_hosts_state/aws | Get existing AWS instance info
+    - name: get_cluster_hosts_state/aws | Get existing EC2 instance info
       ec2_instance_info:
         filters:
           "tag:cluster_name": "{{cluster_name}}"
@@ -19,9 +19,9 @@
         cluster_hosts_state: "{{r__ec2_instance_info.instances | json_query(\"[].{name: tags.Name, regionzone: placement.availability_zone, tagslabels: tags, instance_id: instance_id, instance_state: state.name}\") }}"
   when: cluster_vars.type == "aws"
 
-- name: get_cluster_hosts_state/gce | Get GCE cluster_hosts_state
+- name: get_cluster_hosts_state/gcp | Get GCP cluster_hosts_state
   block:
-    - name: get_cluster_hosts_state/gce | Get existing GCE instance info (per AZ)
+    - name: get_cluster_hosts_state/gcp | Get existing GCE instance info (per AZ)
       gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{item}}"
         filters:
@@ -35,7 +35,7 @@
       delegate_to: localhost
       run_once: true
 
-    - name: get_cluster_hosts_state/gce | Set cluster_hosts_state with correct regionzone (remove url)
+    - name: get_cluster_hosts_state/gcp | Set cluster_hosts_state with correct regionzone (remove url)
       set_fact:
         cluster_hosts_state: |
           {% set res = _cluster_hosts_state__urlregion -%}
@@ -45,7 +45,7 @@
           {{ res }}
       vars:
         _cluster_hosts_state__urlregion: "{{r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status}\") }}"
-  when: cluster_vars.type == "gce"
+  when: cluster_vars.type == "gcp"
 
 - name: get_cluster_hosts_state/vmware | Get VMware cluster_hosts_state
   block:

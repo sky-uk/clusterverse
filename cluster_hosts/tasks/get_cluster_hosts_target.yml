@@ -105,9 +105,9 @@
   when: cluster_vars.type == "aws"
 
 
-- name: get_cluster_hosts_target/gce | GCE-specific modifications to cluster_hosts_target - add rootvol size
+- name: get_cluster_hosts_target/gcp | GCP-specific modifications to cluster_hosts_target - add rootvol size
   block:
-    - name: get_cluster_hosts_target/gce | Update cluster_hosts_target with rootvol_size
+    - name: get_cluster_hosts_target/gcp | Update cluster_hosts_target with rootvol_size
       set_fact:
         cluster_hosts_target: |
           {% set res = cluster_hosts_target -%}
@@ -115,7 +115,7 @@
             {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
           {%- endfor %}
           {{ res }}
-  when: cluster_vars.type == "gce"
+  when: cluster_vars.type == "gcp"
 
 - name: get_cluster_hosts_target | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}

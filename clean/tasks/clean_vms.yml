@@ -26,12 +26,12 @@
       when: cluster_vars.type == "aws"
 
     - block:
-        - name: clean/del_vms/gce | Remove deletion protection
+        - name: clean/del_vms/gcp | Remove deletion protection
           command: "gcloud compute instances update {{item.name}} --no-deletion-protection --zone {{ item.regionzone }}"
           when: cluster_vars[buildenv].deletion_protection | bool
           with_items: "{{ hosts_to_clean }}"
 
-#        - name: clean/del_vms/gce | Remove deletion protection (broken until https://github.com/ansible-collections/ansible_collections_google/pull/163 gets into a release)
+#        - name: clean/del_vms/gcp | Remove deletion protection (broken until https://github.com/ansible-collections/ansible_collections_google/pull/163 gets into a release)
 #          gcp_compute_instance:
 #            name: "{{item.name}}"
 #            project: "{{cluster_vars.project_id}}"
@@ -41,7 +41,7 @@
 #            deletion_protection: 'no'
 #          with_items: "{{ hosts_to_clean }}"
 
-        - name: clean/del_vms/gce | Delete GCE VM
+        - name: clean/del_vms/gcp | Delete GCE VM
           gcp_compute_instance:
             name: "{{item.name}}"
             project: "{{cluster_vars.project_id}}"
@@ -54,12 +54,12 @@
           async: 7200
           poll: 0
 
-        - name: clean/del_vms/gce | Wait for gce VM deletion to complete
+        - name: clean/del_vms/gcp | Wait for GCE VM deletion to complete
           async_status:
             jid: "{{ item.ansible_job_id }}"
           register: async_jobs
           until: async_jobs.finished
           retries: 300
           with_items: "{{r__gcp_compute_instance.results}}"
-      when: cluster_vars.type == "gce"
+      when: cluster_vars.type == "gcp"
   when: hosts_to_clean | length

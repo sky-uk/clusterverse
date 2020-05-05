@@ -1,8 +1,8 @@
 ---
 
-- name: create/gcp | Create GCP network and subnetwork (if -e create_gce_network=true)
+- name: create/gcp | Create GCP network and subnetwork (if -e create_gcp_network=true)
   block:
-    - name: create/gcp | Create GCP host network (if -e create_gce_network=true)
+    - name: create/gcp | Create GCP host network (if -e create_gcp_network=true)
       gcp_compute_network:
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
         auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
@@ -11,7 +11,7 @@
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_compute_network
 
-    - name: create/gcp | Create GCP host subnetwork (if -e create_gce_network=true)
+    - name: create/gcp | Create GCP host subnetwork (if -e create_gcp_network=true)
       gcp_compute_subnetwork:
         name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
         network: "{{r__gcp_compute_network}}"
@@ -19,7 +19,7 @@
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
-  when: create_gce_network is defined and create_gce_network|bool
+  when: create_gcp_network is defined and create_gcp_network|bool
 
 
 - name: create/gcp | Create GCP firewalls
@@ -35,7 +35,7 @@
       register: r__gcp_compute_network_info
 
     - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
-      assert: { that: "r__gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gce_network=true')" }
+      assert: { that: "r__gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gcp_network=true')" }
 
     - name: create/gcp | Get GCP subnetwork facts
       gcp_compute_subnetwork_info:
@@ -115,17 +115,17 @@
       async: 7200
       poll: 0
 
-    - name: create/gcp | Wait for gce instance creation to complete
+    - name: create/gcp | Wait for GCE instance creation to complete
       async_status:
         jid: "{{ item.ansible_job_id }}"
-      register: gce_jobs
-      until: gce_jobs.finished
+      register: gcp_jobs
+      until: gcp_jobs.finished
       delay: 3
       retries: 300
       with_items: "{{gcp_compute_instance.results}}"
 
     - name: create/gcp | Set a fact containing the newly-created hosts
       set_fact:
-        cluster_hosts_created: "{{ gce_jobs.results | json_query(\"[?item.changed==`true`].item.item\") }}"
+        cluster_hosts_created: "{{ gcp_jobs.results | json_query(\"[?item.changed==`true`].item.item\") }}"
 
 

@@ -2,7 +2,7 @@ pipeline {
   agent any
   parameters {
     booleanParam(name: 'GENUINE_BUILD', defaultValue: false, description: 'Tick the box to run the job')
-    string(name: 'CLUSTER_ID', defaultValue:"vtp_aws_euw1", description: "MANDATORY FIELD - 'vtp_aws_euw1', 'csc_aws_euw1', 'vtp_gce_euw1', 'vtp_lsd_slo' - Specify which cloud/on-prem environment you want to deploy to")
+    string(name: 'CLUSTER_ID', defaultValue:"vtp_aws_euw1", description: "MANDATORY FIELD - 'vtp_aws_euw1', 'csc_aws_euw1', 'vtp_gcp_euw1', 'vtp_lsd_slo' - Specify which cloud/on-prem environment you want to deploy to")
     choice(name: 'DEPLOY_ENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy")
     choice(name: 'DEPLOY_TYPE', choices: ['Deploy', 'ReDeploy', 'Clean'], description: "Choose the deploy type")
     string(name: 'CANARY', defaultValue:"none", description: "MANDATORY FIELD - 'start', 'finish', 'none' - Specify whether to start or finish a canary deploy, or 'none' deploy")
