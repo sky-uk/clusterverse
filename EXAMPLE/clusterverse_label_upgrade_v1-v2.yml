@@ -13,7 +13,7 @@
         tasks_from: get_cluster_hosts_state.yml
 
     - block:
-        - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to AWS VM
+        - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to AWS EC2 VM
           ec2_tag:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -25,7 +25,7 @@
           with_items: "{{ hosts_to_relabel }}"
           when: cluster_vars.type == "aws"
 
-        - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to GCE VM
+        - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to GCP GCE VM
           gce_labels:
             resource_name: "{{item.name}}"
             project_id: "{{cluster_vars.project_id}}"
@@ -37,6 +37,6 @@
               cluster_suffix: "{{ item.name | regex_replace('^.*-(.*)$', '\\1') }}"
             state: present
           with_items: "{{ hosts_to_relabel }}"
-          when: cluster_vars.type == "gce"
+          when: cluster_vars.type == "gcp"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?!(tagslabels.cluster_suffix) || !(tagslabels.lifecycle_state)]\") }}"

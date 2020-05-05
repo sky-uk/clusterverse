@@ -1,7 +1,7 @@
 ---
 
 - block:
-    - name: remove_maintenance_mode/aws | Get existing AWS instance info
+    - name: remove_maintenance_mode/aws | Get existing AWS EC2 instance info
       ec2_instance_info:
         filters:
           "tag:cluster_name": "{{cluster_name}}"
@@ -27,7 +27,7 @@
   when: cluster_vars.type == "aws"
 
 - block:
-    - name: remove_maintenance_mode/gce | Get existing GCE instance info (per AZ)
+    - name: remove_maintenance_mode/gcp | Get existing GCP GCE instance info (per AZ)
       gcp_compute_instance_info:
         zone: "{{cluster_vars.region}}-{{item}}"
         filters:
@@ -42,7 +42,7 @@
       run_once: true
 
     # Use this because the gce_labels command does not replace existing labels.  https://github.com/ansible/ansible/pull/59891
-    - name: remove_maintenance_mode/gce | Set maintenance_mode to false
+    - name: remove_maintenance_mode/gcp | Set maintenance_mode to false
       gcp_compute_instance:
         name: "{{item.name}}"
         project: "{{cluster_vars.project_id}}"
@@ -55,4 +55,4 @@
       with_items: "{{ r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[]\") }}"
       delegate_to: localhost
       run_once: true
-  when: cluster_vars.type == "gce"
+  when: cluster_vars.type == "gcp"

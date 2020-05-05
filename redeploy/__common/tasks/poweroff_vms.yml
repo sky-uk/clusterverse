@@ -4,7 +4,7 @@
   debug: msg="{{hosts_to_stop}}"
 
 - block:
-    - name: poweroff_vms | Power-off AWS VM(s) and set maintenance_mode=true
+    - name: poweroff_vms | Power-off AWS EC2 VM(s) and set maintenance_mode=true
       block:
         - name: poweroff_vms | Set maintenance_mode label on AWS VM(s)
           ec2_tag:
@@ -16,7 +16,7 @@
               maintenance_mode: "true"
           with_items: "{{ hosts_to_stop }}"
 
-        - name: poweroff_vms | Power-off AWS VM(s)
+        - name: poweroff_vms | Power-off AWS EC2 VM(s)
           ec2:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -29,9 +29,9 @@
       when: cluster_vars.type == "aws"
 
 
-    - name: poweroff_vms | Power-off GCE VMs asynchronously
+    - name: poweroff_vms | Power-off GCP GCE VMs asynchronously
       block:
-        - name: poweroff_vms | Power-off GCE VM(s) and set maintenance_mode=true
+        - name: poweroff_vms | Power-off GCP GCE VM(s) and set maintenance_mode=true
           gcp_compute_instance:
             name: "{{item.name}}"
             project: "{{cluster_vars.project_id}}"
@@ -46,12 +46,12 @@
           async: 7200
           poll: 0
 
-        - name: poweroff_vms | Wait for gce instance(s) to power-off
+        - name: poweroff_vms | Wait for GCP GCE instance(s) to power-off
           async_status:
             jid: "{{ item.ansible_job_id }}"
           register: async_jobs
           until: async_jobs.finished
           retries: 300
           with_items: "{{r__gcp_compute_instance.results}}"
-      when: cluster_vars.type == "gce"
+      when: cluster_vars.type == "gcp"
   when: hosts_to_stop | length

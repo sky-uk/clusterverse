@@ -37,7 +37,7 @@ bind9:
 cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 cluster_vars:
-  type: &cloud_type "gce"
+  type: &cloud_type "gcp"
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
   region: &region "europe-west1"
   dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"

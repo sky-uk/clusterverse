@@ -4,9 +4,9 @@
   include_tasks: aws.yml
   when: cluster_vars.type == "aws"
 
-- name: dynamic_inventory | Derive dynamic inventory for GCE cluster
-  include_tasks: gce.yml
-  when: cluster_vars.type == "gce"
+- name: dynamic_inventory | Derive dynamic inventory for GCP cluster
+  include_tasks: gcp.yml
+  when: cluster_vars.type == "gcp"
 
 - assert: { that: "dynamic_inventory_flat is defined", msg: "dynamic_inventory_flat is not defined" }
 

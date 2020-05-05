@@ -3,7 +3,7 @@
   debug: msg="{{hosts_to_relabel}}"
 
 - block:
-    - name: set_lifecycle_state_label | Change lifecycle_state label on AWS VM
+    - name: set_lifecycle_state_label | Change lifecycle_state label on AWS EC2 VM
       ec2_tag:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -15,7 +15,7 @@
       when: cluster_vars.type == "aws"
 
 
-    - name: set_lifecycle_state_label | Change lifecycle_state label on GCE VM
+    - name: set_lifecycle_state_label | Change lifecycle_state label on GCP GCE VM
       gcp_compute_instance:
         name: "{{item.name}}"
         project: "{{cluster_vars.project_id}}"
@@ -26,5 +26,5 @@
         status: "{{item.instance_state}}"
         labels: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
       with_items: "{{ hosts_to_relabel }}"
-      when: cluster_vars.type == "gce"
+      when: cluster_vars.type == "gcp"
   when: hosts_to_relabel | length
