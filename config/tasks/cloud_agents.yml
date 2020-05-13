@@ -64,7 +64,8 @@
         state: present
 
     - name: cloud_agents | link Tenable Nessus cloud agent (with proxy if applicable)
-      shell: "{{ cloud_agent.tenable.bin_path }}/nessuscli agent link --key={{ tenable_cloud_agent.nessus_key_id }} --groups={{ tenable_cloud_agent.nessus_group_id }} --cloud {%- if 'proxy' in cloud_agent.tenable -%} --proxy-host={{ tenable_cloud_agent.proxy.host }} --proxy-port={{ tenable_cloud_agent.proxy.port }} {%- endif -%}"
+      become: yes
+      shell: "{{ cloud_agent.tenable.bin_path }}/nessuscli agent link --key={{ cloud_agent.tenable.nessus_key_id }} --groups={{ cloud_agent.tenable.nessus_group_id }} --cloud {%- if 'proxy' in cloud_agent.tenable -%} --proxy-host={{ cloud_agent.tenable.proxy.host }} --proxy-port={{ cloud_agent.tenable.proxy.port }} {%- endif -%}"
       when: "'proxy' in cloud_agent.tenable"
 
     - name: cloud_agents | enable and start Tenable Nessus service
