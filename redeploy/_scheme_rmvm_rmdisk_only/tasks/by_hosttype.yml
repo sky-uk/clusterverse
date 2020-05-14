@@ -1,15 +1,15 @@
 ---
 
 - name: set hosts_to_del if canary==start
-  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype][:1]}}
+  set_fact: hosts_to_del={{(cluster_hosts_dict[hosttype] | sort)[:1]}}
   when: (canary is defined and canary=="start")
 
 - name: set hosts_to_del if canary==finish
-  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype][1:]}}
+  set_fact: hosts_to_del={{(cluster_hosts_dict[hosttype] | sort)[1:]}}
   when: (canary is defined and canary=="finish")
 
 - name: set hosts_to_del if canary==none
-  set_fact: hosts_to_del={{cluster_hosts_dict[hosttype]}}
+  set_fact: hosts_to_del={{(cluster_hosts_dict[hosttype] | sort)}}
   when: (canary is defined and canary=="none")
 
 - debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_del | json_query('[].hostname') | join(', ')}}]"
