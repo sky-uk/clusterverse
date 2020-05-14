@@ -20,36 +20,33 @@
       {%- endfor %}
       {{ res }}
 
-- name: get_cluster_hosts_target | cluster_hosts_target
-  debug: msg="{{cluster_hosts_target}}"
-
 - name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_target - add subnets.
   block:
     # Dynamically look up VPC ID by name from aws
     - name: get_cluster_hosts_target | Looking up VPC facts to extract ID
-      ec2_vpc_net_facts:
+      ec2_vpc_net_info:
         region:         "{{ cluster_vars.region }}"
         aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
         aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
         filters:
           "tag:Name": "{{ cluster_vars[buildenv].vpc_name }}"
-      register: r__ec2_vpc_net_facts
+      register: r__ec2_vpc_net_info
       delegate_to: localhost
       run_once: true
 
     - name: get_cluster_hosts_target/aws | Set VPC ID in variable
       set_fact:
-        vpc_id: "{{ r__ec2_vpc_net_facts.vpcs[0].id }}"
+        vpc_id: "{{ r__ec2_vpc_net_info.vpcs[0].id }}"
 
     - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
-      ec2_vpc_subnet_facts:
+      ec2_vpc_subnet_info:
         region:         "{{ cluster_vars.region }}"
         aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
         aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
         filters:
           "tag:Name": "{{ cluster_vars[buildenv].vpc_subnet_name_prefix }}{{item}}"
           vpc-id:     "{{ vpc_id }}"
-      register: r__ec2_vpc_subnet_facts
+      register: r__ec2_vpc_subnet_info
       with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
       delegate_to: localhost
       run_once: true
@@ -63,7 +60,7 @@
           {%- endfor %}
           {{ res }}
       vars:
-        subnet_ids_per_az: "{{r__ec2_vpc_subnet_facts.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"
+        subnet_ids_per_az: "{{r__ec2_vpc_subnet_info.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"
 
     - block:
         - name: get_cluster_hosts_target/aws | Get snapshots info
@@ -84,7 +81,10 @@
             fail_msg: "There are {{ _available_snapshots|length }} available snapshots and {{ cluster_hosts_target|length }} nodes. Snapshot restore available only to the same infrastructure size."
           vars:
             _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].snapshot_id') }}"
+          delegate_to: localhost
+          run_once: true
 
+        ## [ See github.com/ansible/ansible/issues/27299 for reason for  '| to_json | from_json' ]
         - name: get_cluster_hosts_target/aws | update cluster_hosts_target with snapshot_id
           set_fact:
             cluster_hosts_target: |
@@ -119,3 +119,5 @@
 
 - name: get_cluster_hosts_target | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}
+  delegate_to: localhost
+  run_once: true

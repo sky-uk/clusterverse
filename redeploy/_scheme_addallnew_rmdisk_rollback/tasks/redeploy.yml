@@ -27,9 +27,14 @@
       when: testfail is defined and testfail == "fail_1"
   when: canary=="start" or canary=="none"
 
-- name: re-acquire cluster_hosts_target and cluster_hosts_state
-  import_role:
-    name: clusterverse/cluster_hosts
+- block:
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse/cluster_hosts
+
+    - name: re-acquire the dynamic inventory
+      include_role:
+        name: clusterverse/dynamic_inventory
   when: canary=="none"
 
 - name: canary==finish or canary==none

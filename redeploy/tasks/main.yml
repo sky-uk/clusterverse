@@ -10,3 +10,8 @@
   include_role:
     name: "{{role_path}}/{{redeploy_scheme}}"
   when: redeploy_scheme is defined
+
+
+- name: Get the final dynamic inventory (to write out current)
+  include_role:
+    name: clusterverse/dynamic_inventory

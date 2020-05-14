@@ -21,6 +21,9 @@
   with_items: "{{ dynamic_inventory_flat }}"
   retries: 12
 
+- name: dynamic_inventory | Refresh (clean it, because there is no file or plugin inventory defined) the in-memory inventory prior to building it (this is in case this module is called multiple times, and we otherwise only add hosts to existing inventory)
+  meta: refresh_inventory
+
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
@@ -52,3 +55,5 @@
   vars:
     new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
 
+- name: dynamic_inventory | current inventory_hostnames
+  debug:  msg="{{ lookup('inventory_hostnames','all').split(',') }}"

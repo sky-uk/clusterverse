@@ -30,6 +30,7 @@
     - assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
       when: cluster_suffix is defined
     - assert: { that: "'{%- for label in cluster_vars.custom_tagslabels -%}{% if not cluster_vars.custom_tagslabels[label] is regex('^[a-z\\d\\-_]{0,63}$') %}{{label}}: {{cluster_vars.custom_tagslabels[label]}}{% endif %}{%- endfor -%}' == ''", fail_msg: "Please ensure all cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long." }
+      when: "'custom_tagslabels' in cluster_vars"
     - assert: { that: "'{%- for hosttype in cluster_vars[buildenv].hosttype_vars -%}{% if ('version' in cluster_vars[buildenv].hosttype_vars[hosttype]) and (not cluster_vars[buildenv].hosttype_vars[hosttype].version is regex('^[a-z\\d\\-_]{0,63}$')) %}{{cluster_vars[buildenv].hosttype_vars[hosttype].version}}{% endif %}{%- endfor -%}' == ''", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[hosttype].version is in the set [a-z\\d\\-_], and <63 characters long." }
 
     - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }

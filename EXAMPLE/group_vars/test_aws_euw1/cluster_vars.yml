@@ -34,7 +34,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 
 cluster_vars:
   type: &cloud_type "aws"
-  image: "ami-07042e91d04b1c30d"    #eu-west-1, 18.04, amd64, hvm:ebs-ssd, 20200131.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+  image: "ami-0964eb2dc8b836eb6"    # eu-west-1, 18.04, amd64, hvm-ssd, 20200430.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
   region: &region "eu-west-1"
   dns_zone_internal: "{{_region}}.compute.internal"         # eu-west-1, us-west-2
   dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
@@ -50,6 +50,7 @@ cluster_vars:
     inv_service_id: "{{app_class}}"
     inv_cluster_id: "{{cluster_name}}"
     inv_cluster_type: "{{app_name}}"
+    inv_cost_centre: "1234"
   secgroups_existing: []
   secgroup_new:
     - proto: "tcp"
