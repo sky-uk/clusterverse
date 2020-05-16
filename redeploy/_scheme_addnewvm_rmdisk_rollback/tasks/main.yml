@@ -47,8 +47,9 @@
             tasks_from: poweroff_vms.yml
           vars:
             hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+      when: (canary=="finish" or canary=="none")
 
-    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)
       import_role:
         name: clusterverse/cluster_hosts
       when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
