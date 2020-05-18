@@ -32,14 +32,14 @@
         cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | dict_agg('hosttype')}}"
         myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
 
-    - name: Retire any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
+    - name: Remove any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
       block:
         - name: run predeleterole role on any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
             name: "{{predeleterole}}"
           when: predeleterole is defined and predeleterole != ""
           vars:
-            hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+            hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && (contains('RUNNING,running', instance_state))]\") }}"
 
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
@@ -47,8 +47,9 @@
             tasks_from: poweroff_vms.yml
           vars:
             hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+      when: (canary=="finish" or canary=="none")
 
-    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)
       import_role:
         name: clusterverse/cluster_hosts
       when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)

@@ -38,7 +38,7 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 
 cluster_vars:
   type: &cloud_type "gcp"
-  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20191113"
+  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20200430"
   region: &region "europe-west1"
   dns_zone_internal: "c.{{gcp_credentials_json.project_id}}.internal"
   dns_zone_external: "{%- if dns_tld_external -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{dns_tld_external}} {%- endif -%}"
@@ -55,6 +55,7 @@ cluster_vars:
     inv_service_id: "{{app_class}}"
     inv_cluster_id: "{{cluster_name}}"
     inv_cluster_type: "{{app_name}}"
+    inv_cost_centre: "1234"
   network_fw_tags: ["{{cluster_name}}-nwtag"]
   firewall_rules:
     - name: "{{cluster_name}}-extssh"

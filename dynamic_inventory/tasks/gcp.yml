@@ -16,7 +16,7 @@
   delegate_to: localhost
   run_once: true
 
-- debug: msg={{r__gcp_compute_instance_info}}
+#- debug: msg={{r__gcp_compute_instance_info}}
 
 - name: dynamic_inventory/gcp | Set dynamic_inventory_flat
   set_fact:

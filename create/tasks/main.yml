@@ -18,7 +18,7 @@
 
     - debug: msg="release_version = {{release_version}}"
   vars:
-    current_release_versions: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].tagslabels.release\") | default([]) }}"
+    current_release_versions: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current' && tagslabels.release].tagslabels.release\") | default([]) }}"
 
 
 - name: Create AWS cluster

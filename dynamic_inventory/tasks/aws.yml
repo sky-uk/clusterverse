@@ -11,7 +11,7 @@
   register: r__ec2_instance_info
   delegate_to: localhost
 
-- debug: msg={{r__ec2_instance_info}}
+#- debug: msg={{r__ec2_instance_info}}
 
 - name: dynamic_inventory/aws | Set dynamic_inventory_flat
   set_fact:

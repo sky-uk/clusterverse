@@ -12,6 +12,10 @@
 - fail:
   when: testfail is defined and testfail == "fail_1"
 
+- name: re-acquire the dynamic inventory
+  include_role:
+    name: clusterverse/dynamic_inventory
+
 - name: re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse/cluster_hosts
@@ -29,6 +33,14 @@
         tasks_from: poweroff_vms.yml
       vars:
         hosts_to_stop: "{{ hosts_to_remove }}"
+
+    - name: re-acquire the dynamic inventory
+      include_role:
+        name: clusterverse/dynamic_inventory
+
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse/cluster_hosts
 
     - fail:
       when: testfail is defined and testfail == "fail_2"
