@@ -97,7 +97,7 @@
           gcp_dns_managed_zone_info:
             auth_kind: serviceaccount
             dns_name: "{{dns_tld_external}}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
             service_account_file: "{{gcp_credentials_file}}"
           register: r__gcp_dns_managed_zone_info
 
@@ -107,7 +107,7 @@
             managed_zone:
               name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
               dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
             service_account_file: "{{gcp_credentials_file}}"
           register: r__gcp_dns_resource_record_set_info
 
@@ -118,7 +118,7 @@
               name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
               dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
             name: "{{ item.1.name }}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
             service_account_file: "{{gcp_credentials_file}}"
             state: absent
             target: "{{ item.1.rrdatas }}"
@@ -135,7 +135,7 @@
               name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
               dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
             name: "{{ item.1.name }}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
             service_account_file: "{{gcp_credentials_file}}"
             state: absent
             target: "{{ item.1.rrdatas[0] }}"

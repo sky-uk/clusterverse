@@ -40,7 +40,7 @@
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{dns_tld_external}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: gcp_dns_managed_zone_info
       become: false
@@ -54,7 +54,7 @@
           name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
           dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
         name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
         target: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
