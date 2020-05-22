@@ -64,7 +64,7 @@
       run_once: true
       with_nested:
         - "{{ cluster_hosts_target }}"
-        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + dns_tld_external + \"`]\") }}"
+        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + dns_tld_external + \"` && !(peeringConfig)]\") }}"
   when: cluster_vars.dns_server=="clouddns"
 
 - block:
