@@ -28,7 +28,7 @@
         - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to GCP GCE VM
           gce_labels:
             resource_name: "{{item.name}}"
-            project_id: "{{cluster_vars.project_id}}"
+            project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
             resource_location: "{{item.regionzone}}"
             credentials_file: "{{gcp_credentials_file}}"
             resource_type: instances

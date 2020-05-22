@@ -7,7 +7,7 @@
     filters:
       - "name = {{cluster_name}}*"
       - "status = RUNNING"            # gcloud compute instances list --filter="status=RUNNING"
-    project: "{{cluster_vars.project_id}}"
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     scopes: ["https://www.googleapis.com/auth/compute.readonly"]

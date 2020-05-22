@@ -39,7 +39,7 @@
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{dns_tld_external}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_dns_managed_zone_info
       become: false
@@ -53,7 +53,7 @@
           name: "{{item.1.name}}"
           dnsName: "{{item.1.dnsName}}"
         name: "{{item.0.hostname}}.{{cluster_vars.dns_zone_external}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
         target: "{%- if item.1.visibility == 'private' -%} {{ hostvars[item.0.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.0.hostname]['ansible_host'] }} {%- endif -%}"

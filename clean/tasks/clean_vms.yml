@@ -34,7 +34,7 @@
 #        - name: clean/del_vms/gcp | Remove deletion protection (broken until https://github.com/ansible-collections/ansible_collections_google/pull/163 gets into a release)
 #          gcp_compute_instance:
 #            name: "{{item.name}}"
-#            project: "{{cluster_vars.project_id}}"
+#            project: "{{cluster_vars[buildenv].vpc_project_id}}"
 #            zone: "{{ item.regionzone }}"
 #            auth_kind: "serviceaccount"
 #            service_account_file: "{{gcp_credentials_file}}"
@@ -44,7 +44,7 @@
         - name: clean/del_vms/gcp | Delete GCE VM
           gcp_compute_instance:
             name: "{{item.name}}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_project_id}}"
             zone: "{{ item.regionzone }}"
             auth_kind: "serviceaccount"
             service_account_file: "{{gcp_credentials_file}}"

@@ -45,7 +45,6 @@ cluster_vars:
   dns_server: ""                            # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"                    # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
-  project_id: &project_id "{{gcp_credentials_json.project_id}}"
   ip_forward: "false"
   ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
   custom_tagslabels:
@@ -74,7 +73,8 @@ cluster_vars:
     hosttype_vars:
       sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sys_version | default('')}}", auto_volumes: []}
       #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
-    vpc_network_project_id: *project_id        # Set this to *project_id if no separate network project
+    vpc_project_id: "{{gcp_credentials_json.project_id}}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+    vpc_host_project_id: "{{gcp_credentials_json.project_id}}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""
     preemptible: "no"

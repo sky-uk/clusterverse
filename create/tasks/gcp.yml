@@ -6,7 +6,7 @@
       gcp_compute_network:
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
         auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_compute_network
@@ -15,7 +15,7 @@
       gcp_compute_subnetwork:
         name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
         network: "{{r__gcp_compute_network}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
@@ -28,7 +28,7 @@
       gcp_compute_network_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_network_name}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -41,7 +41,7 @@
       gcp_compute_subnetwork_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -64,7 +64,7 @@
         network: "{{r__gcp_compute_network_info['resources'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars[buildenv].vpc_network_project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
       with_items: "{{ cluster_vars.firewall_rules }}"
 
 
@@ -78,7 +78,7 @@
       gcp_compute_instance:
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
