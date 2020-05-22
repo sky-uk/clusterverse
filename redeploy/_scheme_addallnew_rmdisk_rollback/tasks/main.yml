@@ -28,7 +28,7 @@
     - import_role:
         name: clusterverse/clean
         tasks_from: clean_dns.yml
-      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_nameserver_zone is defined and cluster_vars.dns_nameserver_zone != "")
 
     - import_role:
         name: clusterverse/clean
