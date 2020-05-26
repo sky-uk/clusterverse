@@ -4,7 +4,7 @@
   block:
     - name: clean | Delete DNS
       include_tasks: clean_dns.yml
-      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_nameserver_zone is defined and cluster_vars.dns_nameserver_zone != "")
+      when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
 
     - name: clean | Delete VMs
       include_tasks: clean_vms.yml

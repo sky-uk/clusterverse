@@ -44,9 +44,9 @@ cluster_vars:
   type: &cloud_type "gcp"
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20200430"
   region: &region "europe-west1"
-  dns_cloud_internal_domain: "c.{{gcp_credentials_json.project_id}}.internal"
-  dns_nameserver_zone: &dns_nameserver_zone ""              # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
-  dns_fqdn_domain: "{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}"         # The _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
+  dns_cloud_internal_domain: "c.{{gcp_credentials_json.project_id}}.internal"   # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_nameserver_zone: &dns_nameserver_zone ""                                  # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
   dns_server: ""                            # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"                    # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'

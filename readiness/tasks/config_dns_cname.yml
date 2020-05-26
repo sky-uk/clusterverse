@@ -6,8 +6,8 @@
     key_secret: "{{bind9[buildenv].key_secret}}"
     server: "{{bind9[buildenv].server}}"
     zone: "{{cluster_vars.dns_nameserver_zone}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_fqdn_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
-    value:  "{{item.hostname}}.{{cluster_vars.dns_fqdn_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+    value:  "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
     type: CNAME
     state: present
     ttl: 30
@@ -22,10 +22,10 @@
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
     state: present
     zone: "{{cluster_vars.dns_nameserver_zone}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_fqdn_domain}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
     type: CNAME
     ttl: 30
-    value: "{{item.hostname}}.{{cluster_vars.dns_fqdn_domain}}"
+    value: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
     private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
     overwrite: true
   with_items: "{{ cluster_hosts_target }}"
@@ -53,11 +53,11 @@
         managed_zone:
           name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
           dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
-        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_fqdn_domain}}"
+        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
         project: "{{cluster_vars.project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{{item.hostname}}.{{cluster_vars.dns_fqdn_domain}}"
+        target: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
         type: CNAME
         ttl: 60
       with_items: "{{ cluster_hosts_target }}"
