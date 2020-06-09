@@ -38,25 +38,43 @@
     - name: config/dns/a/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
-        dns_name: "{{dns_tld_external}}"
-        project: "{{cluster_vars.project_id}}"
+        dns_name: "{{cluster_vars.dns_zone_external}}"
+        project: "{{cluster_vars[buildenv].vpc_network_project}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_dns_managed_zone_info
       become: false
       delegate_to: localhost
       run_once: true
 
+    # - debug: msg={{ r__gcp_dns_managed_zone_info.resources.1.name }}
+
+    # - debug: msg={{ r__gcp_dns_managed_zone_info.resources.1.dnsName }}
+
+    # - debug: msg={{ cluster_hosts_target }}  
+
+    # - debug: msg={{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }}
+    #   with_items: "{{ cluster_hosts_target }}"  
+    
+    # - debug: msg={{ hostvars[item.hostname]['ansible_host'] }}
+    #   with_items: "{{ cluster_hosts_target }}"
+
+    # - debug: msg={{ hostvars[item]['ansible_default_ipv4']['address'] }}
+    #   with_items: "{{ cluster_hosts_target | json_query('[].hostname') }}"
+
+    # - debug: msg={{item.hostname}}.{{cluster_vars.dns_zone_external}}
+    #   with_items: "{{ cluster_hosts_target }}"
+
     - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
-          name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
-          dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
+          name: "{{r__gcp_dns_managed_zone_info.resources.1.name}}"
+          dnsName: "{{r__gcp_dns_managed_zone_info.resources.1.dnsName}}"
         name: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_network_project}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{%- if r__gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
+        target: "{%- if r__gcp_dns_managed_zone_info.resources.1.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
         type: A
         ttl: 60
       become: false

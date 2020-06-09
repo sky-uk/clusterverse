@@ -91,58 +91,61 @@
       when: cluster_vars.dns_server == "route53"
 
 
-    - name: clean/dns/clouddns | Delete DNS entries from clouddns
-      block:
-        - name: clean/dns/clouddns | Get GCP Managed Zone
-          gcp_dns_managed_zone_info:
-            auth_kind: serviceaccount
-            dns_name: "{{dns_tld_external}}"
-            project: "{{cluster_vars.project_id}}"
-            service_account_file: "{{gcp_credentials_file}}"
-          register: r__gcp_dns_managed_zone_info
+  #   - name: clean/dns/clouddns | Delete DNS entries from clouddns
+  #     block:
+  #       - name: clean/dns/clouddns | Get GCP Managed Zone
+  #         gcp_dns_managed_zone_info:
+  #           auth_kind: serviceaccount
+  #           dns_name: "{{cluster_vars.dns_zone_external}}"
+  #           project: "{{cluster_vars[buildenv].vpc_network_project}}"
+  #           service_account_file: "{{gcp_credentials_file}}"
+  #         register: r__gcp_dns_managed_zone_info
+  #         become: false
+  #         delegate_to: localhost
+  #         run_once: true
 
-        - name: clean/dns/clouddns | Get DNS entries
-          gcp_dns_resource_record_set_info:
-            auth_kind: serviceaccount
-            managed_zone:
-              name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
-              dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
-            project: "{{cluster_vars.project_id}}"
-            service_account_file: "{{gcp_credentials_file}}"
-          register: r__gcp_dns_resource_record_set_info
+  #       - name: clean/dns/clouddns | Get DNS entries
+  #         gcp_dns_resource_record_set_info:
+  #           auth_kind: serviceaccount
+  #           managed_zone:
+  #             name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
+  #             dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
+  #           project: "{{cluster_vars[buildenv].vpc_network_project}}"
+  #           service_account_file: "{{gcp_credentials_file}}"
+  #         register: r__gcp_dns_resource_record_set_info
 
-        - name: clean/dns/clouddns | Delete A records
-          gcp_dns_resource_record_set:
-            auth_kind: serviceaccount
-            managed_zone:
-              name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
-              dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
-            name: "{{ item.1.name }}"
-            project: "{{cluster_vars.project_id}}"
-            service_account_file: "{{gcp_credentials_file}}"
-            state: absent
-            target: "{{ item.1.rrdatas }}"
-            type: A
-          with_nested:
-            - "{{ hosts_to_clean }}"
-            - "{{ r__gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
-          when: item.0.name == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1'))
+  #       - name: clean/dns/clouddns | Delete A records
+  #         gcp_dns_resource_record_set:
+  #           auth_kind: serviceaccount
+  #           managed_zone:
+  #             name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
+  #             dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
+  #           name: "{{ item.1.name }}"
+  #           project: "{{cluster_vars.project_id}}"
+  #           service_account_file: "{{gcp_credentials_file}}"
+  #           state: absent
+  #           target: "{{ item.1.rrdatas }}"
+  #           type: A
+  #         with_nested:
+  #           - "{{ hosts_to_clean }}"
+  #           - "{{ r__gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='A']\") }}"
+  #         when: item.0.name == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1'))
 
-        - name: clean/dns/clouddns | Delete CNAME records
-          gcp_dns_resource_record_set:
-            auth_kind: serviceaccount
-            managed_zone:
-              name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
-              dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
-            name: "{{ item.1.name }}"
-            project: "{{cluster_vars.project_id}}"
-            service_account_file: "{{gcp_credentials_file}}"
-            state: absent
-            target: "{{ item.1.rrdatas[0] }}"
-            type: CNAME
-          with_nested:
-            - "{{ hosts_to_clean }}"
-            - "{{ r__gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
-          when: ((item.0.name |regex_replace('-(?!.*-).*')) == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
-      when: cluster_vars.dns_server=="clouddns"
-  when: hosts_to_clean | length
+  #       - name: clean/dns/clouddns | Delete CNAME records
+  #         gcp_dns_resource_record_set:
+  #           auth_kind: serviceaccount
+  #           managed_zone:
+  #             name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
+  #             dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
+  #           name: "{{ item.1.name }}"
+  #           project: "{{cluster_vars.project_id}}"
+  #           service_account_file: "{{gcp_credentials_file}}"
+  #           state: absent
+  #           target: "{{ item.1.rrdatas[0] }}"
+  #           type: CNAME
+  #         with_nested:
+  #           - "{{ hosts_to_clean }}"
+  #           - "{{ r__gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='CNAME']\") }}"
+  #         when: ((item.0.name |regex_replace('-(?!.*-).*')) == (item.1.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
+  #     when: cluster_vars.dns_server=="clouddns"
+  # when: hosts_to_clean | length

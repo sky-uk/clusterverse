@@ -24,35 +24,35 @@
 
 - name: create/gcp | Create GCP firewalls
   block:
-    - name: create/gcp | Get GCP network facts
-      gcp_compute_network_info:
-        filters:
-          - "name = {{cluster_vars[buildenv].vpc_network_name}}"
-        project: "{{cluster_vars.project_id}}"
-        auth_kind: "serviceaccount"
-        service_account_file: "{{gcp_credentials_file}}"
-        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-      register: r__gcp_compute_network_info
+    # - name: create/gcp | Get GCP network facts
+    #   gcp_compute_network_info:
+    #     filters:
+    #       - "name = {{cluster_vars[buildenv].vpc_network_name}}"
+    #     project: "{{cluster_vars.project_id}}"
+    #     auth_kind: "serviceaccount"
+    #     service_account_file: "{{gcp_credentials_file}}"
+    #     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+    #   register: r__gcp_compute_network_info
 
-    - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
-      assert: { that: "r__gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gcp_network=true')" }
+    # - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
+    #   assert: { that: "r__gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist (create with ' -e create_gcp_network=true')" }
 
-    - name: create/gcp | Get GCP subnetwork facts
-      gcp_compute_subnetwork_info:
-        filters:
-          - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
-        project: "{{cluster_vars.project_id}}"
-        auth_kind: "serviceaccount"
-        service_account_file: "{{gcp_credentials_file}}"
-        scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-        region: "{{cluster_vars.region}}"
-      register: gcp_compute_subnetwork_info
-      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
+    # - name: create/gcp | Get GCP subnetwork facts
+    #   gcp_compute_subnetwork_info:
+    #     filters:
+    #       - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
+    #     project: "{{cluster_vars.project_id}}"
+    #     auth_kind: "serviceaccount"
+    #     service_account_file: "{{gcp_credentials_file}}"
+    #     scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+    #     region: "{{cluster_vars.region}}"
+    #   register: gcp_compute_subnetwork_info
+    #   when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
-    - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
-      assert: { that: "gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
-      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
-
+    # - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
+    #   assert: { that: "gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
+    #   when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
+    
     - name: create/gcp | Create GCP cluster firewalls
       gcp_compute_firewall:
         name: "{{ item.name }}"
@@ -61,13 +61,14 @@
         description: "{{ item.description }}"
         source_ranges: "{{ item.source_ranges | default([]) }}"
         source_tags: "{{ item.source_tags | default([]) }}"
-        network: "{{r__gcp_compute_network_info['resources'][0]}}"
+        network: 
+          selfLink: "{{cluster_vars[buildenv].vpc_network_dict}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_network_project}}"
       with_items: "{{ cluster_vars.firewall_rules }}"
 
-- name: create/gcp | Generate GCE ssh public key from the private key provided on the command line
+- name: create/gcp | Generate gcp ssh public key from the private key provided on the command line
   shell: ssh-keygen -y -f "{{ ansible_ssh_private_key_file }}"
   register: r__gcp_ssh_pubkey
 
@@ -78,17 +79,30 @@
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         project: "{{cluster_vars.project_id}}"
-        zone: "{{cluster_vars.region}}-{{item.az_name}}"
+        zone: "{{_region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{_host_disks}}"
         metadata:
           startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
-          ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }} {{ cliargs.remote_user }}"
-        labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
+          ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }}"
+        labels:
+          hosttype: "{{item.hosttype}}"
+          env: "{{buildenv}}"
+          cluster_name: "{{cluster_name}}"
+          cluster_suffix: "{{cluster_suffix}}"
+          owner: "{{ lookup('env','USER')| lower  }}"
+          maintenance_mode: "true"
+          release: "{{ release_version }}"
+          lifecycle_state: "current"
+        # network_interfaces:
+        #   - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
+        #     subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
         network_interfaces:
-          - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
-            subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
+          - network: 
+              selfLink: "https://www.googleapis.com/compute/v1/projects/{{cluster_vars[buildenv].vpc_network_project}}/global/networks/{{cluster_vars[buildenv].vpc_network_name}}"
+            subnetwork: 
+              selfLink: "https://www.googleapis.com/compute/v1/projects/{{cluster_vars[buildenv].vpc_network_project}}/regions/{{_region}}/subnetworks/{{cluster_vars[buildenv].vpc_subnet_name}}"
             access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
         tags: { items: "{{cluster_vars.network_fw_tags}}" }
         can_ip_forward : "{{cluster_vars.ip_forward}}"
@@ -100,22 +114,12 @@
         _autodisks: "{{__autodisksnames | to_json | from_json | json_query(\" [].{auto_delete: auto_delete, interface: interface, device_name: join('',[`\"+item.hostname+\"--`,mountname]), initialize_params: {disk_name: join('',[`\"+item.hostname+\"--`,mountname]), disk_size_gb: volume_size}} \") }}"
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{item.rootvol_size}}"}}
         _host_disks: "{{[_bootdisk] + _autodisks}}"
-        _labels:
-          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
-          inv_node_type: "{{item.hosttype}}"
-          hosttype: "{{item.hosttype}}"
-          cluster_name: "{{cluster_name}}"
-          cluster_suffix: "{{cluster_suffix}}"
-          owner: "{{ lookup('env','USER') | lower }}"
-          maintenance_mode: "true"
-          release: "{{ release_version }}"
-          lifecycle_state: "current"
       register: gcp_compute_instance
       with_items: "{{cluster_hosts_target}}"
       async: 7200
       poll: 0
 
-    - name: create/gcp | Wait for GCE instance creation to complete
+    - name: create/gcp | Wait for gcp instance creation to complete
       async_status:
         jid: "{{ item.ansible_job_id }}"
       register: gcp_jobs
