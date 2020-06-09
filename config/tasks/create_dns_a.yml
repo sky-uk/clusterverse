@@ -61,7 +61,7 @@
     # - debug: msg={{ hostvars[item]['ansible_default_ipv4']['address'] }}
     #   with_items: "{{ cluster_hosts_target | json_query('[].hostname') }}"
 
-    # - debug: msg={{item.hostname}}.{{cluster_vars.dns_zone_external}}
+    # - debug: msg={{item.hostname}}.{{cluster_vars.dns_user_domain}}
     #   with_items: "{{ cluster_hosts_target }}"
 
     - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
