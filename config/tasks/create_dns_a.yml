@@ -68,6 +68,10 @@
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
+          ### Needs to be refined during tech debt ###
+          # Switch to resources.0.name if building in MGMT
+          # Switch to resources.1.name if building in DEV/STG/PROD
+          # Maybe: if - "{{ r__gcp_dns_resource_record_set_info.resources | json_query(\"[?type=='us-west2']\") }}"
           name: "{{r__gcp_dns_managed_zone_info.resources.1.name}}"
           dnsName: "{{r__gcp_dns_managed_zone_info.resources.1.dnsName}}"
         name: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
