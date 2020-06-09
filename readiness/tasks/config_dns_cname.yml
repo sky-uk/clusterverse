@@ -5,9 +5,9 @@
     key_name: "{{bind9[buildenv].key_name}}"
     key_secret: "{{bind9[buildenv].key_secret}}"
     server: "{{bind9[buildenv].server}}"
-    zone: "{{dns_tld_external}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
-    value:  "{{item.hostname}}.{{cluster_vars.dns_zone_external | regex_replace('^(.*?)\\.' + dns_tld_external, '\\1')}}"
+    zone: "{{cluster_vars.dns_nameserver_zone}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+    value:  "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
     type: CNAME
     state: present
     ttl: 30
@@ -21,11 +21,11 @@
     aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
     state: present
-    zone: "{{dns_tld_external}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
+    zone: "{{cluster_vars.dns_nameserver_zone}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
     type: CNAME
     ttl: 30
-    value: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
+    value: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
     private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
     overwrite: true
   with_items: "{{ cluster_hosts_target }}"
@@ -39,7 +39,7 @@
     - name: create/dns/cname/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
-        dns_name: "{{cluster_vars.dns_zone_external}}"
+        dns_name: "{{cluster_vars.dns_nameserver_zone}}"
         project: "{{cluster_vars[buildenv].vpc_network_project}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_dns_managed_zone_info
@@ -53,11 +53,11 @@
         managed_zone:
           name: "{{r__gcp_dns_managed_zone_info.resources.1.name}}"
           dnsName: "{{r__gcp_dns_managed_zone_info.resources.1.dnsName}}"    
-        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_zone_external}}"
+        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
         project: "{{cluster_vars[buildenv].vpc_network_project}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{{item.hostname}}.{{cluster_vars.dns_zone_external}}"
+        target: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
         type: CNAME
         ttl: 60
       with_items: "{{ cluster_hosts_target }}"

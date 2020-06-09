@@ -39,7 +39,7 @@
   lineinfile:
     path: /etc/hosts
     regexp: '^{{ansible_default_ipv4.address}}'
-    line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}.{{cluster_vars.dns_zone_external}} {{inventory_hostname}}'
+    line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}.{{cluster_vars.dns_user_domain}} {{inventory_hostname}}'
 #    regexp: '^127\.0\.1\.1'
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"
@@ -91,4 +91,4 @@
 
 - name: create DNS A records
   include_tasks: create_dns_a.yml
-  when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_zone_external is defined and cluster_vars.dns_zone_external != "")
+  when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")

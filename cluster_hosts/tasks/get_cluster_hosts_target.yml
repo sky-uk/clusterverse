@@ -44,23 +44,19 @@
         aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
         aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
         filters:
-          "tag:Name": "{{ cluster_vars[buildenv].vpc_subnet_name_prefix }}{{item}}"
           vpc-id:     "{{ vpc_id }}"
       register: r__ec2_vpc_subnet_info
-      with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
       delegate_to: localhost
       run_once: true
 
     - name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
       set_fact:
         cluster_hosts_target: |
-          {% set res = cluster_hosts_target -%}
-          {%- for host in res -%}
-            {%- set _dummy = host.update({'vpc_subnet_id': subnet_ids_per_az[host.az_name][0].subnet_id | string}) -%}
+          {%- for host in cluster_hosts_target -%}
+            {%- set subnet_id = r__ec2_vpc_subnet_info | to_json | from_json | json_query('subnets[?starts_with(tags.Name, \'' + cluster_vars[buildenv].vpc_subnet_name_prefix + host.az_name +'\')].subnet_id|[0]') -%}
+            {%- set _dummy = host.update({'vpc_subnet_id': subnet_id | string}) -%}
           {%- endfor %}
-          {{ res }}
-      vars:
-        subnet_ids_per_az: "{{r__ec2_vpc_subnet_info.results | json_query('[*].{az_name: item, subnet_id: subnets[0].id, subnet_name: subnets[0].tags.Name, vpc_id: subnets[0].vpc_id}') | dict_agg('az_name')}}"
+          {{ cluster_hosts_target }}
 
     - block:
         - name: get_cluster_hosts_target/aws | Get snapshots info
