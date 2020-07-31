@@ -62,7 +62,7 @@
         ttl: 60
       with_nested:
         - "{{ cluster_hosts_target }}"
-        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + dns_tld_external + \"` && !(peeringConfig)]\") }}"
+        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
       become: false
       delegate_to: localhost
       run_once: true

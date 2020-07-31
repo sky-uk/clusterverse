@@ -37,7 +37,7 @@
   poll: 0
   register: route53_records
 
-- name: config/dns/a/route53 | Wait for records to bereplicated to all Amazon Route 53 DNS servers
+- name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
   async_status:
     jid: "{{ item.ansible_job_id }}"
   register: route53_jobs
@@ -47,6 +47,7 @@
   run_once: true
   with_items: "{{route53_records.results}}"
   delegate_to: localhost
+  when: cluster_vars.dns_server=="route53"
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
   block:
@@ -79,7 +80,7 @@
       run_once: true
       with_nested:
         - "{{ cluster_hosts_target }}"
-        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + dns_tld_external + \"` && !(peeringConfig)]\") }}"
+        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
   when: cluster_vars.dns_server=="clouddns"
 
 - block:
