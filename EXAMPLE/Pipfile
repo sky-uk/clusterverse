@@ -13,9 +13,6 @@ ansible = ">=2.9"
 jmespath = "*"
 dnspython = "*"
 google-auth = "*"
-netaddr = "*"
-passlib = "*"
-apache-libcloud = "*"
 google-api-python-client = "*"
 
 [dev-packages]
