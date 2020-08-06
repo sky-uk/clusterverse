@@ -6,7 +6,7 @@
       gcp_compute_network:
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
         auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_compute_network
@@ -15,7 +15,7 @@
       gcp_compute_subnetwork:
         name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
         network: "{{r__gcp_compute_network}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
@@ -28,7 +28,7 @@
       gcp_compute_network_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_network_name}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
@@ -41,16 +41,16 @@
       gcp_compute_subnetwork_info:
         filters:
           - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
         region: "{{cluster_vars.region}}"
-      register: gcp_compute_subnetwork_info
+      register: r__gcp_compute_subnetwork_info
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
     - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
-      assert: { that: "gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
+      assert: { that: "r__gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
       when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
 
     - name: create/gcp | Create GCP cluster firewalls
@@ -64,8 +64,9 @@
         network: "{{r__gcp_compute_network_info['resources'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
       with_items: "{{ cluster_vars.firewall_rules }}"
+
 
 - name: create/gcp | Generate GCE ssh public key from the private key provided on the command line
   shell: ssh-keygen -y -f "{{ ansible_ssh_private_key_file }}"
@@ -77,21 +78,22 @@
       gcp_compute_instance:
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{_host_disks}}"
         metadata:
           startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
-          ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }} {{ cliargs.remote_user }}"
+          ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }}"
+          # ssh-keys: "{{ cliargs.remote_user }}:{{ r__gcp_ssh_pubkey.stdout }} {{ cliargs.remote_user }}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
         network_interfaces:
           - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
-            subnetwork: "{{ gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
+            subnetwork: "{{ r__gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
             access_configs: "{%- if cluster_vars.assign_public_ip == 'yes' -%}[{\"name\": \"External NAT\", \"type\": \"ONE_TO_ONE_NAT\"}]{%- else -%}[]{%- endif -%}"
         tags: { items: "{{cluster_vars.network_fw_tags}}" }
-        can_ip_forward : "{{cluster_vars.ip_forward}}"
+        can_ip_forward: "{{cluster_vars.ip_forward}}"
         scheduling: { automatic_restart: yes, preemptible: "{{cluster_vars[buildenv].preemptible}}" }
         state: present
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"

@@ -40,9 +40,9 @@
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{cluster_vars.dns_nameserver_zone}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
-      register: gcp_dns_managed_zone_info
+      register: r__gcp_dns_managed_zone_info
       become: false
       delegate_to: localhost
       run_once: true
@@ -51,16 +51,18 @@
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
-          name: "{{gcp_dns_managed_zone_info.resources.0.name}}"
-          dnsName: "{{gcp_dns_managed_zone_info.resources.0.dnsName}}"
-        name: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
-        project: "{{cluster_vars.project_id}}"
+          name: "{{item.1.name}}"
+          dnsName: "{{item.1.dnsName}}"
+        name: "{{item.0.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
+        target: "{{item.0.hostname}}.{{cluster_vars.dns_user_domain}}"
         type: CNAME
         ttl: 60
-      with_items: "{{ cluster_hosts_target }}"
+      with_nested:
+        - "{{ cluster_hosts_target }}"
+        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
       become: false
       delegate_to: localhost
       run_once: true
