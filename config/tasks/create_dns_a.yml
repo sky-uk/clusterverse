@@ -37,7 +37,7 @@
   poll: 0
   register: route53_records
 
-- name: config/dns/a/route53 | Wait for records to bereplicated to all Amazon Route 53 DNS servers
+- name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
   async_status:
     jid: "{{ item.ansible_job_id }}"
   register: route53_jobs
@@ -47,6 +47,7 @@
   run_once: true
   with_items: "{{route53_records.results}}"
   delegate_to: localhost
+  when: cluster_vars.dns_server=="route53"
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
   block:
@@ -54,30 +55,32 @@
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{cluster_vars.dns_nameserver_zone}}"
-        project: "{{cluster_vars.project_id}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
       register: r__gcp_dns_managed_zone_info
       become: false
       delegate_to: localhost
       run_once: true
 
-    - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
+    - name: config/dns/a/clouddns | create/update A records for all matching zones, (could be multiple, e.g. public/ private) in GCP (clouddns)
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
-          name: "{{r__gcp_dns_managed_zone_info.resources.0.name}}"
-          dnsName: "{{r__gcp_dns_managed_zone_info.resources.0.dnsName}}"
-        name: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
-        project: "{{cluster_vars.project_id}}"
+          name: "{{item.1.name}}"
+          dnsName: "{{item.1.dnsName}}"
+        name: "{{item.0.hostname}}.{{cluster_vars.dns_user_domain}}"
+        project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{%- if r__gcp_dns_managed_zone_info.resources.0.visibility == 'private' -%} {{ hostvars[item.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.hostname]['ansible_host'] }} {%- endif -%}"
+        target: "{%- if item.1.visibility == 'private' -%} {{ hostvars[item.0.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.0.hostname]['ansible_host'] }} {%- endif -%}"
         type: A
         ttl: 60
       become: false
       delegate_to: localhost
       run_once: true
-      with_items: "{{ cluster_hosts_target }}"
+      with_nested:
+        - "{{ cluster_hosts_target }}"
+        - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
   when: cluster_vars.dns_server=="clouddns"
 
 - block:

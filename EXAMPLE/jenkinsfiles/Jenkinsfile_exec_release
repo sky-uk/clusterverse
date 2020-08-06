@@ -50,6 +50,6 @@ pipeline {
     //       build job: "clusterverse-release-deploy", wait: false, parameters: [string(name: 'GENUINE_BUILD', value: "true"), string(name: 'DEPLOY_ENV', value: "sandbox"), string(name: 'RELEASE', value: "${VERSION_TO_DEPLOY}")]
     //     }
     //   }
-    // }        
+    // }
   }
 }

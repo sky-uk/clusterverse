@@ -19,5 +19,6 @@
 ##
 
 - name: Perform cluster readiness operations
-  hosts: all
+  hosts: localhost
+  connection: local
   roles: [ { role: clusterverse/readiness, tags: [clusterverse_readiness] } ]

@@ -34,7 +34,7 @@
         - name: poweroff_vms | Power-off GCP GCE VM(s) and set maintenance_mode=true
           gcp_compute_instance:
             name: "{{item.name}}"
-            project: "{{cluster_vars.project_id}}"
+            project: "{{cluster_vars[buildenv].vpc_project_id}}"
             zone: "{{ item.regionzone }}"
             auth_kind: "serviceaccount"
             service_account_file: "{{gcp_credentials_file}}"
