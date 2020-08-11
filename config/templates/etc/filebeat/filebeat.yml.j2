@@ -30,7 +30,11 @@ filebeat.inputs:
     - /var/log/messages
     - /var/log/secure
     - /var/log/dmesg
-
+{% if beats_config.filebeat.extra_logs_paths %}
+{% for logpath in beats_config.filebeat.extra_logs_paths %}
+    - {{ logpath }}
+{% endfor %}
+{% endif %}
     #- c:\programdata\elasticsearch\logs\*
 
   # Exclude lines. A list of regular expressions to match. It drops the lines that are
@@ -150,20 +154,23 @@ setup.kibana:
 # Configure what output to use when sending the data collected by the beat.
 
 #-------------------------- Elasticsearch output ------------------------------
-#output.elasticsearch:
+{% if beats_config.filebeat.elasticsearch_output_hosts %}
+output.elasticsearch:
   # Array of hosts to connect to.
-  #hosts: ["localhost:9200"]
-
+  hosts: {{ beats_config.filebeat.output_elasticsearch_hosts | default(beats_target_hosts) }}
+{% endif %}
   # Optional protocol and basic auth credentials.
   #protocol: "https"
   #username: "elastic"
   #password: "changeme"
 
 #----------------------------- Logstash output --------------------------------
+{% if beats_config.filebeat.logstash_output_hosts %}
 output.logstash:
   # The Logstash hosts
-  hosts: {{ beats_target_hosts }}
-
+  # "beats_target_hosts" below refers to a previous Clusterverse release variable, it will be deprecated in Clusterverse 4.0
+  hosts: {{ beats_config.filebeat.output_logstash_hosts | default(beats_target_hosts) }}
+{% endif %}
   # Optional SSL. By default is off.
   # List of root certificates for HTTPS server verifications
   #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
