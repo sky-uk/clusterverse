@@ -90,7 +90,7 @@ setup.kibana:
 # Configure what output to use when sending the data collected by the beat.
 
 #-------------------------- Elasticsearch output ------------------------------
-{% if beats_config.metricbeat.elasticsearch_output_hosts %}
+{% if beats_config.metricbeat.output_elasticsearch_hosts is defined and (beats_config.metricbeat.output_elasticsearch_hosts | length) %}
 output.elasticsearch:
   # Array of hosts to connect to.
   hosts: {{ beats_config.metricbeat.output_elasticsearch_hosts | default(beats_target_hosts) }}
