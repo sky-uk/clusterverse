@@ -7,7 +7,13 @@ redeploy_scheme: _scheme_addallnew_rmdisk_rollback
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
-beats_target_hosts: []            # The destination hosts for e.g. filebeat/ metricbeat logs
+beats_config:
+  filebeat:
+#    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for filebeat-gathered logs
+#    extra_logs_paths: # The array is optional, if you need to add more paths or files to scrape for logs
+#      - /var/log/myapp/*.log 
+  metricbeat:
+#    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for metricbeat-gathered metrics
 
 ## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
