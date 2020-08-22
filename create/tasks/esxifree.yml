@@ -1,0 +1,39 @@
+---
+
+- name: Create vmware instances from template
+  esxifree_guest:
+    hostname: "{{ cluster_vars.esxi_ip }}"
+    username: "{{ cluster_vars.username }}"
+    password: "{{ cluster_vars.password }}"
+    datastore: "{{ cluster_vars.datastore }}"
+    template: "{{ cluster_vars.image }}"
+    name: "{{ item.hostname }}"
+    state: present
+    hardware: "{{ {'version': cluster_vars.hardware_version} | combine({'num_cpus': item.flavor['num_cpus'], 'memory_mb': item.flavor['memory_mb']}) }}"
+    annotation:
+      Name: "{{item.hostname}}"
+      hosttype: "{{item.hosttype}}"
+      env: "{{buildenv}}"
+      cluster_name: "{{cluster_name}}"
+      owner: "{{lookup('env','USER')}}"
+      cluster_suffix: "{{cluster_suffix}}"
+      lifecycle_state: "current"
+    cloudinit_userdata: "{{ cluster_vars.cloudinit_userdata | default([]) }}"
+    disks: "{{ item.auto_volumes | json_query(\"[].{size_gb: volume_size, type: provisioning_type, volname: volname, src: src }\") | default([]) }}"
+    networks: "{{ cluster_vars[buildenv].networks | default([]) }}"
+    wait: true
+  register: esxi_instances
+  run_once: true
+  with_items: "{{ cluster_hosts_target }}"
+  async: 7200
+  poll: 0
+
+- name: Wait for instance creation to complete
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: esxi_jobs
+  until: esxi_jobs.finished
+  retries: 300
+  with_items: "{{ esxi_instances.results }}"
+
+#- debug: msg={{esxi_jobs.results}}

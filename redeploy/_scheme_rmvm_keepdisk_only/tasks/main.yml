@@ -1,0 +1,69 @@
+---
+
+- name: Preflight check
+  block:
+    - assert: { that: "_scheme_rmvm_keepdisk_only__copy_or_move is defined and _scheme_rmvm_keepdisk_only__copy_or_move in ['copy', 'move']", msg: "ERROR - _scheme_rmvm_keepdisk_only__copy_or_move must be defined and set to either 'copy' or 'move'"  }
+
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+    - assert:
+        that: "{{chs_hosts | difference(chf_hosts) | length==0}}"
+        msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ chf_hosts | join(',') }}]"
+      vars:
+        chf_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
+        chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
+
+- name: Redeploy setup
+  block:
+    - name: Change lifecycle_state label from 'current' to 'retiring'
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: set_lifecycle_state_label.yml
+      vars:
+        hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
+        new_state: "retiring"
+      when: ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))
+
+    - name: re-acquire cluster_hosts_target and cluster_hosts_state
+      include_role:
+        name: clusterverse/cluster_hosts
+        public: yes
+
+    - assert: { that: "cluster_hosts_state | json_query(\"[?tagslabels.cluster_suffix == '\"+ cluster_suffix +\"']\") | length == 0", msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is not already set on the cluster" }
+      when: cluster_suffix is defined
+  when: (canary=="start" or canary=="none")
+
+- name: Run redeploy per hosttype.  Create one at a time, then stop previous.
+  include_tasks: by_hosttype.yml
+  with_items: "{{ myhosttypes_array }}"
+  loop_control:
+    loop_var: hosttype
+  vars:
+    cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | dict_agg('hosttype')}}"
+    myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
+  when: canary!="tidy"
+
+
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
+  block:
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: clean_dns.yml
+      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: "clean_vms_{{cluster_vars.type}}.yml"
+      when: (hosts_to_clean | length)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
+      when: hosts_to_clean | length == 0
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running', instance_state))]\") }}"
+  when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

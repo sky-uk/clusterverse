@@ -1,0 +1,51 @@
+---
+
+- debug: msg="Attempting to redeploy {{_cluster_host_redeploying_loopvar.hostname}}"
+
+- name: by_hosttype_by_host | stop/ remove previous instance
+  block:
+    - name: by_hosttype_by_host | run predeleterole role
+      include_role:
+        name: "{{predeleterole}}"
+      when: predeleterole is defined and predeleterole != ""
+
+    - name: by_hosttype_by_host | Power off old VM
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: poweroff_vms.yml
+
+    - name: by_hosttype_by_host | re-acquire the dynamic inventory
+      include_role:
+        name: clusterverse/dynamic_inventory
+
+    - name: by_hosttype_by_host | re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse/cluster_hosts
+
+    - name: by_hosttype_by_host | create cluster_host_redeploying with the disk info from hosts_to_stop
+      include_role:
+        name: "{{role_path}}"
+        tasks_from: "_add_diskinfo_{{cluster_vars.type}}.yml"
+  vars:
+    _root_cluster_host_redeploying: "{{_cluster_host_redeploying_loopvar.hostname | regex_replace('-(?!.*-).*')}}"   #Remove the cluster_suffix from the hostname
+    hosts_to_stop: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state=='retiring' && starts_with(name, '\" + _root_cluster_host_redeploying + \"')]\") }}"
+
+- name: by_hosttype_by_host | cluster_host_redeploying
+  debug: msg={{cluster_host_redeploying}}
+
+- name: "by_hosttype_by_host | Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'"
+  register: r__mainclusteryml
+  no_log: True
+  ignore_errors: yes
+- debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+  failed_when: r__mainclusteryml is failed
+#  when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
+
+- name: by_hosttype_by_host | re-acquire the dynamic inventory
+  include_role:
+    name: clusterverse/dynamic_inventory
+
+- name: by_hosttype_by_host | re-acquire cluster_hosts_target and cluster_hosts_state
+  import_role:
+    name: clusterverse/cluster_hosts

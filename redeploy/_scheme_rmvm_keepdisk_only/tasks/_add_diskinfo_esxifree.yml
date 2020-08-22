@@ -1,0 +1,36 @@
+---
+
+- name: _get_diskinfo_esxifree | hosts_to_stop
+  debug: msg="{{hosts_to_stop}}"
+
+- name: _get_diskinfo_esxifree | vmware_guest_disk_info
+  vmware_guest_disk_info:
+    username: "{{ cluster_vars.username }}"
+    password: "{{ cluster_vars.password }}"
+    hostname: "{{ cluster_vars.esxi_ip }}"
+    datacenter: ha-datacenter
+    validate_certs: no
+    name: "{{item.name}}"
+  with_items: "{{hosts_to_stop}}"
+  register: r__vmware_guest_disk_info
+
+#- name: _get_diskinfo_esxifree | debug r__vmware_guest_disk_info
+#  debug: msg={{r__vmware_guest_disk_info}}
+
+- assert: { that: "r__vmware_guest_disk_info | json_query(\"results[].guest_disk_info.*[] | [?backing_datastore!='\" + cluster_vars.datastore + \"']\") | length == 0", msg: "Move is only possible if disks are on the same datastore." }
+  when: _scheme_rmvm_keepdisk_only__copy_or_move == "move"
+
+- name: _get_diskinfo_esxifree | augment cluster_host_redeploying's auto_volumes with source disk info
+  set_fact:
+    cluster_host_redeploying: |
+      {% set res = _cluster_host_redeploying_loopvar -%}
+      {%- for autovol in res.auto_volumes -%}
+        {%- for host_to_stop_diskinfo_result in r__vmware_guest_disk_info.results -%}
+          {%- if res.hostname | regex_replace('-(?!.*-).*') == host_to_stop_diskinfo_result.item.name | regex_replace('-(?!.*-).*') -%}
+            {%- for host_to_stop_diskinfo in host_to_stop_diskinfo_result.guest_disk_info | to_json | from_json | json_query('*| [?unit_number!=`0` && backing_type==\'FlatVer2\' && contains(backing_filename, \'--' + autovol.volname + '.vmdk\')]') -%}
+              {%- set _ = autovol.update({'volume_size': (host_to_stop_diskinfo.capacity_in_bytes/1073741824)|int, 'src': {'backing_filename': host_to_stop_diskinfo.backing_filename, 'copy_or_move': _scheme_rmvm_keepdisk_only__copy_or_move }}) -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{res}}

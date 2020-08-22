@@ -3,22 +3,25 @@
 - name: Deploy the cluster
   hosts: localhost
   connection: local
-  roles:
-    - { role: clusterverse/clean, tags: [clusterverse_clean], when: clean is defined }
-    - { role: clusterverse/create, tags: [clusterverse_create] }
-    - { role: clusterverse/dynamic_inventory, tags: [clusterverse_dynamic_inventory] }
+  tasks:
+    - { import_role: { name: clusterverse/clean }, tags: [clusterverse_clean], when: clean is defined }       # Alternative include_role (need to force the tags):  - { include_role: { name: clusterverse/clean, apply: {tags: [clusterverse_clean]}}, tags: [clusterverse_clean], when: clean is defined }
+    - { import_role: { name: clusterverse/create }, tags: [clusterverse_create] }
+    - { import_role: { name: clusterverse/dynamic_inventory }, tags: [clusterverse_dynamic_inventory] }
 
 - name: Configure the cluster
   hosts: all
-  roles: [ { role: clusterverse/config, tags: [clusterverse_config] } ]
+  tasks:
+    - { import_role: { name: clusterverse/config }, tags: [clusterverse_config] }
 
 ## Application roles
 - name: Test application role
   hosts: all
-  roles: [ { role: testrole, tags: [testrole] } ]
+  tasks:
+    - { import_role: { name: "testrole" }, tags: [testrole] }
 ##
 
 - name: Perform cluster readiness operations
   hosts: localhost
   connection: local
-  roles: [ { role: clusterverse/readiness, tags: [clusterverse_readiness] } ]
+  tasks:
+    - { import_role: { name: clusterverse/readiness }, tags: [clusterverse_readiness] }

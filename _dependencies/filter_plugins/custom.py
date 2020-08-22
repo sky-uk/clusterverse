@@ -41,14 +41,18 @@ def iplookup(fqdn):
 def json_loads_loose(inStr):
     import re, json
 
-    display.vv(u"json_loads_loose - input type: %s" % type(inStr))
+    display.vvv(u"json_loads_loose - input type: %s" % type(inStr))
     if type(inStr) is dict or type(inStr) is list:
         json_object = json.loads((str(json.dumps(inStr))).encode('utf-8'))
     else:
         try:
             json_object = json.loads(inStr)
         except (ValueError, AttributeError) as e:
-            return json.loads(str(re.sub(r'\'(.*?)\'([,:}])', r'"\1"\2', inStr).replace(': True', ': "True"').replace(': False', ': "False"')).encode('utf-8'))
+            try:
+                json_object = json.loads(str(re.sub(r'\'(.*?)\'([,:}])', r'"\1"\2', inStr).replace(': True', ': "True"').replace(': False', ': "False"')).encode('utf-8'))
+            except (ValueError, AttributeError) as e:
+                display.v(u"json_loads_loose - WARNING: could not parse attribute string as json: %s" % inStr)
+                return inStr
     return json_object
 
 
@@ -57,6 +61,5 @@ class FilterModule(object):
         return {
             'dict_agg': dict_agg,
             'iplookup': iplookup,
-
             'json_loads_loose': json_loads_loose
         }

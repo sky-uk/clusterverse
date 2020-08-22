@@ -54,4 +54,28 @@
           retries: 300
           with_items: "{{r__gcp_compute_instance.results}}"
       when: cluster_vars.type == "gcp"
+
+
+    - name: poweroff_vms | Power-off vmware VM(s) and set maintenance_mode=true
+      block:
+        - name: poweroff_vms | Set maintenance_mode label on esxifree VM(s)
+          esxifree_guest:
+            hostname: "{{ cluster_vars.esxi_ip }}"
+            username: "{{ cluster_vars.username }}"
+            password: "{{ cluster_vars.password }}"
+            name: "{{item.name}}"
+            state: present
+            annotation: "{{ item.tagslabels | combine({'maintenance_mode': 'true'}) }}"
+          with_items: "{{ hosts_to_stop }}"
+
+        - name: poweroff_vms | Power-off esxifree VM(s)
+          esxifree_guest:
+            hostname: "{{ cluster_vars.esxi_ip }}"
+            username: "{{ cluster_vars.username }}"
+            password: "{{ cluster_vars.password }}"
+            name: "{{item.name}}"
+            state: shutdownguest
+          with_items: "{{ hosts_to_stop }}"
+
+      when: cluster_vars.type == "esxifree"
   when: hosts_to_stop | length
