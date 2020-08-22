@@ -27,4 +27,16 @@
         labels: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
       with_items: "{{ hosts_to_relabel }}"
       when: cluster_vars.type == "gcp"
+
+
+    - name: set_lifecycle_state_label | Change lifecycle_state label on esxifree VM
+      esxifree_guest:
+        hostname: "{{ cluster_vars.esxi_ip }}"
+        username: "{{ cluster_vars.username }}"
+        password: "{{ cluster_vars.password }}"
+        name: "{{item.name}}"
+        state: present
+        annotation: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
+      with_items: "{{ hosts_to_relabel }}"
+      when: cluster_vars.type == "esxifree"
   when: hosts_to_relabel | length
