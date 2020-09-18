@@ -15,7 +15,7 @@
   connection: local
   tasks:
     - name: "Get dependent roles via ansible-galaxy"
-      local_action: "command ansible-galaxy install -fr requirements.yml"
+      local_action: "command ansible-galaxy install -r requirements.yml"
       tags: ["always"]
 
     - name: Run redeploy
