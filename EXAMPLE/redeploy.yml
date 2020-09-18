@@ -1,5 +1,15 @@
 ---
 
+- name: Download required roles
+  hosts: localhost:all
+  connection: local
+  tasks:
+    - name: "ansible-galaxy install"
+      local_action: command ansible-galaxy install -r requirements.yml
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
 - name: Redeploy
   hosts: localhost
   connection: local

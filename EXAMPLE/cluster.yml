@@ -1,27 +1,37 @@
 ---
 
+- name: Download required roles
+  hosts: localhost:all
+  connection: local
+  tasks:
+    - name: "ansible-galaxy install"
+      local_action: command ansible-galaxy install -r requirements.yml
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
 - name: Deploy the cluster
   hosts: localhost
   connection: local
   tasks:
-    - { import_role: { name: clusterverse/clean }, tags: [clusterverse_clean], when: clean is defined }       # Alternative include_role (need to force the tags):  - { include_role: { name: clusterverse/clean, apply: {tags: [clusterverse_clean]}}, tags: [clusterverse_clean], when: clean is defined }
-    - { import_role: { name: clusterverse/create }, tags: [clusterverse_create] }
-    - { import_role: { name: clusterverse/dynamic_inventory }, tags: [clusterverse_dynamic_inventory] }
+    - { include_role: { name: "clusterverse/clean", apply: {tags: &roletag_clean  ["clusterverse_clean"]} }, tags:  *roletag_clean, when: "clean is defined" }
+    - { include_role: { name: "clusterverse/create", apply: {tags: &roletag_create  ["clusterverse_create"]} }, tags:  *roletag_create }
+    - { include_role: { name: "clusterverse/dynamic_inventory", apply: {tags: &roletag_dynamic_inventory  ["clusterverse_dynamic_inventory"]} }, tags:  *roletag_dynamic_inventory }
 
 - name: Configure the cluster
   hosts: all
   tasks:
-    - { import_role: { name: clusterverse/config }, tags: [clusterverse_config] }
+    - { include_role: { name: "clusterverse/config", apply: {tags: &roletag_config  ["clusterverse_config"]} }, tags:  *roletag_config }
 
 ## Application roles
 - name: Application roles
   hosts: all
   tasks:
-    - { import_role: { name: "testrole" }, tags: [testrole] }
+    - { include_role: { name: "testrole", apply: {tags: &roletag_testrole  ["testrole"]} }, tags:  *roletag_testrole }
 ##
 
 - name: Perform cluster readiness operations
   hosts: localhost
   connection: local
   tasks:
-    - { import_role: { name: clusterverse/readiness }, tags: [clusterverse_readiness] }
+    - { include_role: { name: "clusterverse/readiness", apply: {tags: &roletag_readiness  ["clusterverse_readiness"]} }, tags:  *roletag_readiness }
