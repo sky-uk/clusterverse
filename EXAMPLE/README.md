@@ -67,11 +67,13 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 + `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
 + `-e clean=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_`, as well as networking and security groups
-+ `-e do_package_upgrade=true` - Upgrade the OS packages (not good for determinism)
++ `-e pkgupdate=[always|onCreate]` - Upgrade the OS packages (not good for determinism).  `onCreate` only upgrades when creating the VM for the first time.
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
 + `-e prometheus_node_exporter_install=false` - Does not install the prometheus node_exporter
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e filebeat_install=false` - Does not install filebeat
++ `-e metricbeat_install=false` - Does not install metricbeat
++ `-e wait_for_dns=false` - Does not wait for DNS resolution
 + `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 
 ### Tags
@@ -83,7 +85,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 ---
 
 ## Invocation examples: _redeploy_
-The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
+The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version, or changing the disk sizes.
 
 ### AWS:
 ```

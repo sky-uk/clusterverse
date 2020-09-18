@@ -80,9 +80,9 @@
   include_tasks: cloud_agents.yml
   when: (cloud_agent is defined and cloud_agent)
 
-- name: Update packages (when do_package_upgrade is defined)
+- name: Update packages (when pkgupdate is defined)
   include_tasks: pkgupdate.yml
-  when: do_package_upgrade is defined and do_package_upgrade|bool
+  when: pkgupdate is defined and (pkgupdate == 'always' or (pkgupdate == 'onCreate' and inventory_hostname in (hostvars['localhost'].cluster_hosts_created | json_query('[].hostname'))))
 
 - name: Set hostname (e.g. AWS doesn't set it automatically)
   become: true

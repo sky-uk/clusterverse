@@ -1,12 +1,7 @@
 ---
 
-- name: dynamic_inventory | Derive dynamic inventory for AWS cluster
-  include_tasks: aws.yml
-  when: cluster_vars.type == "aws"
-
-- name: dynamic_inventory | Derive dynamic inventory for GCP cluster
-  include_tasks: gcp.yml
-  when: cluster_vars.type == "gcp"
+- name: "dynamic_inventory | Derive dynamic inventory for {{cluster_vars.type}} cluster"
+  include_tasks: "{{cluster_vars.type}}.yml"
 
 - assert: { that: "dynamic_inventory_flat is defined", msg: "dynamic_inventory_flat is not defined" }
 
@@ -27,10 +22,10 @@
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
-    groups: ["{{ item.hosttype }}","{{ cluster_name }}","{{ clusterid }}","{{ item.regionzone }}"]
+    groups: "{{ item.hosttype }},{{ cluster_name }},{{ clusterid }}{%- if 'regionzone' in item -%},{{ item.regionzone }}{%- endif -%}"
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
-    regionzone: "{{ item.regionzone }}"
+    regionzone: "{{ item.regionzone | default(omit) }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 - name: dynamic_inventory | stat the inventory_file path
@@ -45,7 +40,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} regionzone={{ hostvars[hostname].regionzone }}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {%- if 'regionzone' in hostvars[hostname] -%}regionzone={{ hostvars[hostname].regionzone }}{%- endif -%}
       {% endfor %}
 
       {% endif %}
@@ -57,3 +52,4 @@
 
 - name: dynamic_inventory | current inventory_hostnames
   debug:  msg="{{ lookup('inventory_hostnames','all').split(',') }}"
+  when: lookup('inventory_hostnames','all') | length

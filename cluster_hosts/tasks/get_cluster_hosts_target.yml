@@ -101,7 +101,7 @@
   when: cluster_vars.type == "aws"
 
 
-- name: get_cluster_hosts_target/gcp | GCP-specific modifications to cluster_hosts_target - add rootvol size
+- name: get_cluster_hosts_target/gcp | GCP-specific modifications to cluster_hosts_target
   block:
     - name: get_cluster_hosts_target/gcp | Update cluster_hosts_target with rootvol_size
       set_fact:

@@ -3,22 +3,28 @@
 - name: Deploy the cluster
   hosts: localhost
   connection: local
-  roles:
-    - { role: clusterverse/clean, tags: [clusterverse_clean], when: clean is defined }
-    - { role: clusterverse/create, tags: [clusterverse_create] }
-    - { role: clusterverse/dynamic_inventory, tags: [clusterverse_dynamic_inventory] }
+  gather_facts: no
+  tasks:
+    - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -r requirements.yml", tags: ["always"] }
+
+    - { include_role: { name: "clusterverse/clean", apply: {tags: &roletag_clean  ["clusterverse_clean"]} }, tags:  *roletag_clean, when: "clean is defined" }
+    - { include_role: { name: "clusterverse/create", apply: {tags: &roletag_create  ["clusterverse_create"]} }, tags:  *roletag_create }
+    - { include_role: { name: "clusterverse/dynamic_inventory", apply: {tags: &roletag_dynamic_inventory  ["clusterverse_dynamic_inventory"]} }, tags:  *roletag_dynamic_inventory }
 
 - name: Configure the cluster
   hosts: all
-  roles: [ { role: clusterverse/config, tags: [clusterverse_config] } ]
+  tasks:
+    - { include_role: { name: "clusterverse/config", apply: {tags: &roletag_config  ["clusterverse_config"]} }, tags:  *roletag_config }
 
 ## Application roles
-- name: Test application role
+- name: Application roles
   hosts: all
-  roles: [ { role: testrole, tags: [testrole] } ]
+  tasks:
+    - { include_role: { name: "testrole", apply: {tags: &roletag_testrole  ["testrole"]} }, tags:  *roletag_testrole }
 ##
 
 - name: Perform cluster readiness operations
   hosts: localhost
   connection: local
-  roles: [ { role: clusterverse/readiness, tags: [clusterverse_readiness] } ]
+  tasks:
+    - { include_role: { name: "clusterverse/readiness", apply: {tags: &roletag_readiness  ["clusterverse_readiness"]} }, tags:  *roletag_readiness }
