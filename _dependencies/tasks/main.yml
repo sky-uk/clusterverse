@@ -33,5 +33,8 @@
       when: "'custom_tagslabels' in cluster_vars"
     - assert: { that: "'{%- for hosttype in cluster_vars[buildenv].hosttype_vars -%}{% if ('version' in cluster_vars[buildenv].hosttype_vars[hosttype]) and (not cluster_vars[buildenv].hosttype_vars[hosttype].version is regex('^[a-z\\d\\-_]{0,63}$')) %}{{cluster_vars[buildenv].hosttype_vars[hosttype].version}}{% endif %}{%- endfor -%}' == ''", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[hosttype].version is in the set [a-z\\d\\-_], and <63 characters long." }
 
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name)]\") | length == 0", msg: "/dev/sd[b-e] are not allowed as device_name in AWS cluster_vars[buildenv].hosttype_vars.  Please start at /dev/sdf." }
+      when: cluster_vars.type == "aws"
+
     - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars.type == "gcp" or cluster_vars.type == "aws"
