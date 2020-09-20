@@ -21,17 +21,17 @@
     hostvols: |
       {% set res = [] -%}
       {% set tmp_blkvols = lsblk_volumes -%}
-        {% set inventory_hostname__no_suffix = inventory_hostname | regex_replace('-(?!.*-).*') -%}
-        {%- for autovol in cluster_hosts_target | to_json | from_json | json_query('[?starts_with(hostname, \'' + inventory_hostname__no_suffix + '\')].auto_volumes[]') -%}
-          {%- set blkvolloop = namespace(break=false) -%}
-          {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
-            {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
-              {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms | default({})}]) -%}
-              {%- set _ = tmp_blkvols.remove(blkvol) -%}
-              {%- set blkvolloop.break = true -%}
-            {%- endif -%}
-          {%- endfor -%}
+      {% set inventory_hostname__no_suffix = inventory_hostname | regex_replace('-(?!.*-).*') -%}
+      {%- for autovol in cluster_hosts_target | to_json | from_json | json_query('[?starts_with(hostname, \'' + inventory_hostname__no_suffix + '\')].auto_volumes[]') -%}
+        {%- set blkvolloop = namespace(break=false) -%}
+        {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
+          {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
+            {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms | default({})}]) -%}
+            {%- set _ = tmp_blkvols.remove(blkvol) -%}
+            {%- set blkvolloop.break = true -%}
+          {%- endif -%}
         {%- endfor -%}
+      {%- endfor -%}
       {{ res }}
 
 #- name: autodisks | hostvols

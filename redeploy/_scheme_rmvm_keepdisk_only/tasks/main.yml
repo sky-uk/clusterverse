@@ -3,17 +3,18 @@
 - name: Preflight check
   block:
     - assert: { that: "_scheme_rmvm_keepdisk_only__copy_or_move is defined and _scheme_rmvm_keepdisk_only__copy_or_move in ['copy', 'move']", msg: "ERROR - _scheme_rmvm_keepdisk_only__copy_or_move must be defined and set to either 'copy' or 'move'"  }
+      when: cluster_vars.type == "esxifree"
 
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
-      when: canary=="start" or canary=="none"
+      when: (canary=="start" or canary=="none") and (ignore_lifecycle_check is not defined or ignore_lifecycle_check==false)
 
     - assert:
-        that: "{{chs_hosts | difference(chf_hosts) | length==0}}"
-        msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ chf_hosts | join(',') }}]"
+        that: "{{chs_hosts | difference(cht_hosts) | length==0}}"
+        msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ cht_hosts | join(',') }}]"
       vars:
-        chf_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
+        cht_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
         chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
 
 - name: Redeploy setup
@@ -35,6 +36,9 @@
     - assert: { that: "cluster_hosts_state | json_query(\"[?tagslabels.cluster_suffix == '\"+ cluster_suffix +\"']\") | length == 0", msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is not already set on the cluster" }
       when: cluster_suffix is defined
   when: (canary=="start" or canary=="none")
+
+- name: Add the disk info from previous instances to cluster_hosts_target
+  include_tasks: "_add_src_diskinfo_to_cluster_hosts_target__{{cluster_vars.type}}.yml"
 
 - name: Run redeploy per hosttype.  Create one at a time, then stop previous.
   include_tasks: by_hosttype.yml
@@ -58,7 +62,7 @@
 
     - include_role:
         name: clusterverse/clean
-        tasks_from: "clean_vms_{{cluster_vars.type}}.yml"
+        tasks_from: clean_vms.yml
       when: (hosts_to_clean | length)
 
     - debug:

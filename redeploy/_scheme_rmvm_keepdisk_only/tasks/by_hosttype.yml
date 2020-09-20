@@ -20,4 +20,4 @@
   include_tasks: by_hosttype_by_host.yml
   with_items: "{{ hosts_to_redeploy }}"
   loop_control:
-    loop_var: _cluster_host_redeploying_loopvar
+    loop_var: host_to_redeploy
