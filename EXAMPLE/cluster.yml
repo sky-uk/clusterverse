@@ -5,7 +5,7 @@
   connection: local
   gather_facts: no
   tasks:
-    - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -r requirements.yml", tags: ["always"] }
+    - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -fr requirements.yml", tags: ["always"] }
 
     - { include_role: { name: "clusterverse/clean", apply: {tags: &roletag_clean  ["clusterverse_clean"]} }, tags:  *roletag_clean, when: "clean is defined" }
     - { include_role: { name: "clusterverse/create", apply: {tags: &roletag_create  ["clusterverse_create"]} }, tags:  *roletag_create }
