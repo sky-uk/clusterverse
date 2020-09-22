@@ -21,10 +21,5 @@
     current_release_versions: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current' && tagslabels.release].tagslabels.release\") | default([]) }}"
 
 
-- name: Create AWS cluster
-  include_tasks: aws.yml
-  when: cluster_vars.type == "aws"
-
-- name: Create GCP cluster
-  include_tasks: gcp.yml
-  when: cluster_vars.type == "gcp"
+- name: "Create {{cluster_vars.type}} cluster"
+  include_tasks: "{{cluster_vars.type}}.yml"

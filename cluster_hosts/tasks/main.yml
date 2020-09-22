@@ -20,9 +20,9 @@
         cluster_suffix: "{{cluster_suffixes_current[0]}}"
       when: cluster_suffixes_current | unique | length==1
 
-    - name: Create new cluster_suffix
+    - name: Create new cluster_suffix (epoch time)
       set_fact:
-        cluster_suffix: "{{ansible_date_time.epoch}}"
+        cluster_suffix: "{{ lookup('pipe', 'date +%s') }}"
       when: cluster_suffixes_current | unique | length==0
 
     - debug: msg="cluster_suffix = {{cluster_suffix}}"
