@@ -1,4 +1,5 @@
 ---
+
 - name: set_lifecycle_state_label | hosts_to_relabel
   debug: msg="{{hosts_to_relabel}}"
 

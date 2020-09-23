@@ -5,7 +5,6 @@
     filters:
       "instance-state-name": ["running", "stopped"]
       "tag:cluster_name": "{{cluster_name}}"
-      "tag:lifecycle_state": "retiring"
     aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
     region: "{{cluster_vars.region}}"
@@ -19,7 +18,7 @@
     cluster_hosts_target: |
       {%- for cht_host in cluster_hosts_target -%}
         {%- for cht_autovol in cht_host.auto_volumes -%}
-          {%- for chs_host_info_result in r__ec2_instance_info.instances -%}
+          {%- for chs_host_info_result in r__ec2_instance_info.instances | selectattr('tags.lifecycle_state', '!=', 'current') -%}
             {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host_info_result.tags.Name | regex_replace('-(?!.*-).*') -%}
               {%- for chs_host_diskinfo in chs_host_info_result.block_device_mappings | selectattr('device_name', '==', cht_autovol.device_name) -%}
                 {%- set _ = cht_autovol.update({'src': {'instance_id': chs_host_info_result.instance_id, 'volume_id': chs_host_diskinfo.ebs.volume_id }}) -%}
