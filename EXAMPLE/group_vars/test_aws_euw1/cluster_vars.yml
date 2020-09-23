@@ -1,11 +1,11 @@
 ---
 
-redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only']
+redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback']
 
 #redeploy_scheme: _scheme_addallnew_rmdisk_rollback
 #redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
-#redeploy_scheme: _scheme_rmvm_keepdisk_only
+#redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn

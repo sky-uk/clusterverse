@@ -20,7 +20,7 @@
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
-    - name: create/aws | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_only redeploy, we only redeploy one host at a time, and it is already powered off)
+    - name: create/aws | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       ec2_vol:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -72,14 +72,14 @@
       retries: 300
       with_items: "{{r__ec2.results}}"
 
-    - name: create/aws | r__async_status__ec2.results
-      debug: msg={{r__async_status__ec2.results}}
+#    - name: create/aws | r__async_status__ec2.results
+#      debug: msg={{r__async_status__ec2.results}}
 
     - name: create/aws | Set a fact containing the newly-created hosts
       set_fact:
         cluster_hosts_created: "{{ r__async_status__ec2.results | json_query(\"[?changed==`true`].item.item\") }}"
 
-    - name: create/aws | Create new volumes asynchronously (or attach existing if src is present, e.g. via the _scheme_rmvm_keepdisk_only scheme)
+    - name: create/aws | Create new volumes asynchronously (or attach existing if src is present, e.g. via the _scheme_rmvm_keepdisk_rollback scheme)
       ec2_vol:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
