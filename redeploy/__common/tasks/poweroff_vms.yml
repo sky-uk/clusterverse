@@ -64,7 +64,7 @@
             username: "{{ cluster_vars.username }}"
             password: "{{ cluster_vars.password }}"
             name: "{{item.name}}"
-            state: present
+            state: unchanged
             annotation: "{{ item.tagslabels | combine({'maintenance_mode': 'true'}) }}"
           with_items: "{{ hosts_to_stop }}"
 
@@ -76,6 +76,5 @@
             name: "{{item.name}}"
             state: shutdownguest
           with_items: "{{ hosts_to_stop }}"
-
       when: cluster_vars.type == "esxifree"
   when: hosts_to_stop | length

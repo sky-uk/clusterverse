@@ -331,6 +331,7 @@ instance:
     sample: None
 '''
 
+import os
 import time
 import re
 import json
@@ -756,37 +757,6 @@ class esxiFreeScraper(object):
             if len(bootDisks) == 1:
                 return ("Boot disk parameters defined for cloned VM.  Ambiguous requirement - not supported.")
 
-        newDisks = [newDisk for newDisk in disks if 'boot' not in newDisk]
-        for newDiskCount,newDisk in enumerate(newDisks):
-            scsiDiskIdx = newDiskCount + diskCount
-            disk_filename = self.name + "--" + newDisk['volname'] + ".vmdk"
-
-            #Check if new disk already exists - if so, exit
-            try:
-                (stdin, stdout, stderr) = self.esxiCnx.exec_command("stat " + vmPathDest + "/" + disk_filename)
-            except IOError as e:
-                if 'src' in newDisk and newDisk['src'] is not None:
-                    cloneSrcBackingFile = re.search('^\[(?P<datastore>.*?)\] *(?P<fulldiskpath>.*\/(?P<filepath>(?P<fileroot>.*?)(?:--(?P<diskname_suffix>.*?))?\.vmdk))$', newDisk['src']['backing_filename'])
-                    try:
-                        (stdin, stdout, stderr) = self.esxiCnx.exec_command("stat /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath'))
-                    except IOError as e:
-                        return (cloneSrcBackingFile.group('fulldiskpath') + " not found!\n" + str(e))
-                    else:
-                        if newDisk['src']['copy_or_move'] == 'copy':
-                            self.esxiCnx.exec_command("vmkfstools -i /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath') + " -d thin " + vmPathDest + "/" + disk_filename)
-                        else:
-                            self.esxiCnx.exec_command("vmkfstools -E /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath') + " " + vmPathDest + "/" + disk_filename)
-
-                else:
-                    (stdin, stdout, stderr) = self.esxiCnx.exec_command("vmkfstools -c " + str(newDisk['size_gb']) + "G -d " + newDisk['type'] + " " + vmPathDest + "/" + disk_filename)
-
-                vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".devicetype": "scsi-hardDisk"})
-                vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".present": "TRUE"})
-                vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".filename": disk_filename})
-                diskCount = diskCount + 1
-            else:
-                return (disk_filename + " already present!")
-
         # write the vmx
         self.put_vmx(vmxDict, vmPathDest + "/" + self.name + ".vmx")
 
@@ -794,7 +764,11 @@ class esxiFreeScraper(object):
         (stdin, stdout, stderr) = self.esxiCnx.exec_command("vim-cmd solo/registervm " + vmPathDest + "/" + self.name + ".vmx")
         self.moid = int(stdout.readlines()[0])
 
-    def update_vm(self, annotation=None):
+        # The logic used to update the disks is the same for an existing as a new VM.
+        self.update_vm(annotation=None, disks=disks)
+
+    def update_vm(self, annotation, disks):
+        vmxPath, vmxDict = self.get_vmx(self.moid)
         if annotation:
             # Update the config (annotation) in the running VM
             response, cookies = self.soap_client.send_req('<ReconfigVM_Task><_this type="VirtualMachine">' + str(self.moid) + '</_this><spec><annotation>' + annotation + '</annotation></spec></ReconfigVM_Task>')
@@ -803,9 +777,46 @@ class esxiFreeScraper(object):
                 return ("Failed to ReconfigVM_Task: %s" % waitresp)
 
             # Now update the disk (should not be necessary, but for some reason, sometimes the ReconfigVM_Task does not flush config to disk).
-            vmxPath, vmxDict = self.get_vmx(self.moid)
             vmxDict.update({"annotation": annotation})
-            self.put_vmx(vmxDict, vmxPath)
+
+        if disks:
+            curDisks = [{"filename": vmxDict[scsiDisk], "volname": re.sub(r".*--([\w\d]+)\.vmdk", r"\1", vmxDict[scsiDisk])} for scsiDisk in sorted(vmxDict) if re.match(r"scsi0:\d\.filename", scsiDisk)]
+            curDisksCount = len(curDisks)
+            newDisks = [newDisk for newDisk in disks if ('boot' not in newDisk or newDisk['boot'] == False)]
+            for newDiskCount,newDisk in enumerate(newDisks):
+                scsiDiskIdx = newDiskCount + curDisksCount
+                disk_filename = self.name + "--" + newDisk['volname'] + ".vmdk"
+
+                #Don't clone already existing disks
+                try:
+                    (stdin, stdout, stderr) = self.esxiCnx.exec_command("stat " + os.path.dirname(vmxPath) + "/" + disk_filename)
+                except IOError as e:
+                    if 'src' in newDisk and newDisk['src'] is not None:
+                        cloneSrcBackingFile = re.search('^\[(?P<datastore>.*?)\] *(?P<fulldiskpath>.*\/(?P<filepath>(?P<fileroot>.*?)(?:--(?P<diskname_suffix>.*?))?\.vmdk))$', newDisk['src']['backing_filename'])
+                        try:
+                            (stdin, stdout, stderr) = self.esxiCnx.exec_command("stat /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath'))
+                        except IOError as e:
+                            return (cloneSrcBackingFile.group('fulldiskpath') + " not found!\n" + str(e))
+                        else:
+                            if newDisk['src']['copy_or_move'] == 'copy':
+                                self.esxiCnx.exec_command("vmkfstools -i /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath') + " -d thin " + os.path.dirname(vmxPath) + "/" + disk_filename)
+                            else:
+                                self.esxiCnx.exec_command("vmkfstools -E /vmfs/volumes/" + cloneSrcBackingFile.group('datastore') + "/" + cloneSrcBackingFile.group('fulldiskpath') + " " + os.path.dirname(vmxPath) + "/" + disk_filename)
+
+                    else:
+                        (stdin, stdout, stderr) = self.esxiCnx.exec_command("vmkfstools -c " + str(newDisk['size_gb']) + "G -d " + newDisk['type'] + " " + os.path.dirname(vmxPath) + "/" + disk_filename)
+
+                    # if this is a new disk, not a restatement of an existing disk:
+                    if len(curDisks) >= newDiskCount+2 and curDisks[newDiskCount+1]['volname'] == newDisk['volname']:
+                        pass
+                    else:
+                        vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".devicetype": "scsi-hardDisk"})
+                        vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".present": "TRUE"})
+                        vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".filename": disk_filename})
+                        curDisksCount = curDisksCount + 1
+
+        self.put_vmx(vmxDict, vmxPath)
+        self.esxiCnx.exec_command("vim-cmd vmsvc/reload " + str(self.moid))
 
     # def update_vm_pyvmomi(self, annotation=None):
     #     if annotation:
@@ -845,7 +856,7 @@ def main():
         "name": {"type": "str"},
         "moid": {"type": "str"},
         "template": {"type": "str"},
-        "state": {"type": "str", "default": 'present', "choices": ['absent', 'present', 'rebootguest', 'poweredon', 'poweredoff', 'shutdownguest']},
+        "state": {"type": "str", "default": 'present', "choices": ['absent', 'present', 'unchanged', 'rebootguest', 'poweredon', 'poweredoff', 'shutdownguest']},
         "force": {"type": "bool", "default": False},
         "datastore": {"type": "str"},
         "annotation": {"type": "str", "default": ""},
@@ -890,23 +901,24 @@ def main():
 
             ## Clone VM
             params = {
-                "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
+                "annotation": None,
+                # "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
                 "cdrom": {"type": "client"},
                 "cloudinit_userdata": [],
                 "customvalues": [],
                 "datastore": "4tb-evo860-ssd",
                 # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
-                "disks": [{"size_gb": 1, "type": "thin", "volname": "test_new"}, {"size_gb": 1, "type": "thin", "volname": "test_clone", "src": {"backing_filename": "[4tb-evo860-ssd] parsnip-dev-sys-a0-blue/parsnip-dev-sys-a0-blue--webdata.vmdk", "copy_or_move": "copy"}}],
+                "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
                 "force": False,
                 "guest_id": "ubuntu-64",
                 "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
                 "hostname": "192.168.1.3",
                 "moid": None,
-                "name": "gold-alpine-test1",
+                "name": "testdisks-dev-sys-a0-1601205102",
                 "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
                 "password": sys.argv[2],
                 "state": "present",
-                "template": "gold-alpine",
+                "template": "gold-ubuntu2004-20200912150257",
                 "username": "svc",
                 "wait": True,
                 "wait_timeout": 180
@@ -941,7 +953,16 @@ def main():
         module.fail_json(msg="If VM doesn't already exist, you must provide a name for it")
 
     # Check if the VM exists before continuing
-    if module.params['state'] == 'shutdownguest':
+    if module.params['state'] == 'unchanged':
+        if iScraper.moid is not None:
+            updateVmResult = iScraper.update_vm(annotation=module.params['annotation'], disks=module.params['disks'])
+            if updateVmResult != None:
+                module.fail_json(msg=updateVmResult)
+            module.exit_json(changed=True, meta={"msg": "Shutdown " + iScraper.name + ": " + str(iScraper.moid)})
+        else:
+            module.fail_json(msg="VM doesn't exist.")
+
+    elif module.params['state'] == 'shutdownguest':
         if iScraper.moid:
             iScraper.soap_client.send_req('<ShutdownGuest><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></ShutdownGuest>')
             time_s = 60
@@ -958,19 +979,27 @@ def main():
 
     elif module.params['state'] == 'poweredon':
         if iScraper.moid:
-            response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
-            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
-                module.fail_json(msg="Failed to PowerOnVM_Task")
-            module.exit_json(changed=True, meta={"msg": "Powered-on " + iScraper.name + ": " + str(iScraper.moid)})
+            (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
+            if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
+                response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
+                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                    module.fail_json(msg="Failed to PowerOnVM_Task")
+                module.exit_json(changed=True, meta={"msg": "Powered-on " + iScraper.name + ": " + str(iScraper.moid)})
+            else:
+                module.exit_json(changed=False, meta={"msg": "VM " + iScraper.name + ": already on."})
         else:
             module.fail_json(msg="VM doesn't exist.")
 
     elif module.params['state'] == 'poweredoff':
         if iScraper.moid:
-            response, cookies = iScraper.soap_client.send_req('<PowerOffVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOffVM_Task>')
-            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
-                module.fail_json(msg="Failed to PowerOffVM_Task")
-            module.exit_json(changed=True, meta={"msg": "Powered-off " + iScraper.name + ": " + str(iScraper.moid)})
+            (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
+            if re.search('Powered on', stdout.read().decode('UTF-8')) is not None:
+                response, cookies = iScraper.soap_client.send_req('<PowerOffVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOffVM_Task>')
+                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                    module.fail_json(msg="Failed to PowerOffVM_Task")
+                module.exit_json(changed=True, meta={"msg": "Powered-off " + iScraper.name + ": " + str(iScraper.moid)})
+            else:
+                module.exit_json(changed=False, meta={"msg": "VM " + iScraper.name + ": already off."})
         else:
             module.fail_json(msg="VM doesn't exist.")
 
@@ -991,11 +1020,11 @@ def main():
         if iScraper.moid:
             (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
             if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
-                response, cookies = iScraper.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
+                response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
                 if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
                     module.fail_json(msg="Failed to PowerOnVM_Task")
             else:
-                response, cookies = iScraper.send_req('<RebootGuest><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></RebootGuest>')
+                response, cookies = iScraper.soap_client.send_req('<RebootGuest><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></RebootGuest>')
                 if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
                     module.fail_json(msg="Failed to RebootGuest")
             module.exit_json(changed=True, meta={"msg": "Rebooted " + iScraper.name + ": " + str(iScraper.moid)})
@@ -1021,47 +1050,47 @@ def main():
             if createVmResult != None:
                 module.fail_json(msg="Failed to create_vm: %s" % createVmResult)
 
-            response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
-            waitresp = iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout']))
-            if waitresp != 'success':
-                module.fail_json(msg="Failed to PowerOnVM_Task: %s" % waitresp)
-
-            isChanged = True
-
-            ## Delete the cloud-init config
-            iScraper.delete_cloudinit()
-
-            if "wait" in module.params and module.params['wait']:
-                time_s = int(module.params['wait_timeout'])
-                while time_s > 0:
-                    (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/get.guest " + str(iScraper.moid))
-                    guest_info = stdout.read().decode('UTF-8')
-                    vm_params = re.search('\s*hostName\s*=\s*\"?(?P<vm_hostname>.*?)\"?,.*\n\s*ipAddress\s*=\s*\"?(?P<vm_ip>.*?)\"?,.*', guest_info)
-                    if vm_params and vm_params.group('vm_ip') != "<unset>" and vm_params.group('vm_hostname') != "":
-                        break
-                    else:
-                        time.sleep(1)
-                        time_s = time_s - 1
-
-                module.exit_json(changed=isChanged,
-                                 guest_info=guest_info,
-                                 hostname=vm_params.group('vm_hostname'),
-                                 ip_address=vm_params.group('vm_ip'),
-                                 name=module.params['name'],
-                                 moid=iScraper.moid)
-            else:
-                module.exit_json(changed=isChanged,
-                                 hostname="",
-                                 ip_address="",
-                                 name=module.params['name'],
-                                 moid=iScraper.moid)
-
         else:
-            updateVmResult = iScraper.update_vm(annotation=module.params['annotation'])
+            updateVmResult = iScraper.update_vm(annotation=module.params['annotation'], disks=module.params['disks'])
             if updateVmResult != None:
                 module.fail_json(msg=updateVmResult)
 
-            module.exit_json(changed=True, name=module.params['name'], moid=iScraper.moid)
+        (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
+        if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
+            response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
+            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                module.fail_json(msg="Failed to PowerOnVM_Task")
+
+        isChanged = True
+
+        ## Delete the cloud-init config
+        iScraper.delete_cloudinit()
+
+        ## Wait for IP address and hostname to be advertised by the VM (via open-vm-tools)
+        if "wait" in module.params and module.params['wait']:
+            time_s = int(module.params['wait_timeout'])
+            while time_s > 0:
+                (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/get.guest " + str(iScraper.moid))
+                guest_info = stdout.read().decode('UTF-8')
+                vm_params = re.search('\s*hostName\s*=\s*\"?(?P<vm_hostname>.*?)\"?,.*\n\s*ipAddress\s*=\s*\"?(?P<vm_ip>.*?)\"?,.*', guest_info)
+                if vm_params and vm_params.group('vm_ip') != "<unset>" and vm_params.group('vm_hostname') != "":
+                    break
+                else:
+                    time.sleep(1)
+                    time_s = time_s - 1
+
+            module.exit_json(changed=isChanged,
+                             guest_info=guest_info,
+                             hostname=vm_params.group('vm_hostname'),
+                             ip_address=vm_params.group('vm_ip'),
+                             name=module.params['name'],
+                             moid=iScraper.moid)
+        else:
+            module.exit_json(changed=isChanged,
+                             hostname="",
+                             ip_address="",
+                             name=module.params['name'],
+                             moid=iScraper.moid)
 
     else:
         module.exit_json(changed=False, meta={"msg": "No state."})

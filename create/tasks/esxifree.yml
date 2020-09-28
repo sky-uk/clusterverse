@@ -1,6 +1,6 @@
 ---
 
-- name: Create vmware instances from template
+- name: create/esxifree | Create vmware instances from template
   esxifree_guest:
     hostname: "{{ cluster_vars.esxi_ip }}"
     username: "{{ cluster_vars.username }}"
@@ -28,7 +28,7 @@
   async: 7200
   poll: 0
 
-- name: Wait for instance creation to complete
+- name: create/esxifree | Wait for instance creation to complete
   async_status:
     jid: "{{ item.ansible_job_id }}"
   register: esxi_jobs

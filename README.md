@@ -111,7 +111,7 @@ The role is designed to run in two modes:
       + For each node in the cluster:
         + Run `predeleterole`
         + Delete the node
-        + Run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
+        + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
       + If the process fails at any point:
         + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
@@ -129,4 +129,15 @@ The role is designed to run in two modes:
         + `predeleterole` is called with a list of the old VMs.
         + The old VMs are stopped.
       + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
+      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+  + **_scheme_rmvm_keepdisk_rollback**
+      + _Cluster topology must remain identical_
+      + **It assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+      + For each node in the cluster:
+        + Run `predeleterole`
+        + Stop the node
+        + Detach the disks from the old node
+        + Run the main cluster.yml to create a new node
+        + Attach disks to new node
+      + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'

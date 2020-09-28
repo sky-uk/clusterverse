@@ -36,7 +36,7 @@
         username: "{{ cluster_vars.username }}"
         password: "{{ cluster_vars.password }}"
         name: "{{item.name}}"
-        state: present
+        state: "unchanged"
         annotation: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
       with_items: "{{ hosts_to_relabel }}"
       when: cluster_vars.type == "esxifree"
