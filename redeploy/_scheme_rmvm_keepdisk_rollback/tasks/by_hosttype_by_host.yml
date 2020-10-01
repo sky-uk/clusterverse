@@ -2,15 +2,19 @@
 
 - debug: msg="by_hosttype_by_host | Attempting to redeploy {{host_to_redeploy.hostname}}"
 
-- name: by_hosttype_by_host | run predeleterole role
-  include_role:
-    name: "{{predeleterole}}"
-  when: predeleterole is defined and predeleterole != ""
+- name: stop/ remove previous instance
+  block:
+    - name: by_hosttype_by_host | run predeleterole role
+      include_role:
+        name: "{{predeleterole}}"
+      vars:
+        hosts_to_remove: "{{ hosts_to_stop }}"
+      when: predeleterole is defined and predeleterole != ""
 
-- name: by_hosttype_by_host | Power off old VM
-  include_role:
-    name: clusterverse/redeploy/__common
-    tasks_from: poweroff_vms.yml
+    - name: by_hosttype_by_host | Power off old VM
+      include_role:
+        name: clusterverse/redeploy/__common
+        tasks_from: poweroff_vms.yml
   vars:
     _host_to_redeploy_nosuffix: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}"   #Remove the cluster_suffix from the hostname
     hosts_to_stop: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state!='current' && starts_with(name, '\" + _host_to_redeploy_nosuffix + \"')]\") }}"
