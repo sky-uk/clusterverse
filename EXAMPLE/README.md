@@ -1,7 +1,7 @@
 # clusterverse-example  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
 This is an example of a deployment of [clusterverse](https://github.com/sky-uk/clusterverse) - _the full-lifecycle cloud infrastructure cluster management project, using Ansible._
 
-_**Please refer to the full [README.md](https://github.com/sky-uk/clusterverse/blob/master/README.md) in the main  [clusterverse](https://github.com/sky-uk/clusterverse) repository.**_ 
+_**Please refer to the full [README.md](https://github.com/sky-uk/clusterverse/blob/master/README.md) in the main [clusterverse](https://github.com/sky-uk/clusterverse) repository.**_ 
 
 ## Contributing
 Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/sky-uk/clusterverse/blob/master/CONTRIBUTING.md) for details.
@@ -54,7 +54,7 @@ ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml
 ### GCP:
 ```
 ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.1
 ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
 ```
 
