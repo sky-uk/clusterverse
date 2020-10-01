@@ -24,7 +24,7 @@
 - name: "Create {{cluster_vars.type}} cluster"
   include_tasks: "{{cluster_vars.type}}.yml"
   vars:
-    # auto_volumes are normally a list of volumes per host.  We cannot iterate this within a non-nested ansible loop(with_items), so we denormalise/ flatten it into a new one-dimensional list, which has each volume, as well as all the parent host information.
+    # auto_volumes are normally a list of volumes per host.  We cannot iterate this within a non-nested ansible loop(with_items), so we denormalise/ flatten it into a new one-dimensional list, of each volume, as well as all the parent host information.
     cluster_hosts_target_denormalised_by_volume: |
       {% set res = [] -%}
       {%- for cht_host in cluster_hosts_target -%}
