@@ -11,7 +11,7 @@ beats_config:
   filebeat:
 #    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for filebeat-gathered logs
 #    extra_logs_paths: # The array is optional, if you need to add more paths or files to scrape for logs
-#      - /var/log/myapp/*.log 
+#      - /var/log/myapp/*.log
   metricbeat:
 #    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for metricbeat-gathered metrics
 
