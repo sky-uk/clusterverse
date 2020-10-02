@@ -11,7 +11,7 @@ beats_config:
   filebeat:
 #    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for filebeat-gathered logs
 #    extra_logs_paths: # The array is optional, if you need to add more paths or files to scrape for logs
-#      - /var/log/myapp/*.log 
+#      - /var/log/myapp/*.log
   metricbeat:
 #    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for metricbeat-gathered metrics
 
@@ -42,7 +42,8 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 ### AWS example
 #cluster_vars:
 #  type: &cloud_type "aws"
-#  image: "ami-0964eb2dc8b836eb6"    # eu-west-1, 18.04, amd64, hvm-ssd, 20200430.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "ami-0c4c42893066a139e"            # eu-west-1, 20.04, amd64, hvm-ssd, 20200924.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "ami-06868ad5a3642e4d7"            # eu-west-1, 18.04, amd64, hvm-ssd, 20200923.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  region: &region "eu-west-1"       # eu-west-1, us-west-2
 #  dns_cloud_internal_domain: "{{_region}}.compute.internal"                       # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
 #  dns_nameserver_zone: &dns_nameserver_zone ""                                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
@@ -89,10 +90,11 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 ### GCP example
 #cluster_vars:
 #  type: &cloud_type "gcp"
-#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20200430"    # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20200917"    # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20200923"   # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  region: &region "europe-west1"
-#  dns_cloud_internal_domain: "c.{{gcp_credentials_json.project_id}}.internal"     # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-#  dns_nameserver_zone: &dns_nameserver_zone ""                                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+#  dns_cloud_internal_domain: "c.{{gcp_credentials_json.project_id}}.internal"    # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+#  dns_nameserver_zone: &dns_nameserver_zone ""                                   # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
 #  dns_user_domain: "{%- if _dns_nameserver_zone -%}CUSTOM.PREFIXES.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
 #  dns_server: ""                            # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
 #  assign_public_ip: "yes"
