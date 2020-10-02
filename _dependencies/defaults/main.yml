@@ -3,9 +3,6 @@
 # Identifies the application version that is being deployed (optional)
 release_version: ""
 
-# Default redeploy scheme
-redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
-
 # Default Prometheus node exporter configurations
 prometheus_node_exporter_install: true                    # Whether to install the prometheus node_exporter tool
 prometheus_node_exporter_port: "19100"                    # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
