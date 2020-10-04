@@ -7,7 +7,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.2',
 
 DOCUMENTATION = '''
 ---
-cars: cli_facts
+vars: argv, cliargs
 short_description: Expose the system ARGV and CLI arguments as facts in plays.
 version_added: "2.8"
 author: "Dougal Seeley"

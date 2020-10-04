@@ -52,13 +52,13 @@
     mode: 0755
   when: (static_journal is defined and static_journal|bool)
 
-  # Run this *before* the general auto_volumes tasks, because we need them to be eliminated before we try to mount the other disks.
-- name: Attach nvme_volumes
-  include_tasks: disks_auto_aws_nvme.yml
+- name: Create partition table, format and attach volumes - AWS
+  include_tasks: disks_auto_aws.yml
   when: cluster_vars.type == "aws"
 
-- name: Attach auto_volumes
-  include_tasks: disks_auto.yml
+- name: Create partition table, format and attach volumes - generic
+  include_tasks: disks_auto_generic.yml
+  when: cluster_vars.type != "aws"
 
 - name: install prometheus node exporter daemon
   include_tasks: prometheus_node_exporter.yml

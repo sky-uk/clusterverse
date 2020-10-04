@@ -1,5 +1,8 @@
 ---
 
+- name: cluster_hosts_target_denormalised_by_volume
+  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
+
 - name: create/aws | Create AWS security group
   ec2_group:
     name: "{{ cluster_name }}-sg"
@@ -20,6 +23,16 @@
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
+    - name: create/aws | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
+      ec2_vol:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        id: "{{item.auto_volume.src.volume_id}}"
+        instance: None
+      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+      when: "'src' in item.auto_volume"
+
     - name: create/aws | Create EC2 VMs asynchronously
       ec2:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
@@ -35,9 +48,8 @@
         wait: yes
         instance_tags: "{{ _instance_tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
-        volumes: "{{ item.auto_volumes | default([]) }}"
-        count_tag:
-          Name: "{{item.hostname}}"
+        volumes: "{{ item.auto_volumes | selectattr('src', 'undefined') | list | default([]) }}"
+        count_tag: { Name: "{{item.hostname}}" }
         exact_count: 1
       vars:
         _instance_tags:
@@ -51,56 +63,68 @@
           maintenance_mode: "true"
           release: "{{ release_version }}"
           lifecycle_state: "current"
-      with_items: "{{cluster_hosts_target}}"
+      loop: "{{ cluster_hosts_target }}"
       async: 7200
       poll: 0
-      register: aws_instances
+      register: r__ec2
 
     - name: create/aws | Wait for aws instance creation to complete
-      async_status:
-        jid: "{{ item.ansible_job_id }}"
-      register: aws_jobs
-      until: aws_jobs.finished
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: r__async_status__ec2
+      until: r__async_status__ec2.finished
       delay: 3
       retries: 300
-      with_items: "{{aws_instances.results}}"
+      with_items: "{{r__ec2.results}}"
 
-#    - name: create/aws | aws_jobs.results
-#      debug: msg={{aws_jobs.results}}
+#    - name: create/aws | r__async_status__ec2.results
+#      debug: msg={{r__async_status__ec2.results}}
 
     - name: create/aws | Set a fact containing the newly-created hosts
       set_fact:
-        cluster_hosts_created: "{{ aws_jobs.results | json_query(\"[?changed==`true`].item.item\") }}"
+        cluster_hosts_created: "{{ r__async_status__ec2.results | json_query(\"[?changed==`true`].item.item\") }}"
 
-    - name: create/aws | Force set maintenance_mode to true (when prometheus_set_unset_maintenance_mode)
-      ec2_tag:
+    - name: create/aws | Attach (or create) volumes where 'src' is present (e.g. inserted as part of _scheme_rmvm_keepdisk_rollback scheme)
+      ec2_vol:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{cluster_vars.region}}"
-        resource: "{{ item }}"
-        tags:
-          maintenance_mode: "true"
-      with_items: "{{ aws_jobs.results | json_query('[].tagged_instances[0].id')}}"
-      when: (prometheus_set_unset_maintenance_mode is defined and prometheus_set_unset_maintenance_mode|bool)
+        instance: "{{ r__async_status__ec2.results | json_query(\"[].tagged_instances[?tags.Name==`\" + item.hostname + \"`].id[] | [0]\") | default(omit) }}"
+        id: "{{item.auto_volume.src.volume_id | default(omit)}}"
+        snapshot: "{{item.auto_volume.snapshot | default(omit)}}"
+        device_name: "{{item.auto_volume.device_name}}"
+        encrypted: "{{item.auto_volume.encrypted}}"
+        volume_size: "{%- if 'src' not in item.auto_volume -%}{{item.auto_volume.volume_size}}{%- endif -%}"
+        volume_type: "{{item.auto_volume.volume_type}}"
+        delete_on_termination: yes
+      loop: "{{ cluster_hosts_target_denormalised_by_volume| selectattr('src', 'defined') | list }}"
+      async: 7200
+      poll: 0
+      register: r__ec2_vol
 
-    - name: create/aws | Extract EBS volume data so we can tag the disks
-      set_fact:
-        ebsdata: |
-          {% set res = [] -%}
-          {%- for host in aws_jobs.results -%}
-            {%- for devkey in host.tagged_instances[0].block_device_mapping.keys()-%}
-            {% set _dummy = res.extend([{
-              'hostname': host.tagged_instances[0].tags.Name,
-              'ec2_id': host.tagged_instances[0].id,
-              'device_name': devkey,
-              'volume_id': host.tagged_instances[0].block_device_mapping[devkey].volume_id
-              }]) -%}
-            {%- endfor %}
-          {%- endfor %}
-          {{ res }}
+    - name: create/aws | Wait for volume creation/ attachment to complete
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: r__async_status__ec2_vol
+      until: r__async_status__ec2_vol.finished
+      delay: 3
+      retries: 300
+      with_items: "{{r__ec2_vol.results}}"
 
-#    - name: create/aws | ebsdata
-#      debug: msg={{ebsdata}}
+#    - name: create/aws | r__async_status__ec2_vol
+#      debug: msg={{r__async_status__ec2_vol}}
+
+
+- name: create/aws | Tag the EBS volumes
+  block:
+    - name: create/aws | Get the ec2_instance_info for EBS tagging
+      ec2_instance_info:
+        filters:
+          "instance-state-name": ["running", "stopped"]
+          "tag:cluster_name": "{{cluster_name}}"
+          "tag:lifecycle_state": "current"
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+      register: r__ec2_instance_info
 
     - name: create/aws | Set the ec2 volume name tag
       ec2_tag:
@@ -108,6 +132,21 @@
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{cluster_vars.region}}"
         resource: "{{item.volume_id}}"
-        tags:
+        tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
+      with_items: "{{_ec2_vols_denormalised_by_device}}"
+      vars:
+        _ec2_vols_denormalised_by_device: |
+          {% set res = [] -%}
+          {%- for host_instance in r__ec2_instance_info.instances -%}
+            {%- for block_device in host_instance.block_device_mappings -%}
+              {% set _ = res.append({'hostname': host_instance.tags.Name, 'hosttype': host_instance.tags.hosttype, 'device_name': block_device.device_name, 'volume_id': block_device.ebs.volume_id}) -%}
+            {%- endfor %}
+          {%- endfor %}
+          {{ res }}
+        _tags:
           Name: "{{ item.hostname }}--{{item.device_name | regex_replace('^.*\\/(.*)', '\\1')}}"
-      with_items: "{{ebsdata}}"
+          device_name: "{{item.device_name}}"
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
+          owner: "{{ lookup('env','USER') | lower }}"
+          release: "{{ release_version }}"

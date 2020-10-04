@@ -18,20 +18,23 @@
 
 - name: Preflight check
   block:
-    - assert: { that: "ansible_version.full is version_compare('2.9', '>=')", msg: "Ansible >=2.9 required." }
-    - assert: { that: "app_name is defined and app_name != ''", msg: "Please define app_name" }
-    - assert: { that: "app_class is defined and app_class != ''", msg: "Please define app_class" }
-    - assert: { that: "clusterid is defined and cluster_vars is defined", msg: "Please define clusterid" }
-    - assert: { that: "buildenv is defined and cluster_vars[buildenv] is defined", msg: "Please define buildenv" }
+    - assert: { that: "ansible_version.full is version_compare('2.9', '>=')", fail_msg: "Ansible >=2.9 required." }
+    - assert: { that: "app_name is defined and app_name != ''", fail_msg: "Please define app_name" }
+    - assert: { that: "app_class is defined and app_class != ''", fail_msg: "Please define app_class" }
+    - assert: { that: "clusterid is defined and cluster_vars is defined", fail_msg: "Please define clusterid" }
+    - assert: { that: "buildenv is defined and cluster_vars[buildenv] is defined", fail_msg: "Please define buildenv" }
 
       ## Tags/ labels must be compatible with GCP and AWS - check everything that goes into a label.
-    - assert: { that: "release_version is regex('^[a-z\\d\\-_]{0,63}$')", msg: "Please ensure release_version ({{release_version}}) is in the set [a-z\\d\\-_], and <63 characters long." }
+    - assert: { that: "release_version is regex('^[a-z\\d\\-_]{0,63}$')", fail_msg: "Please ensure release_version ({{release_version}}) is in the set [a-z\\d\\-_], and <63 characters long." }
       when: release_version is defined
-    - assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
+    - assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", fail_msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
       when: cluster_suffix is defined
     - assert: { that: "'{%- for label in cluster_vars.custom_tagslabels -%}{% if not cluster_vars.custom_tagslabels[label] is regex('^[a-z\\d\\-_]{0,63}$') %}{{label}}: {{cluster_vars.custom_tagslabels[label]}}{% endif %}{%- endfor -%}' == ''", fail_msg: "Please ensure all cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long." }
       when: "'custom_tagslabels' in cluster_vars"
     - assert: { that: "'{%- for hosttype in cluster_vars[buildenv].hosttype_vars -%}{% if ('version' in cluster_vars[buildenv].hosttype_vars[hosttype]) and (not cluster_vars[buildenv].hosttype_vars[hosttype].version is regex('^[a-z\\d\\-_]{0,63}$')) %}{{cluster_vars[buildenv].hosttype_vars[hosttype].version}}{% endif %}{%- endfor -%}' == ''", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[hosttype].version is in the set [a-z\\d\\-_], and <63 characters long." }
 
-    - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
+    - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars.type == "gcp" or cluster_vars.type == "aws"
+
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
+      when: cluster_vars.type == "aws"

@@ -5,7 +5,7 @@ A full-lifecycle, immutable cloud infrastructure cluster management **role**, us
 + **Scale (e.g. add a node):**  If you change the config yaml and rerun the deploy, new nodes will be added.
 + **Redeploy (e.g. up-version):** If you need to up-version, the `redeploy.yml` playbook will replace each node in turn, (with optional callbacks), and rollback if any failures occur. 
 
-**clusterverse** is designed to deploy base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, or Cassandra.
+**clusterverse** is designed to manage base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, Kafka, Elasticsearch, or Cassandra.
 
 ## Contributing
 Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/sky-uk/clusterverse/blob/master/CONTRIBUTING.md) for details.
@@ -35,7 +35,8 @@ To active the pipenv:
 ### DNS
 DNS is optional.  If unset, no DNS names will be created.  If required, you will need a DNS zone delegated to one of the following:
 + Bind9
-+ Route53
++ AWS Route53
++ Google Cloud DNS
 
 Credentials to the DNS server will also be required. These are specified in the `cluster_vars.yml` file described below.
 
@@ -70,13 +71,15 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 ## Usage
 **clusterverse** is an Ansible _role_, and as such must be imported into your \<project\>/roles directory.  There is a full-featured example in the [/EXAMPLE](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE) subdirectory.
 
-To import the role into your project, create a `requirements.yml` file containing:
+To import the role into your project, create a [`requirements.yml`](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/requirements.yml) file containing:
 ```
 - src: https://github.com/sky-uk/clusterverse
-  version: master           ## or hash, or version 
+  version: master           ## branch, hash, or tag 
   name: clusterverse
 ```
-To install the role into a project's `roles` directory: 
+If you use a `cluster.yml` file similar to the example found in [EXAMPLE/cluster.yml](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/cluster.yml), clusterverse will be installed automatically on each run of the playbook.
+
+To install it manually:
 + `ansible-galaxy install -r requirements.yml -p /<project>/roles/`
 
 
@@ -110,8 +113,8 @@ The role is designed to run in two modes:
       + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is no rollback in case of failure**
       + For each node in the cluster:
         + Run `predeleterole`
-        + Delete the node
-        + Run the main cluster.yml, which forces the missing node to be redeployed.  Run with the same parameters as for the main playbook.
+        + Delete/ terminate the node (note, this is _irreversible_).
+        + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
       + If the process fails at any point:
         + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
@@ -129,4 +132,16 @@ The role is designed to run in two modes:
         + `predeleterole` is called with a list of the old VMs.
         + The old VMs are stopped.
       + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
+      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+  + **_scheme_rmvm_keepdisk_rollback (AWS only so far)**
+      + Redeploys the nodes one by one, and moves the secondary (non-root) disks from the old to the new (note, only non-ephemeral disks can be moved).
+      + _Cluster topology must remain identical.  More disks may be added, but none may change or be removed._
+      + **It assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+      + For each node in the cluster:
+        + Run `predeleterole`
+        + Stop the node
+        + Detach the disks from the old node
+        + Run the main cluster.yml to create a new node
+        + Attach disks to new node
+      + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
