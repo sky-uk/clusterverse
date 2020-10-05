@@ -1,22 +1,24 @@
 ---
+
 #- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
 #- debug: msg={{ ansible_facts.devices }}
+
 - block:
-    - name: autodisks | Get unused block devices
+    - name: disks_auto_generic | Get unused block devices
       set_fact:
         block_devices: "{{ {'dev': item, 'size_b': (ansible_facts.devices[item].sectors|int) * (ansible_facts.devices[item].sectorsize|int)} }}"
       with_items: "{{ ansible_facts.devices }}"
       register: block_devices_list
       when: item | regex_search("nvme|[xvsh]+d") and ansible_facts.devices[item].partitions == {}
 
-    - name: autodisks | Create unused block devices list
+    - name: disks_auto_generic | Create unused block devices list
       set_fact:
         lsblk_volumes: "{{ block_devices_list.results | map(attribute='ansible_facts.block_devices') | select('defined') | list }}"
 
-    - name: autodisks | lsblk_volumes
+    - name: disks_auto_generic | lsblk_volumes
       debug: msg={{ lsblk_volumes }}
 
-- name: autodisks | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
+- name: disks_auto_generic | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
   set_fact:
     hostvols: |
       {% set res = [] -%}
@@ -31,14 +33,13 @@
             {%- set blkvolloop.break = true -%}
           {%- endif -%}
         {%- endfor -%}
-      {%- endfor -%}
       {{ res }}
 
-#- name: autodisks | hostvols
+#- name: disks_auto_generic | hostvols
 #  debug: msg={{hostvols}}
 
 # Create partition-less filesystems.
-- name: autodisks | Create filesystem(s) on attached volume(s)
+- name: disks_auto_generic | Create filesystem(s) on attached volume(s)
   become: yes
   filesystem:
     fstype: "{{ item.fstype }}"
@@ -50,7 +51,7 @@
   delay: 1
   until: created_filesystem is not failed
 
-- name: autodisks | Mount created filesytem(s) persistently
+- name: disks_auto_generic | Mount created filesytem(s) persistently
   become: yes
   mount:
     path: "{{ item.mountpoint }}"
@@ -60,7 +61,7 @@
     opts: _netdev
   with_items: "{{ hostvols }}"
 
-- name: autodisks | change ownership of mountpoint (if set)
+- name: disks_auto_generic | change ownership of mountpoint (if set)
   become: yes
   file:
     path: "{{ item.mountpoint }}"

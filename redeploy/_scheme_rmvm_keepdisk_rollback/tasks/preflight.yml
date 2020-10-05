@@ -3,6 +3,8 @@
 - name: Preflight check
   block:
     - block:
+        - assert: { that: "cluster_vars.type != 'gcp'", fail_msg: "This scheme is not supported on GCP." }
+
         - name: Preflight check | get ec2_instance_info for current disk information
           ec2_instance_info:
             filters: { "instance-state-name": [ "running", "stopped" ], "tag:cluster_name": "{{cluster_name}}", "tag:lifecycle_state": "current" }
@@ -11,10 +13,10 @@
             region: "{{cluster_vars.region}}"
           register: r__ec2_instance_info
 
-        - assert: { that: "_invalid_disks | length == 0", fail_msg: "EBS disks with a device_name of /dev/sd[b-e] cannot be reattached to a new instance (an AWS limitation) [found on: {{ _invalid_disks | join(',')}}].  To replace these, you must use a redeploy scheme that copies the disks." }
+        - assert: { that: "_invalid_disks | length == 0", fail_msg: "Disks cannot be attached to /dev/sd[b-e] after the instance has been created (these are supposed to be ephemeral mounts only, so can only exist if created with the VM). [Found on: {{ _invalid_disks | join(',')}}].  If you have EBS disks, you'll need to move them to another mount point (a redeploy scheme that replaces the disks will do this" }
           vars: { _invalid_disks: "{{ r__ec2_instance_info.instances | json_query(\"[?block_device_mappings[?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name)]].tags.Name\") }}" }
 
-        - assert: { that: "ec2_disks_is_subset_of_target_disks|bool==false", fail_msg: "Existing EBS disks must have be same as (or a subset of) the auto_volumes defined in your cluster_vars definition.", success_msg: "Success - Existing EBS disks are the same as (or a subset of) the auto_volumes defined in your cluster_vars definition" }
+        - assert: { that: "ec2_disks_is_subset_of_target_disks|bool==false", fail_msg: "Existing EBS disks must be the same as (or a subset of) the auto_volumes defined in your cluster_vars definition.", success_msg: "Success - Existing EBS disks are the same as (or a subset of) the auto_volumes defined in your cluster_vars definition" }
           vars:
             ec2_disks_is_subset_of_target_disks: |-
               {%- set testloop = namespace(is_not_subset=false) -%}
@@ -35,6 +37,6 @@
 
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
       vars: { non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}" }
-      when: (canary=="start" or canary=="none") and (ignore_lifecycle_check is not defined or ignore_lifecycle_check==false)
+      when: (canary=="start" or canary=="none")
 
     - assert: { that: "(cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '==', 'current') | list | length) == (cluster_hosts_target | length)", fail_msg: "Cannot use this scheme to redeploy to a different-sized cluster" }
