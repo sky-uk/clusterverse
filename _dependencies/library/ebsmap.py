@@ -110,6 +110,11 @@ try:
 except:
     pass
 
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+
 NVME_ADMIN_IDENTIFY = 0x06
 NVME_IOCTL_ADMIN_CMD = 0xC0484E41
 AMZN_NVME_VID = 0x1D0F
@@ -243,10 +248,22 @@ def main():
         module = cDummyAnsibleModule()
 
     # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).
-    lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,PARTLABEL,MOUNTPOINT,SERIAL', '-P']).decode().rstrip().split('\n')
+    lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL', '-P']).decode().rstrip().split('\n')
     os_device_names = [dict((map(lambda x: x.strip("\""), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
     os_device_names = [dev for dev in os_device_names if dev['TYPE'] in ['disk', 'part', 'lvm']]
+    os_device_names.sort(key=lambda k: k['NAME'])
 
+    # Instance stores (AKA ephemeral volumes) do not appear to have a defined endpoint that maps between the /dev/sd[b-e] defined in the instance creation map, and the OS /dev/nvme[0-26]n1 device.
+    # For this scenario, we can only return the instance stores in the order that they are defined.  Because instance stores do not survive a poweroff and cannot be detached and reattached, the order doesn't matter as much.
+    instance_store_map = []
+    with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/") as response__block_device_mapping:
+        block_device_mappings = response__block_device_mapping.read().decode().split("\n")
+        for block_device_mappings__ephemeral_id in [dev for dev in block_device_mappings if dev.startswith('ephemeral')]:
+            with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/" + block_device_mappings__ephemeral_id) as response__ephemeral_device:
+                block_device_mappings__ephemeral_mapped = response__ephemeral_device.read().decode()
+                instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
+
+    instance_store_count = 0
     for os_device in os_device_names:
         os_device_path = "/dev/" + os_device['NAME']
         if os_device['NAME'].startswith("nvme"):
@@ -254,6 +271,12 @@ def main():
                 dev = ebs_nvme_device(os_device_path)
             except FileNotFoundError as e:
                 module.fail_json(msg=os_device_path + ": FileNotFoundError" + str(e))
+            except TypeError as e:
+                if instance_store_count < len(instance_store_map):
+                    os_device.update({"device_name_os": os_device_path, "device_name_aws": '/dev/' + instance_store_map[instance_store_count]['ephemeral_map'], "volume_id": dev.get_volume_id()})
+                    instance_store_count += 1
+                else:
+                    module.warn(u"%s is not an EBS device and there is no instance store mapping." % os_device_path)
             except OSError as e:
                 module.warn(u"%s is not an nvme device." % os_device_path)
             else:
