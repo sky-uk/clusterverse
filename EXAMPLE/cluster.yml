@@ -7,24 +7,24 @@
   tasks:
     - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -fr requirements.yml", tags: ["always"] }
 
-    - { include_role: { name: "clusterverse/clean", apply: {tags: &roletag_clean  ["clusterverse_clean"]} }, tags:  *roletag_clean, when: "clean is defined" }
-    - { include_role: { name: "clusterverse/create", apply: {tags: &roletag_create  ["clusterverse_create"]} }, tags:  *roletag_create }
-    - { include_role: { name: "clusterverse/dynamic_inventory", apply: {tags: &roletag_dynamic_inventory  ["clusterverse_dynamic_inventory"]} }, tags:  *roletag_dynamic_inventory }
+    - { include_role: { name: "clusterverse/clean", apply: { tags: ["clusterverse_clean"]} }, tags: ["clusterverse_clean"], when: "clean is defined"  }
+    - { include_role: { name: "clusterverse/create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
+    - { include_role: { name: "clusterverse/dynamic_inventory", apply: { tags: ["clusterverse_dynamic_inventory"]} }, tags: ["clusterverse_dynamic_inventory"] }
 
 - name: Configure the cluster
   hosts: all
   tasks:
-    - { include_role: { name: "clusterverse/config", apply: {tags: &roletag_config  ["clusterverse_config"]} }, tags:  *roletag_config }
+    - { include_role: { name: "clusterverse/config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] }
 
 ## Application roles
 - name: Application roles
   hosts: all
   tasks:
-    - { include_role: { name: "testrole", apply: {tags: &roletag_testrole  ["testrole"]} }, tags:  *roletag_testrole }
+    - { include_role: { name: "testrole", apply: { tags: ["testrole"]} }, tags: ["testrole"] }
 ##
 
 - name: Perform cluster readiness operations
   hosts: localhost
   connection: local
   tasks:
-    - { include_role: { name: "clusterverse/readiness", apply: {tags: &roletag_readiness  ["clusterverse_readiness"]} }, tags:  *roletag_readiness }
+    - { include_role: { name: "clusterverse/readiness", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] }
