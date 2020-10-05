@@ -36,5 +36,5 @@
     - assert: { that: "(cluster_vars.assign_public_ip == 'yes' and cluster_vars.inventory_ip == 'public') or (cluster_vars.inventory_ip == 'private')", fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be 'yes'" }
       when: cluster_vars.type == "gcp" or cluster_vars.type == "aws"
 
-    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name)]\") | length == 0", fail_msg: "/dev/sd[b-e] are not allowed as device_name in AWS cluster_vars[buildenv].hosttype_vars.  Please start at /dev/sdf." }
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
       when: cluster_vars.type == "aws"

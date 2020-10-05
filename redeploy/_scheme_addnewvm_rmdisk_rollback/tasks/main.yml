@@ -5,7 +5,7 @@
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
-      when: (canary=="start" or canary=="none") and (ignore_lifecycle_check is not defined or ignore_lifecycle_check==false)
+      when: canary=="start" or canary=="none"
 
 
 - name: Redeploy by hosttype; rollback on fail

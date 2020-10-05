@@ -10,8 +10,8 @@
     region: "{{cluster_vars.region}}"
   register: r__ec2_instance_info
 
-#- name: _get_diskinfo_aws | r__ec2_instance_info
-#  debug: msg={{r__ec2_instance_info}}
+- name: _get_diskinfo_aws | r__ec2_instance_info
+  debug: msg={{r__ec2_instance_info}}
 
 - name: _get_diskinfo_aws | augment cluster_hosts_target auto_volumes with source disk info
   set_fact:
@@ -21,7 +21,7 @@
           {%- for chs_host_info_result in r__ec2_instance_info.instances | selectattr('tags.lifecycle_state', '!=', 'current') -%}
             {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host_info_result.tags.Name | regex_replace('-(?!.*-).*') -%}
               {%- for chs_host_diskinfo in chs_host_info_result.block_device_mappings | selectattr('device_name', '==', cht_autovol.device_name) -%}
-                {%- set _ = cht_autovol.update({'src': {'instance_id': chs_host_info_result.instance_id, 'volume_id': chs_host_diskinfo.ebs.volume_id }}) -%}
+                {%- set _ = cht_autovol.update({'src': {'instance_id': chs_host_info_result.instance_id, 'device_name': chs_host_diskinfo.device_name, 'volume_id': chs_host_diskinfo.ebs.volume_id }}) -%}
               {%- endfor -%}
             {%- endif -%}
           {%- endfor -%}

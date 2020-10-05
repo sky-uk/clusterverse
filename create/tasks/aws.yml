@@ -1,5 +1,8 @@
 ---
 
+- name: cluster_hosts_target_denormalised_by_volume
+  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
+
 - name: create/aws | Create AWS security group
   ec2_group:
     name: "{{ cluster_name }}-sg"
@@ -45,6 +48,7 @@
         wait: yes
         instance_tags: "{{ _instance_tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
         termination_protection: "{{cluster_vars[buildenv].termination_protection}}"
+        volumes: "{{ item.auto_volumes | selectattr('src', 'undefined') | list | default([]) }}"
         count_tag: { Name: "{{item.hostname}}" }
         exact_count: 1
       vars:
@@ -79,7 +83,7 @@
       set_fact:
         cluster_hosts_created: "{{ r__async_status__ec2.results | json_query(\"[?changed==`true`].item.item\") }}"
 
-    - name: create/aws | Create new volumes asynchronously (or attach existing if src is present, e.g. via the _scheme_rmvm_keepdisk_rollback scheme)
+    - name: create/aws | Attach (or create) volumes where 'src' is present (e.g. inserted as part of _scheme_rmvm_keepdisk_rollback scheme)
       ec2_vol:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -92,7 +96,7 @@
         volume_size: "{%- if 'src' not in item.auto_volume -%}{{item.auto_volume.volume_size}}{%- endif -%}"
         volume_type: "{{item.auto_volume.volume_type}}"
         delete_on_termination: yes
-      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume| selectattr('src', 'defined') | list }}"
       async: 7200
       poll: 0
       register: r__ec2_vol
@@ -104,6 +108,9 @@
       delay: 3
       retries: 300
       with_items: "{{r__ec2_vol.results}}"
+
+#    - name: create/aws | r__async_status__ec2_vol
+#      debug: msg={{r__async_status__ec2_vol}}
 
 
 - name: create/aws | Tag the EBS volumes
@@ -138,6 +145,7 @@
           {{ res }}
         _tags:
           Name: "{{ item.hostname }}--{{item.device_name | regex_replace('^.*\\/(.*)', '\\1')}}"
+          device_name: "{{item.device_name}}"
           inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
           inv_node_type: "{{item.hosttype}}"
           owner: "{{ lookup('env','USER') | lower }}"

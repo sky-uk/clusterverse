@@ -1,0 +1,109 @@
+---
+
+- name: disks_auto_aws | auto_volumes
+  debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
+
+- name: disks_auto_aws | cluster_hosts_target(inventory_hostname)
+  debug: msg={{ (cluster_hosts_target | selectattr('hostname', '==', inventory_hostname) | list | first)['auto_volumes'] }}
+
+
+- name: disks_auto_aws | Mount volumes as individual disks
+  block:
+    - name: disks_auto_aws | Get the nvme information (pre-filesystem create)
+      ebsmap:
+      become: yes
+      register: r__ebsmap
+
+    - name: disks_auto_aws | r__ebsmap (pre-filesystem create)
+      debug: msg={{r__ebsmap}}
+
+    - name: disks_auto_aws | Create filesystem (partitionless)
+      become: yes
+      filesystem:
+        fstype: "{{ item.fstype }}"
+        dev: "{{ (r__ebsmap.device_map | selectattr('device_name_aws', '==', item.device_name) | list | last)['device_name_os'] }}"
+      loop: "{{auto_vols}}"
+
+    - name: disks_auto_aws | Get the nvme information (post-filesystem create), to get the block IDs for mounting
+      ebsmap:
+      become: yes
+      register: r__ebsmap
+    
+    - name: disks_auto_aws | r__ebsmap (post-filesystem create)
+      debug: msg={{r__ebsmap}}
+    
+    - name: disks_auto_aws | Mount created filesytem(s) persistently
+      become: yes
+      mount:
+        path: "{{ item.mountpoint }}"
+        src: "UUID={{ (r__ebsmap.device_map | selectattr('device_name_aws', '==', item.device_name) | list | last)['UUID'] }}"
+        fstype: "{{ item.fstype }}"
+        state: mounted
+        opts: _netdev
+      loop: "{{auto_vols}}"
+    
+    - name: disks_auto_aws | change ownership of mountpoint (if set)
+      become: yes
+      file:
+        path: "{{ item.mountpoint }}"
+        state: directory
+        mode: "{{ item.perms.mode | default(omit)}}"
+        owner: "{{ item.perms.owner | default(omit)}}"
+        group: "{{ item.perms.group | default(omit)}}"
+      loop: "{{auto_vols}}"
+  when: (auto_vols | map(attribute='mountpoint') | list | unique | count == auto_vols | map(attribute='mountpoint') | list | count)
+  vars:
+    auto_vols: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}"
+
+
+# The following block mounts all nvme attached volumes that have a single, common mountpoint, by creating a logical volume
+- name: disks_auto_aws | Mount nvme volumes in a single mountpoint through LV/VG
+  block:
+    - name: disks_auto_aws | Install logical volume management tooling. (yum - RedHat/CentOS)
+      become: true
+      yum:
+        name: "lvm*"
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: disks_auto_aws | Get the nvme information (pre-filesystem create)
+      ebsmap:
+      become: yes
+      register: r__ebsmap
+
+    - name: disks_auto_aws | r__ebsmap (pre-filesystem create)
+      debug: msg={{r__ebsmap}}
+
+    - name: disks_auto_aws | Create a volume group from all nvme devices
+      become: yes
+      lvg:
+        vg:  "{{ hosttype_vars.lvmparams.vg_name }}"
+        pvs: "{{ r__ebsmap.device_map | json_query(\"[?device_name_aws && contains('\" + auto_vol_device_names + \"', device_name_aws)].device_name_os\") | join(',')}}"
+      vars:
+        auto_vol_device_names: "{{hosttype_vars.auto_volumes | map(attribute='device_name') | sort  | join(',')}}"
+
+    - name: disks_auto_aws | Create a logical volume from volume group
+      become: yes
+      lvol:
+        vg: "{{ hosttype_vars.lvmparams.vg_name }}"
+        lv: "{{ hosttype_vars.lvmparams.lv_name }}"
+        size: "{{ hosttype_vars.lvmparams.lv_size }}"
+
+    - name: disks_auto_aws | Create filesystem(s) on attached nvme volume(s)
+      become: yes
+      filesystem:
+        fstype: "{{ hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | join('') }}"
+        dev: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
+        force: no
+
+    - name: disks_auto_aws | Mount created filesytem(s) persistently
+      become: yes
+      mount:
+        path: "{{ hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | unique | join('') }}"
+        src: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
+        fstype: "{{ hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | join('') }}"
+        state: mounted
+        opts: _netdev
+  when: ('lvmparams' in hosttype_vars) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | unique | count == 1) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | count >= 2) and (hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | count == 1)
+  vars:
+    hosttype_vars: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] }}"
