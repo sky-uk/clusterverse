@@ -3,10 +3,6 @@
 - name: disks_auto_aws | auto_volumes
   debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
 
-- name: disks_auto_aws | cluster_hosts_target(inventory_hostname)
-  debug: msg={{ (cluster_hosts_target | selectattr('hostname', '==', inventory_hostname) | list | first)['auto_volumes'] }}
-
-
 - name: disks_auto_aws | Mount volumes as individual disks
   block:
     - name: disks_auto_aws | Get the nvme information (pre-filesystem create)
