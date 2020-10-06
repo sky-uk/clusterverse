@@ -1,7 +1,7 @@
 ---
 
-- name: disks_auto_aws | auto_volumes
-  debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
+- name: disks_auto_aws | cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype
+  debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] }}
 
 - name: disks_auto_aws | Mount volumes as individual disks
   block:
@@ -24,10 +24,10 @@
       ebsmap:
       become: yes
       register: r__ebsmap
-    
+
     - name: disks_auto_aws | r__ebsmap (post-filesystem create)
       debug: msg={{r__ebsmap}}
-    
+
     - name: disks_auto_aws | Mount created filesytem(s) persistently
       become: yes
       mount:
@@ -37,7 +37,7 @@
         state: mounted
         opts: _netdev
       loop: "{{auto_vols}}"
-    
+
     - name: disks_auto_aws | change ownership of mountpoint (if set)
       become: yes
       file:
@@ -47,6 +47,26 @@
         owner: "{{ item.perms.owner | default(omit)}}"
         group: "{{ item.perms.group | default(omit)}}"
       loop: "{{auto_vols}}"
+
+    - block:
+        - name: disks_auto_aws | Touch a file with the mountpoint and device name for testing that disk attachment is correct
+          become: yes
+          file:
+            path: "{{item.mountpoint}}/__clusterversetest_{{ item.mountpoint | regex_replace('\/', '_') }}_{{ item.device_name | regex_replace('\/', '_') }}"
+            state: touch
+          loop: "{{auto_vols}}"
+
+        - name: disks_auto_aws | Find all __clusterversetest_ files in newly mounted disks
+          find:
+            paths: "{{item.mountpoint}}"
+            patterns: "__clusterversetest_*"
+          loop: "{{auto_vols}}"
+          register: r__find_test
+
+        - name: disks_auto_aws | Display all __clusterversetest_ files in newly mounted disks.
+          debug:
+            msg: "{{ r__find_test | json_query(\"results[].{device_name: item.device_name, mountpoint: item.mountpoint, files: files[].path}\") }}"
+      when: test_touch_disks is defined and test_touch_disks|bool
   when: (auto_vols | map(attribute='mountpoint') | list | unique | count == auto_vols | map(attribute='mountpoint') | list | count)
   vars:
     auto_vols: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}"
@@ -88,18 +108,36 @@
     - name: disks_auto_aws | Create filesystem(s) on attached nvme volume(s)
       become: yes
       filesystem:
-        fstype: "{{ hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | join('') }}"
+        fstype: "{{ hosttype_vars.auto_volumes[0].fstype }}"
         dev: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
         force: no
 
     - name: disks_auto_aws | Mount created filesytem(s) persistently
       become: yes
       mount:
-        path: "{{ hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | unique | join('') }}"
+        path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}"
         src: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
-        fstype: "{{ hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | join('') }}"
+        fstype: "{{ hosttype_vars.auto_volumes[0].fstype }}"
         state: mounted
         opts: _netdev
+
+    - block:
+        - name: disks_auto_aws | Touch a file with the mountpoint and device name for testing that disk attachment is correct
+          become: yes
+          file:
+            path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}/__clusterversetest_{{ hosttype_vars.auto_volumes[0].mountpoint | regex_replace('\/', '_') }}"
+            state: touch
+
+        - name: disks_auto_aws | Find all __clusterversetest_ files in newly mounted disks
+          find:
+            paths: "{{ hosttype_vars.auto_volumes[0].mountpoint }}"
+            patterns: "__clusterversetest_*"
+          register: r__find_test
+
+        - name: disks_auto_aws | Display all __clusterversetest_ files in newly mounted disks.
+          debug:
+            msg: "{{ r__find_test | json_query(\"files[].path\") }}"
+      when: test_touch_disks is defined and test_touch_disks|bool
   when: ('lvmparams' in hosttype_vars) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | unique | count == 1) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | count >= 2) and (hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | count == 1)
   vars:
     hosttype_vars: "{{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype] }}"
