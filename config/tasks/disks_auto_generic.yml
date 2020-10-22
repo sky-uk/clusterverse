@@ -33,6 +33,7 @@
             {%- set blkvolloop.break = true -%}
           {%- endif -%}
         {%- endfor -%}
+      {%- endfor -%}
       {{ res }}
 
 #- name: disks_auto_generic | hostvols
