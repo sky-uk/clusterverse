@@ -24,7 +24,7 @@
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
     name: "{{ item.hostname }}"
-    groups: "{{ item.hosttype }},{{ cluster_name }},{{ clusterid }}{%- if 'regionzone' in item -%},{{ item.regionzone }}{%- endif -%}"
+    groups: "{{ item.hosttype }},{{ cluster_name }},{{ clusterid }}{% if 'regionzone' in item %},{{ item.regionzone }}{% endif %}"
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
     regionzone: "{{ item.regionzone | default(omit) }}"
@@ -42,7 +42,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {%- if 'regionzone' in hostvars[hostname] -%}regionzone={{ hostvars[hostname].regionzone }}{%- endif -%}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %}{{''}}
       {% endfor %}
 
       {% endif %}
