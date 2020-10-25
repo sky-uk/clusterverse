@@ -52,13 +52,13 @@
     mode: 0755
   when: (static_journal is defined and static_journal|bool)
 
-- name: Create partition table, format and attach volumes - AWS
-  include_tasks: disks_auto_aws.yml
-  when: cluster_vars.type == "aws"
+- name: Create partition table, format and attach volumes - AWS or GCP
+  include_tasks: disks_auto_aws_gcp.yml
+  when: cluster_vars.type == "aws" or cluster_vars.type == "gcp"
 
 - name: Create partition table, format and attach volumes - generic
   include_tasks: disks_auto_generic.yml
-  when: cluster_vars.type != "aws"
+  when: cluster_vars.type != "aws" and cluster_vars.type != "gcp"
 
 - name: install prometheus node exporter daemon
   include_tasks: prometheus_node_exporter.yml
@@ -68,13 +68,13 @@
   include_tasks: filebeat.yml
   when: (filebeat_install is defined and filebeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
   vars:
-    hosttype: "{{cluster_hosts_target | json_query('[? hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
+    hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
 
 - name: Install elastic metricbeat
   include_tasks: metricbeat.yml
   when: (metricbeat_install is defined and metricbeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
   vars:
-    hosttype: "{{cluster_hosts_target | json_query('[? hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
+    hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
 
 - name: Install security cloud agent
   include_tasks: cloud_agents.yml
