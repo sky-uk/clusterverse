@@ -3,7 +3,7 @@
 - name: Preflight check
   block:
     - block:
-        - assert: { that: "cluster_vars.type != 'gcp'", fail_msg: "This scheme is not supported on GCP." }
+#        - assert: { that: "cluster_vars.type != 'gcp'", fail_msg: "This scheme is not supported on GCP." }
 
         - name: Preflight check | get ec2_instance_info for current disk information
           ec2_instance_info:

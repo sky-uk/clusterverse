@@ -1,3 +1,6 @@
+---
+## For the blockdevmap.py script:
+
 BSD 3-Clause License
 
 Copyright (c) 2020, Dougal Seeley
@@ -30,6 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ---
+## For the parts of blockdevmap.py derived from the /sbin/ebsnvme-id (Amazon.com, Inc) script:
+
+MIT License
 
 Copyright 2017 Amazon.com, Inc. and its affiliates. All Rights Reserved.
 
