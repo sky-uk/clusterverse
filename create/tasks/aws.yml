@@ -30,8 +30,7 @@
         region: "{{cluster_vars.region}}"
         id: "{{item.auto_volume.src.volume_id}}"
         instance: None
-      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
-      when: "'src' in item.auto_volume"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
 
     - name: create/aws | Create EC2 VMs asynchronously
       ec2:
@@ -96,7 +95,7 @@
         volume_size: "{%- if 'src' not in item.auto_volume -%}{{item.auto_volume.volume_size}}{%- endif -%}"
         volume_type: "{{item.auto_volume.volume_type}}"
         delete_on_termination: yes
-      loop: "{{ cluster_hosts_target_denormalised_by_volume| selectattr('src', 'defined') | list }}"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
       async: 7200
       poll: 0
       register: r__ec2_vol

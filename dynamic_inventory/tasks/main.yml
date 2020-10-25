@@ -14,7 +14,9 @@
   ping:
   delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
-  retries: 12
+  register: r__ping
+  until: r__ping is success
+  retries: 5
 
 - name: dynamic_inventory | Refresh (clean it, because there is no file or plugin inventory defined) the in-memory inventory prior to building it (this is in case this module is called multiple times, and we otherwise only add hosts to existing inventory)
   meta: refresh_inventory
