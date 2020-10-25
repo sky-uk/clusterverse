@@ -5,7 +5,7 @@
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
-      when: canary=="start" or canary=="none"
+      when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
 
 - name: Redeploy by hosttype; rollback on fail
@@ -39,14 +39,14 @@
             name: "{{predeleterole}}"
           when: predeleterole is defined and predeleterole != ""
           vars:
-            hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && (contains('RUNNING,running', instance_state))]\") }}"
+            hosts_to_remove: "{{ hosts_to_stop | json_query(\"[?contains('RUNNING,running', instance_state)]\") }}"
 
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
             name: clusterverse/redeploy/__common
             tasks_from: poweroff_vms.yml
-          vars:
-            hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+      vars:
+        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))]\") }}"
       when: (canary=="finish" or canary=="none")
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)

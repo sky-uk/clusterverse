@@ -3,8 +3,6 @@
 - name: Preflight check
   block:
     - block:
-        - assert: { that: "cluster_vars.type != 'gcp'", fail_msg: "This scheme is not supported on GCP." }
-
         - name: Preflight check | get ec2_instance_info for current disk information
           ec2_instance_info:
             filters: { "instance-state-name": [ "running", "stopped" ], "tag:cluster_name": "{{cluster_name}}", "tag:lifecycle_state": "current" }
@@ -34,6 +32,6 @@
 
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
       vars: { non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}" }
-      when: (canary=="start" or canary=="none")
+      when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
     - assert: { that: "(cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '==', 'current') | list | length) == (cluster_hosts_target | length)", fail_msg: "Cannot use this scheme to redeploy to a different-sized cluster" }

@@ -1,43 +1,34 @@
 ---
 
-#- debug: msg={{ cluster_vars[buildenv].hosttype_vars[hostvars[inventory_hostname].hosttype].auto_volumes }}
-#- debug: msg={{ ansible_facts.devices }}
+- name: disks_auto_generic | Get the block device information (pre-filesystem create)
+  blockdevmap:
+    cloud_type: "lsblk"
+  become: yes
+  register: r__blockdevmap
 
-- block:
-    - name: disks_auto_generic | Get unused block devices
-      set_fact:
-        block_devices: "{{ {'dev': item, 'size_b': (ansible_facts.devices[item].sectors|int) * (ansible_facts.devices[item].sectorsize|int)} }}"
-      with_items: "{{ ansible_facts.devices }}"
-      register: block_devices_list
-      when: item | regex_search("nvme|[xvsh]+d") and ansible_facts.devices[item].partitions == {}
-
-    - name: disks_auto_generic | Create unused block devices list
-      set_fact:
-        lsblk_volumes: "{{ block_devices_list.results | map(attribute='ansible_facts.block_devices') | select('defined') | list }}"
-
-    - name: disks_auto_generic | lsblk_volumes
-      debug: msg={{ lsblk_volumes }}
+- name: disks_auto_generic | r__blockdevmap
+  debug: msg={{ r__blockdevmap }}
 
 - name: disks_auto_generic | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
   set_fact:
     hostvols: |
       {% set res = [] -%}
-      {% set tmp_blkvols = lsblk_volumes -%}
+      {% set tmp_blkvols = r__blockdevmap.device_map | selectattr('PTTYPE', '==', '') | selectattr('FSTYPE', '==', '') | selectattr('TYPE', '==', 'disk') | list -%}
       {% set inventory_hostname__no_suffix = inventory_hostname | regex_replace('-(?!.*-).*') -%}
       {%- for autovol in cluster_hosts_target | to_json | from_json | json_query('[?starts_with(hostname, \'' + inventory_hostname__no_suffix + '\')].auto_volumes[]') -%}
         {%- set blkvolloop = namespace(break=false) -%}
         {%- for blkvol in tmp_blkvols if not blkvolloop.break -%}
-          {%- if (autovol.volume_size*1073741824|int) == (blkvol.size_b|int) -%}
-            {%- set _ = res.extend([ {'device': '/dev/'+blkvol.dev, 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms | default({})}]) -%}
-            {%- set _ = tmp_blkvols.remove(blkvol) -%}
+          {%- if (autovol.volume_size*1073741824|int) == (blkvol['SIZE']|int) -%}
+            {%- set _ = res.extend([ {'device': blkvol['device_name_os'], 'mountpoint': autovol.mountpoint, 'fstype': autovol.fstype, 'perms': autovol.perms | default({})}]) -%}
             {%- set blkvolloop.break = true -%}
+            {%- set _ = tmp_blkvols.remove(blkvol) -%}
           {%- endif -%}
         {%- endfor -%}
       {%- endfor -%}
       {{ res }}
 
-#- name: disks_auto_generic | hostvols
-#  debug: msg={{hostvols}}
+- name: disks_auto_generic | hostvols
+  debug: msg={{hostvols}}
 
 # Create partition-less filesystems.
 - name: disks_auto_generic | Create filesystem(s) on attached volume(s)
