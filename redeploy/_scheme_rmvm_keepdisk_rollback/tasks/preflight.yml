@@ -30,7 +30,7 @@
               {{ testloop.is_not_subset }}
       when: cluster_vars.type == "aws"
 
-    - assert: { that: "_scheme_rmvm_keepdisk_only__copy_or_move is defined and _scheme_rmvm_keepdisk_only__copy_or_move in ['copy', 'move']", fail_msg: "ERROR - _scheme_rmvm_keepdisk_only__copy_or_move must be defined and set to either 'copy' or 'move'"  }
+    - assert: { that: "_scheme_rmvm_keepdisk_rollback__copy_or_move is defined and _scheme_rmvm_keepdisk_rollback__copy_or_move in ['copy', 'move']", fail_msg: "ERROR - _scheme_rmvm_keepdisk_rollback__copy_or_move must be defined and set to either 'copy' or 'move'"  }
       when: cluster_vars.type == "esxifree"
 
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
