@@ -2,12 +2,18 @@
 
 - name: Preflight check
   block:
-    - assert:
-        that: "{{chs_hosts | difference(chf_hosts) | length==0}}"
-        msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ chf_hosts | join(',') }}]"
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+    - assert: { that: "{{chs_hosts | difference(chf_hosts) | length==0}}", fail_msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ chf_hosts | join(',') }}]" }
       vars:
         chf_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
         chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
+
+    - assert: { that: "canary != 'tidy'", fail_msg: "'tidy' is not valid for this redeploy scheme" }
+
 
 - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
   include_tasks: by_hosttype.yml
