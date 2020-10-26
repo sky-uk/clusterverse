@@ -28,6 +28,13 @@
         dest: "/etc/metricbeat/metricbeat.yml"
       notify: Metricbeat | Restart and enable metricbeat
 
+    - name: Metricbeat | Copy metricbeat system module configuration
+      become: yes
+      template:
+        src: etc/metricbeat/metricbeat_system.yml.j2
+        dest: "/etc/metricbeat/modules.d/system.yml"
+      notify: Metricbeat | Restart and enable metricbeat
+
     - name: Metricbeat | Copy metricbeat service
       become: yes
       template:
