@@ -14,6 +14,8 @@ beats_config:
 #      - /var/log/myapp/*.log
   metricbeat:
 #    output_logstash_hosts: ["localhost:5044"]   # The destination hosts for metricbeat-gathered metrics
+#    diskio:                       # Diskio retrieves metrics for all disks partitions by default. When diskio.include_devices is defined, only look for defined partitions
+#      include_devices: ["sda", "sdb", "nvme0n1", "nvme1n1", "nvme2n1"]     
 
 ## Vulnerability scanners - Tenable and/ or Qualys cloud agents:
 cloud_agent:
