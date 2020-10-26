@@ -13,7 +13,7 @@
   set_fact:
     hostvols: |
       {% set res = [] -%}
-      {% set tmp_blkvols = r__blockdevmap.device_map | selectattr('PTTYPE', '==', '') | selectattr('MOUNTPOINT', '==', '') | selectattr('TYPE', '==', 'disk') | list -%}
+      {% set tmp_blkvols = r__blockdevmap.device_map | selectattr('TYPE', '==', 'disk') | selectattr('MOUNTPOINT', '==', '') | list -%}
       {% set inventory_hostname__no_suffix = inventory_hostname | regex_replace('-(?!.*-).*') -%}
       {%- for autovol in cluster_hosts_target | to_json | from_json | json_query('[?starts_with(hostname, \'' + inventory_hostname__no_suffix + '\')].auto_volumes[]') -%}
         {%- set blkvolloop = namespace(break=false) -%}
