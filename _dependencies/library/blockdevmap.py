@@ -219,7 +219,7 @@ class cBlockDevMap(object):
 
     def get_lsblk(self):
         # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).
-        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,PTTYPE,SERIAL,SIZE', '-P', '-b']).decode().rstrip().split('\n')
+        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE', '-P', '-b']).decode().rstrip().split('\n')
         os_device_names = [dict((map(lambda x: x.strip("\""), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
         os_device_names = [dev for dev in os_device_names if dev['TYPE'] in ['disk', 'part', 'lvm']]
         os_device_names.sort(key=lambda k: k['NAME'])
@@ -228,7 +228,7 @@ class cBlockDevMap(object):
 
 class cLsblkMapper(cBlockDevMap):
     def __init__(self, **kwds):
-        super().__init__(**kwds)
+        super(cLsblkMapper, self).__init__(**kwds)
 
         self.device_map = self.get_lsblk()
         for os_device in self.device_map:
@@ -237,7 +237,7 @@ class cLsblkMapper(cBlockDevMap):
 
 class cGCPMapper(cBlockDevMap):
     def __init__(self, **kwds):
-        super().__init__(**kwds)
+        super(cGCPMapper, self).__init__(**kwds)
 
         self.device_map = self.get_lsblk()
 
@@ -247,16 +247,17 @@ class cGCPMapper(cBlockDevMap):
 
 class cAwsMapper(cBlockDevMap):
     def __init__(self, **kwds):
-        super().__init__(**kwds)
+        super(cAwsMapper, self).__init__(**kwds)
         # Instance stores (AKA ephemeral volumes) do not appear to have a defined endpoint that maps between the /dev/sd[b-e] defined in the instance creation map, and the OS /dev/nvme[0-26]n1 device.
         # For this scenario, we can only return the instance stores in the order that they are defined.  Because instance stores do not survive a poweroff and cannot be detached and reattached, the order doesn't matter as much.
         instance_store_map = []
-        with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/") as response__block_device_mapping:
-            block_device_mappings = response__block_device_mapping.read().decode().split("\n")
-            for block_device_mappings__ephemeral_id in [dev for dev in block_device_mappings if dev.startswith('ephemeral')]:
-                with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/" + block_device_mappings__ephemeral_id) as response__ephemeral_device:
-                    block_device_mappings__ephemeral_mapped = response__ephemeral_device.read().decode()
-                    instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
+
+        response__block_device_mapping = urlopen('http://169.254.169.254/latest/meta-data/block-device-mapping/')
+        block_device_mappings = response__block_device_mapping.read().decode().split("\n")
+        for block_device_mappings__ephemeral_id in [dev for dev in block_device_mappings if dev.startswith('ephemeral')]:
+            with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/" + block_device_mappings__ephemeral_id) as response__ephemeral_device:
+                block_device_mappings__ephemeral_mapped = response__ephemeral_device.read().decode()
+                instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
 
         instance_store_count = 0
         self.device_map = self.get_lsblk()

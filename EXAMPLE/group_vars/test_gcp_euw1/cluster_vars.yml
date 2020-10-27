@@ -4,7 +4,7 @@
 gcp_credentials_file: "{{ lookup('env','GCP_CREDENTIALS') | default('/dev/null', true) }}"
 gcp_credentials_json: "{{ lookup('file', gcp_credentials_file) | default({'project_id': 'GCP_CREDENTIALS__NOT_SET','client_email': 'GCP_CREDENTIALS__NOT_SET'}, true) }}"
 
-redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only']
+redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback']
 
 #redeploy_scheme: _scheme_addallnew_rmdisk_rollback
 #redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
