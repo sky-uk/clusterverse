@@ -1,10 +1,15 @@
 ---
-
 - name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster"
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}' {{ ' -e ' ~ _app_controlled_removal_arg|to_json|quote if app_controlled_removal|default(false)|bool else '' }}"
   register: r__mainclusteryml
   no_log: True
   ignore_errors: yes
+  vars:
+    _root_cluster_host_redeploying: "{{cluster_host_redeploying.hostname | regex_replace('-(?!.*-).*')}}"
+    _hosts_to_remove: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state=='retiring' && starts_with(name, '\" + _root_cluster_host_redeploying + \"')].name\") }}"
+    _app_controlled_removal_arg:
+      hosts_to_remove: "{{ _hosts_to_remove }}"
+
 - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
   failed_when: r__mainclusteryml is failed
   when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)

@@ -15,10 +15,13 @@
         new_state: "retiring"
 
     - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness {{ ' -e ' ~ _app_controlled_removal_arg|to_json|quote if app_controlled_removal|default(false)|bool else '' }}"
       register: r__mainclusteryml
       no_log: True
       ignore_errors: yes
+      vars:
+        _app_controlled_removal_arg:
+          hosts_to_remove:  "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].name\") }}"
     - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
       failed_when: r__mainclusteryml is failed
       when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
