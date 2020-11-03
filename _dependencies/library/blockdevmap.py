@@ -209,7 +209,7 @@ class nvme_identify_controller(Structure):
                 ("reserved3", c_uint8 * (704 - 531)),
                 ("reserved4", c_uint8 * (2048 - 704)),
                 ("psd", nvme_identify_controller_psd * 32),  # Power State Descriptor
-                ("vs", nvme_identify_controller_amzn_vs)]  # Vendor Specific
+                ("vs", nvme_identify_controller_amzn_vs)]  # Vendor Specific.  NOTE: AWS add the mapping here for both the root *and* the first partition.
 
 
 class cBlockDevMap(object):
@@ -218,11 +218,20 @@ class cBlockDevMap(object):
         self.device_map = []
 
     def get_lsblk(self):
-        # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).
+        # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).  Cannot use the --json output as it not supported on older versions of lsblk (e.g. CentOS 7)
         lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE', '-P', '-b']).decode().rstrip().split('\n')
         os_device_names = [dict((map(lambda x: x.strip("\""), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
         os_device_names = [dev for dev in os_device_names if dev['TYPE'] in ['disk', 'part', 'lvm']]
         os_device_names.sort(key=lambda k: k['NAME'])
+
+        # Get the partition table type.  Useful to know in case we are checking whether this block device is partition-less.  Cannot use the PTTYPE option to lsblk above, as it is not supported in earlier versions of lsblk (e.g. CentOS7)
+        for os_device in os_device_names:
+            udevadm_output_lines = subprocess.check_output(['udevadm', 'info', '--query=property', '--name', os_device['NAME']]).decode().rstrip().split('\n')
+            udevadm_output = dict(s.split('=',1) for s in udevadm_output_lines)
+            if 'ID_PART_TABLE_TYPE' in udevadm_output:
+                os_device.update({"parttable_type": udevadm_output['ID_PART_TABLE_TYPE']})
+            else:
+                os_device.update({"parttable_type": ""})
         return os_device_names
 
 
