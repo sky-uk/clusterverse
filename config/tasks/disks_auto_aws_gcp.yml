@@ -24,7 +24,7 @@
         dev: "{{ _dev }}"
       loop: "{{auto_vols}}"
       vars:
-        _dev: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == `\" + item.device_name + \"` && TYPE==`disk` && FSTYPE==`` && MOUNTPOINT==``].device_name_os | [0]\") }}"
+        _dev: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == `\" + item.device_name + \"` && TYPE==`disk` && parttable_type==`` && FSTYPE==`` && MOUNTPOINT==``].device_name_os | [0]\") }}"
       when: _dev is defined and _dev != ''
 
     - name: disks_auto_aws_gcp | Get the block device information (post-filesystem create), to get the block IDs for mounting
@@ -46,7 +46,7 @@
         opts: _netdev
       loop: "{{auto_vols}}"
       vars:
-        _UUID: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == `\" + item.device_name + \"` && TYPE==`disk` && MOUNTPOINT==``].UUID | [0]\") }}"
+        _UUID: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == `\" + item.device_name + \"` && TYPE==`disk` && parttable_type==`` && MOUNTPOINT==``].UUID | [0]\") }}"
       when: _UUID is defined and _UUID != ''
 
     - name: disks_auto_aws_gcp | change ownership of mountpoint (if set)

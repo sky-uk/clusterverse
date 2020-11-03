@@ -513,6 +513,7 @@ class esxiFreeScraper(object):
     vmx_skeleton['tools.syncTime'] = "TRUE"
     vmx_skeleton['scsi0.virtualDev'] = "pvscsi"
     vmx_skeleton['scsi0.present'] = "TRUE"
+    vmx_skeleton['disk.enableuuid'] = "TRUE"
 
     def __init__(self, hostname, username='root', password=None, name=None, moid=None):
         self.soap_client = vmw_soap_client(host=hostname, username=username, password=password)
