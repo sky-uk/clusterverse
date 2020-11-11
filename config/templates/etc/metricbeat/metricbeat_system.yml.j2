@@ -1,0 +1,37 @@
+# Module: system
+# Docs: https://www.elastic.co/guide/en/beats/metricbeat/7.5/metricbeat-module-system.html
+
+- module: system
+  period: 10s
+  metricsets:
+    - cpu
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - socket_summary
+    - diskio
+    #- entropy
+    #- core
+    #- socket
+  process.include_top_n:
+    by_cpu: 5      # include top 5 processes by CPU
+    by_memory: 5   # include top 5 processes by memory
+{% if (metricbeat.diskio.include_devices is defined and (metricbeat.diskio.include_devices | length)) %}
+# Custom diskio settings
+  diskio.include_devices: {{ metricbeat.diskio.include_devices }} 
+{% endif %}
+- module: system
+  period: 1m
+  metricsets:
+    - filesystem
+    - fsstat
+  processors:
+  - drop_event.when.regexp:
+      system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)'
+
+- module: system
+  period: 15m
+  metricsets:
+    - uptime
