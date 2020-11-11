@@ -25,7 +25,7 @@
     # Dynamically look up VPC ID by name from aws
     - name: get_cluster_hosts_target | Looking up VPC facts to extract ID
       ec2_vpc_net_info:
-        region:         "{{ cluster_vars.region }}"
+        region: "{{ cluster_vars.region }}"
         aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
         aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
         filters:
@@ -40,11 +40,11 @@
 
     - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
       ec2_vpc_subnet_info:
-        region:         "{{ cluster_vars.region }}"
+        region: "{{ cluster_vars.region }}"
         aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
         aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
         filters:
-          vpc-id:     "{{ vpc_id }}"
+          vpc-id: "{{ vpc_id }}"
       register: r__ec2_vpc_subnet_info
       delegate_to: localhost
       run_once: true
@@ -103,14 +103,18 @@
 
 - name: get_cluster_hosts_target/gcp | GCP-specific modifications to cluster_hosts_target
   block:
-    - name: get_cluster_hosts_target/gcp | Update cluster_hosts_target with rootvol_size
+    - name: get_cluster_hosts_target/gcp | Update cluster_hosts_target auto_volumes with device_name and initialize_params
       set_fact:
-        cluster_hosts_target: |
-          {% set res = cluster_hosts_target -%}
-          {%- for host in res -%}
-            {%- set _dummy = host.update({'rootvol_size': cluster_vars[buildenv].hosttype_vars[host.hosttype].rootvol_size | string}) -%}
+        cluster_hosts_target: |-
+          {%- for host in cluster_hosts_target -%}
+            {%- for vol in host.auto_volumes -%}
+              {%- if 'device_name' not in vol -%}
+                {%- set _dummy = vol.update({'device_name': host.hostname + '--' + vol.mountpoint | basename }) -%}
+                {%- set _dummy = vol.update({'initialize_params': {'disk_name': vol.device_name, 'disk_size_gb': vol.volume_size}}) -%}
+              {%- endif -%}
+            {%- endfor %}
           {%- endfor %}
-          {{ res }}
+          {{ cluster_hosts_target }}
   when: cluster_vars.type == "gcp"
 
 - name: get_cluster_hosts_target | cluster_hosts_target

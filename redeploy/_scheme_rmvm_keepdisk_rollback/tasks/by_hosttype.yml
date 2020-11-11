@@ -1,0 +1,23 @@
+---
+
+- name: set hosts_to_redeploy if canary==start
+  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[:1]}}
+  when: (canary is defined and canary=="start")
+
+- name: set hosts_to_redeploy if canary==finish
+  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[1:]}}
+  when: (canary is defined and canary=="finish")
+
+- name: set hosts_to_redeploy if canary==none
+  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))}}
+  when: (canary is defined and canary=="none")
+
+- debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_redeploy | json_query('[].hostname') | join(', ')}}]"
+  when: (canary is defined)
+
+
+- name: Run redeploy per host.  Delete one at a time, then reprovision.
+  include_tasks: by_hosttype_by_host.yml
+  with_items: "{{ hosts_to_redeploy }}"
+  loop_control:
+    loop_var: host_to_redeploy
