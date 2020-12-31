@@ -43,4 +43,16 @@
           retries: 300
           with_items: "{{r__gcp_compute_instance.results}}"
       when: cluster_vars.type == "gcp"
+
+    - name: poweron_vms | Power-on esxifree VM(s)
+      block:
+        - name: poweron_vms | Power-on esxifree VM(s)
+          esxifree_guest:
+            hostname: "{{ cluster_vars.esxi_ip }}"
+            username: "{{ cluster_vars.username }}"
+            password: "{{ cluster_vars.password }}"
+            name: "{{item.name}}"
+            state: poweredon
+          with_items: "{{ hosts_to_start }}"
+      when: cluster_vars.type == "esxifree"
   when: hosts_to_start | length

@@ -117,6 +117,19 @@
           {{ cluster_hosts_target }}
   when: cluster_vars.type == "gcp"
 
+- name: get_cluster_hosts_target/esxifree | esxifree-specific modifications to cluster_hosts_target
+  block:
+    - name: get_cluster_hosts_target/esxifree | Update cluster_hosts_target with volname (derived from the mountpoint)
+      set_fact:
+        cluster_hosts_target: |
+          {%- for host in cluster_hosts_target -%}
+            {%- for hostvol in host.auto_volumes -%}
+              {%- set _dummy = hostvol.update({'volname': hostvol.mountpoint | regex_replace('.*\/(.*)', '\\1')}) -%}
+            {%- endfor %}
+          {%- endfor %}
+          {{ cluster_hosts_target }}
+  when: cluster_vars.type == "esxifree"
+
 - name: get_cluster_hosts_target | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}
   delegate_to: localhost

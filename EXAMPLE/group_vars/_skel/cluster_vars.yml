@@ -132,3 +132,41 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 #_region: *region
 #_ssh_guard_whitelist: *ssh_guard_whitelist
 #_dns_nameserver_zone: *dns_nameserver_zone
+
+### ESXi-free example
+#cluster_vars:
+#  type: &cloud_type "esxifree"
+#  image: "gold-ubuntu2004-20200411145623"
+#  esxi_ip: "10.189.132.4"
+#  username: "svc"
+#  password: ""
+#  dns_cloud_internal_domain: ""                                 # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+#  dns_nameserver_zone: &dns_nameserver_zone ""                  # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+#  dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_dns_nameserver_zone}}{%- endif -%}"
+#  dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+#  custom_tagslabels:
+#    inv_environment_id: "{{buildenv}}"
+#    inv_service_id: "{{app_class}}"
+#    inv_cluster_id: "{{cluster_name}}"
+#    inv_cluster_type: "{{app_name}}"
+#  datastore: "datastore1"
+#  hardware_version: "15"
+#  cloudinit_userdata:
+#    - name: user1
+#      groups: "admin"
+#      lock_passwd: true
+#      ssh_authorized_keys: ['ssh-rsa AAAzaC1yc2EAAAADAQ...dojtl6mzVnSL29LQ==']
+#      passwd: $6$j322wezy...m2RrkJPfghBZMN1O/
+#  sandbox:
+#    networks:
+#      - networkName: "VM Network"
+#        virtualDev: vmxnet3
+#        #macAddress: "00:0c:29:be:51:d0" #dev01
+#        cloudinit_netplan:
+#          ethernets: {eth0: { dhcp4: true }, nameservers: { addresses: ["8.8.8.8", "8.8.4.4"] } }
+#    hosttype_vars:
+#      sys: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: {num_cpus: "2", memory_mb: "2048"}, version: "{{sys_version | default('')}}", auto_volumes: []}
+#      #sysdisks: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: {num_cpus: "2", memory_mb: "2048"}, version: "{{sys_version | default('')}}", auto_volumes: [{mountpoint: "/media/mysvc", volume_size: 2, provisioning_type: "thin", fstype: "ext4"}]}
+#_cloud_type: *cloud_type
+#_dns_nameserver_zone: *dns_nameserver_zone
+#
