@@ -2,18 +2,18 @@
 
 - name: Load cluster definitions
   block:
-    - name: Load native cluster definitions by forcing include of group_vars on localhost (no inventory yet, so cannot import automatically)
-      include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
-      when:
-        - cluster_vars_format|default('native') == 'native'
-
     - name: Derive cluster definitions by merging tiered configuration files
       merge_vars:
-        ignore_missing_files: True
         from: "{{ merge_dict_vars_list }}"
-      when:
-        - cluster_vars_format|default('native') == 'tiered'
-        - merge_dict_vars_list is defined and merge_dict_vars_list | length > 0
+        ignore_missing_files: True
+      when: merge_dict_vars_list is defined and merge_dict_vars_list | length > 0
+
+    - block:
+        - name: Load native cluster definitions by forcing include of group_vars on localhost (no inventory yet, so cannot import automatically)
+          include_vars: { dir: "{{ playbook_dir }}/group_vars/{{ clusterid }}" }
+
+        - deprecate_str: { msg: "Loading variables via group_vars/clusterid is deprecated.  Please use merge_vars via cluster_defs in future" }
+      when: merge_dict_vars_list is not defined
 
 
 - name: Preflight check
@@ -21,7 +21,8 @@
     - assert: { that: "ansible_version.full is version_compare('2.9', '>=')", fail_msg: "Ansible >=2.9 required." }
     - assert: { that: "app_name is defined and app_name != ''", fail_msg: "Please define app_name" }
     - assert: { that: "app_class is defined and app_class != ''", fail_msg: "Please define app_class" }
-    - assert: { that: "clusterid is defined and cluster_vars is defined", fail_msg: "Please define clusterid" }
+    - assert: { that: "cluster_vars is defined", fail_msg: "Please define cluster_vars" }
+    - assert: { that: "clusterid is defined", fail_msg: "Please define clusterid" }
     - assert: { that: "buildenv is defined and cluster_vars[buildenv] is defined", fail_msg: "Please define buildenv" }
 
       ## Tags/ labels must be compatible with GCP and AWS - check everything that goes into a label.
@@ -38,3 +39,14 @@
 
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
       when: cluster_vars.type == "aws"
+
+
+- name: Create gcp service account contents file from cluster_vars.service_account_json (unless already defined by user)
+  block:
+    - name: "set gcp_credentials_file fact"
+      set_fact:
+        gcp_credentials_file: "gcp__{{cluster_vars.service_account_json.project_id}}.json"
+
+    - name: "Copy credentials into gcp_credentials_file as {{gcp_credentials_file}}"
+      local_action: copy content={{cluster_vars.service_account_rawtext}} dest={{gcp_credentials_file}}
+  when: cluster_vars.type == "gcp" and gcp_credentials_file is not defined

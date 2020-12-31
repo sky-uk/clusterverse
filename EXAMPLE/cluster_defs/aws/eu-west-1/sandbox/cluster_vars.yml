@@ -1,0 +1,14 @@
+---
+
+cluster_vars:
+  sandbox:
+    aws_access_key: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    aws_secret_key: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    vpc_name: "test{{buildenv}}"
+    vpc_subnet_name_prefix: "{{buildenv}}-test-{{_region}}"
+    key_name: "test__id_rsa"
+    termination_protection: "no"

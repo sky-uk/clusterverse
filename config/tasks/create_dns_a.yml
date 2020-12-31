@@ -91,12 +91,12 @@
 - block:
     - name: config/dns/a/dig | debug whether we'll use external_dns_resolver
       debug:
-        msg: "{% if not hostvars[item.hostname].ansible_host | regex_search('^(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*') %}@{{external_dns_resolver}}{% endif %}"
+        msg: "{% if not hostvars[item.hostname].ansible_host | regex_search('^(10\\.|192.168|172.1[6-9]\\.|172.2[0-9]\\.|172.3[01]\\.).*') %}@{{external_dns_resolver}}{% endif %}"
       with_items: "{{ cluster_hosts_target }}"
       run_once: true
 
     - name: "config/dns/a/dig | Check that DNS has updated (or otherwise wait for it to do so)  [Note: lookup('dig', new_fqdn) doesn't work - seems to cache - https://github.com/ansible/ansible/issues/44128].  NOTE: A short TTL on the SOA helps if a negative cache is created.  If this is an external IP, check external DNS (otherwise only the internal VPC IP will be returned)"
-      shell: "dig {{new_fqdn}} +short {% if not hostvars[item.hostname].ansible_host | regex_search('^(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*') %}@{{external_dns_resolver}}{% endif %}"
+      shell: "dig {{new_fqdn}} +short {% if not hostvars[item.hostname].ansible_host | regex_search('^(10\\.|192.168|172.1[6-9]\\.|172.2[0-9]\\.|172.3[01]\\.).*') %}@{{external_dns_resolver}}{% endif %}"
       register: dig_result
       until: "dig_result.stdout == new_ip"
       retries: 31

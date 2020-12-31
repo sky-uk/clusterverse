@@ -73,7 +73,7 @@
     - name: create/gcp | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       gce_pd:
         credentials_file: "{{gcp_credentials_file}}"
-        service_account_email: "{{gcp_credentials_json.client_email}}"
+        service_account_email: "{{ (lookup('file', gcp_credentials_file) | from_json).client_email }}"
         project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         detach_only : yes
@@ -143,7 +143,6 @@
       gce_labels:
         project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
-        service_account_email: "{{gcp_credentials_json.client_email}}"
         resource_url: "{{item.resource_url}}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
       with_items: "{{_ec2_vols_denormalised_by_device}}"
@@ -166,7 +165,7 @@
 #    - name: create/gcp | Attach (or create) volumes where 'src' is present (e.g. inserted as part of _scheme_rmvm_keepdisk_rollback scheme)
 #      gce_pd:
 #        credentials_file: "{{gcp_credentials_file}}"
-#        service_account_email: "{{gcp_credentials_json.client_email}}"
+#        service_account_email: "{{ (lookup('file', gcp_credentials_file) | from_json).client_email }}"
 #        project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
 #        zone: "{{cluster_vars.region}}-{{item.az_name}}"
 #        delete_on_termination: yes
@@ -208,7 +207,6 @@
 #      gce_labels:
 #        project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
 #        credentials_file: "{{gcp_credentials_file}}"
-#        service_account_email: "{{gcp_credentials_json.client_email}}"
 #        resource_url: "{{item.resource_url}}"
 #        labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
 #      with_items: "{{_ec2_vols_denormalised_by_device}}"

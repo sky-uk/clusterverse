@@ -1,3 +1,53 @@
+# Copyright (c) 2020, Sky UK Ltd
+# BSD 3-Clause License
+#
+# This plugin is similar to include_vars, but when it finds variables that have already been defined, it combines them instead of overwriting them.
+# By splitting different cluster configurations across tiered files, applications can adhere to the "Don't Repeat Yourself" principle.
+#
+#       cluster_defs/
+#       |-- all.yml
+#       |-- aws
+#       |   |-- all.yml
+#       |   `-- eu-west-1
+#       |       |-- all.yml
+#       |       `-- sandbox
+#       |           |-- all.yml
+#       |           `-- cluster_vars.yml
+#       `-- gcp
+#           |-- all.yml
+#           `-- europe-west1
+#               `-- sandbox
+#                   |-- all.yml
+#                   `-- cluster_vars.yml
+#
+# These files could be combined (in the order defined) in the application code, using variables to differentiate between cloud (aws or gcp), region and cluster_id.
+# A variable 'ignore_missing_files' can be set such that any files or directories that are not found in the defined 'from' list will not raise an error.
+#    - merge_vars:
+#        ignore_missing_files: True
+#        from:
+#         - "./cluster_defs/all.yml"
+#         - "./cluster_defs/{{ cloud_type }}/all.yml"
+#         - "./cluster_defs/{{ cloud_type }}/{{ region }}/all.yml"
+#         - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/all.yml"
+#         - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/{{ clusterid }}.yml"
+#
+#
+# It is also valid to define all the variables in a single sub-directory:
+#       cluster_defs/
+#       |-- test_aws_euw1
+#       |   |-- app_vars.yml
+#       |   `-- cluster_vars.yml
+#       |-- test_gcp_euw1
+#       |   |-- app_vars.yml
+#       |   `-- cluster_vars.yml
+#
+# In this case, the 'from' list, would be only the top-level directory (using cluster_id as a variable).  merge_vars does not recurse through directories.
+#    - merge_vars:
+#        ignore_missing_files: True
+#        from:
+#           - "./cluster_defs/{{ clusterid }}"
+#
+
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -31,13 +81,11 @@ class ActionModule(ActionBase):
         for source in self._task.args['from']:
             if path.isfile(source):
                 files.append(source)
-            elif not path.isfile(source) and self.ignore_missing_files:
-                continue
             elif path.isdir(source):
-                dirfiles = [path.join(source, filename) for filename in listdir(source)]
+                dirfiles = [path.join(source, filename) for filename in listdir(source) if path.isfile(path.join(source, filename))]
                 dirfiles.sort()
-                files.append(dirfiles)
-            elif not path.isdir(source) and self.ignore_missing_files:
+                files = files + dirfiles
+            elif not (path.isfile(source) or path.isdir(source)) and self.ignore_missing_files:
                 continue
             else:
                 failed = True
