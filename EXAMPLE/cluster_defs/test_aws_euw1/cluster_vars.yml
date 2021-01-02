@@ -48,14 +48,19 @@ cluster_vars:
   type: &cloud_type "aws"
   image: "ami-055958ae2f796344b"    # eu-west-1, 20.04, amd64, hvm-ssd, 20201210.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
   region: &region "eu-west-1"
-  dns_cloud_internal_domain: "{{_region}}.compute.internal"   # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_nameserver_zone: &dns_nameserver_zone ""                # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_cloud_internal_domain: "{{_region}}.compute.internal"       # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_nameserver_zone: &dns_nameserver_zone ""                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
   dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
-  route53_private_zone: true        # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
+  route53_private_zone: no          # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
   assign_public_ip: "yes"
   inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   instance_profile_name: ""
+  user_data: |-
+    #cloud-config
+    system_info:
+      default_user:
+        name: ansible
   custom_tagslabels:
     inv_resident_id: "myresident"
     inv_proposition_id: "myproposition"
@@ -64,19 +69,20 @@ cluster_vars:
     inv_cluster_id: "{{cluster_name}}"
     inv_cluster_type: "{{app_name}}"
     inv_cost_centre: "1234"
+  ssh_whitelist: &ssh_whitelist ['10.0.0.0/8']
   secgroups_existing: []
   secgroup_new:
     - proto: "tcp"
       ports: ["22"]
-      cidr_ip: "0.0.0.0/0"
+      cidr_ip: "{{_ssh_whitelist}}"
       rule_desc: "SSH Access"
-    - proto: all
-      group_name: ["{{cluster_name}}-sg"]
-      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
-    - proto: "tcp"
-      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
-      group_name: ["{{buildenv}}-private-sg"]
-      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
+#    - proto: all
+#      group_name: "{{cluster_name}}-sg"
+#      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+#    - proto: "tcp"
+#      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
+#      group_name: "{{buildenv}}-private-sg"
+#      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
   sandbox:
     hosttype_vars:
       sys: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3a.nano, version: "{{sys_version | default('')}}", auto_volumes: []}
@@ -99,4 +105,5 @@ cluster_vars:
     termination_protection: "no"
 _cloud_type: *cloud_type
 _region: *region
+_ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone
