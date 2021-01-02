@@ -41,11 +41,11 @@
       when: cluster_vars.type == "aws"
 
 
-- name: Create gcp service account contents file from cluster_vars.service_account_json (unless already defined by user)
+- name: Create gcp service account contents file from cluster_vars.service_account_rawtext (unless already defined by user)
   block:
     - name: "set gcp_credentials_file fact"
       set_fact:
-        gcp_credentials_file: "gcp__{{cluster_vars.service_account_json.project_id}}.json"
+        gcp_credentials_file: "gcp__{{ (cluster_vars.service_account_rawtext | string | from_json).project_id }}.json"
 
     - name: "Copy credentials into gcp_credentials_file as {{gcp_credentials_file}}"
       local_action: copy content={{cluster_vars.service_account_rawtext}} dest={{gcp_credentials_file}}

@@ -49,18 +49,21 @@ cluster_vars:
   service_account_rawtext: &service_account_rawtext !vault |
     $ANSIBLE_VAULT;1.1;AES256
     7669080460651349243347331538721104778691266429457726036813912140404310
-  service_account_json: &service_account_json "{{_service_account_rawtext | string | from_json}}"
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20201211"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20201211a"
   region: &region "europe-west1"
-  dns_cloud_internal_domain: "c.{{_service_account_json.project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone ""                                          # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
-  dns_server: ""                            # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  dns_server: ""                                                                        # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
-  inventory_ip: "public"                    # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  inventory_ip: "public"                                                                # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   ip_forward: "false"
-  ssh_guard_whitelist: &ssh_guard_whitelist ['10.0.0.0/8']    # Put your public-facing IPs into this (if you're going to access it via public IP), to avoid rate-limiting.
+  ssh_whitelist: &ssh_whitelist ['10.0.0.0/8']
+  metadata:
+    ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+    startup-script: "{%- if _ssh_whitelist is defined and _ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{_ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
+    user-data: ""
   custom_tagslabels:
     inv_resident_id: "myresident"
     inv_proposition_id: "myproposition"
@@ -73,22 +76,22 @@ cluster_vars:
   firewall_rules:
     - name: "{{cluster_name}}-extssh"
       allowed: [{ip_protocol: "tcp", ports: ["22"]}]
-      source_ranges: "{{_ssh_guard_whitelist}}"
+      source_ranges: "{{_ssh_whitelist}}"
       description: "SSH Access"
     - name: "{{cluster_name}}-nwtag"
       allowed: [{ip_protocol: "all"}]
       source_tags: ["{{cluster_name}}-nwtag"]
       description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
-    - name: "{{cluster_name}}-prometheus-node-exporter"
-      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
-      source_tags: ["{{cluster_name}}-nwtag"]
-      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
+#    - name: "{{cluster_name}}-prometheus-node-exporter"
+#      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
   sandbox:
     hosttype_vars:
       sys: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sys_version | default('')}}", auto_volumes: []}
       #sysdisks: {vms_by_az: {b: 1, c: 1, d: 1}, flavor: f1-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
-    vpc_project_id: "{{_service_account_json.project_id}}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
-    vpc_host_project_id: "{{_service_account_json.project_id}}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
+    vpc_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+    vpc_host_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""
     preemptible: "no"
@@ -96,6 +99,5 @@ cluster_vars:
 _cloud_type: *cloud_type
 _region: *region
 _service_account_rawtext: *service_account_rawtext
-_service_account_json: *service_account_json
-_ssh_guard_whitelist: *ssh_guard_whitelist
+_ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone

@@ -91,9 +91,7 @@
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{ [_bootdisk] + (_autodisks | default([])) }}"
-        metadata:
-          startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
-          ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+        metadata: "{{ cluster_vars.metadata | default(omit) }}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
         network_interfaces:
           - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
