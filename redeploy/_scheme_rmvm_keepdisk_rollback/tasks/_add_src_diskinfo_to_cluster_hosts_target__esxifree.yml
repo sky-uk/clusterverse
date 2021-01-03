@@ -11,8 +11,8 @@
   with_items: "{{cluster_hosts_state}}"
   register: r__vmware_guest_disk_info
 
-#- name: _get_diskinfo_esxifree | r__vmware_guest_disk_info
-#  debug: msg={{r__vmware_guest_disk_info}}
+- name: _get_diskinfo_esxifree | r__vmware_guest_disk_info
+  debug: msg={{r__vmware_guest_disk_info}}
 
 - assert: { that: "r__vmware_guest_disk_info | json_query(\"results[].guest_disk_info.*[] | [?backing_datastore!='\" + cluster_vars.datastore + \"']\") | length == 0", msg: "Move is only possible if disks are on the same datastore." }
   when: _scheme_rmvm_keepdisk_rollback__copy_or_move == "move"
@@ -33,5 +33,5 @@
       {%- endfor -%}
       {{cluster_hosts_target}}
 
-#- name: _get_diskinfo_esxifree | cluster_hosts_target
-#  debug: msg={{cluster_hosts_target}}
+- name: _get_diskinfo_esxifree | cluster_hosts_target
+  debug: msg={{cluster_hosts_target}}
