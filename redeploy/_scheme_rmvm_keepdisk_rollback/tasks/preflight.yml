@@ -30,8 +30,14 @@
               {{ testloop.is_not_subset }}
       when: cluster_vars.type == "aws"
 
+    - assert: { that: "_scheme_rmvm_keepdisk_rollback__copy_or_move is defined and _scheme_rmvm_keepdisk_rollback__copy_or_move in ['copy', 'move']", fail_msg: "ERROR - _scheme_rmvm_keepdisk_rollback__copy_or_move must be defined and set to either 'copy' or 'move'"  }
+      when: cluster_vars.type == "esxifree"
+
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
       vars: { non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}" }
+      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
     - assert: { that: "(cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '==', 'current') | list | length) == (cluster_hosts_target | length)", fail_msg: "Cannot use this scheme to redeploy to a different-sized cluster" }
+      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
+      when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')

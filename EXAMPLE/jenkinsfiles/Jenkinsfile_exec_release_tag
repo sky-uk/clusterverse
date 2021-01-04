@@ -1,0 +1,44 @@
+#!groovy
+import groovy.json.JsonOutput
+
+pipeline {
+  agent any
+  parameters {
+    string(name: 'NEW_VERSION', defaultValue: "", description: "Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version.")
+  }
+  stages {
+    stage('Create Release') {
+      environment {
+        GIT_TOKEN = credentials("GITHUB_SVC_USER")
+      }
+      steps {
+        script {
+          def new_version = params.NEW_VERSION
+          if (new_version == "") {
+            error "NEW_VERSION parameter not specified.  Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."
+          } else {
+            def apiUrl = "https://api.github.com/repos/sky-uk/clusterverse/releases"
+            def latestReleaseQuery = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X GET ${apiUrl}/latest").trim()
+            def latestRelease = readJSON text: "${latestReleaseQuery}"
+            if (new_version == "next") {
+              String version = latestRelease.tag_name
+              String minor = version.substring(version.lastIndexOf('.') + 1)
+              int m = minor.toInteger() + 1
+              int index = version.lastIndexOf('.') + 1
+              String major = version.substring(0, version.lastIndexOf('.') + 1)
+              new_version = "${major}${m}"
+            }
+            def body = sh(returnStdout: true, script: "git log ${latestRelease.tag_name}..HEAD --pretty=format:\"<li> %H - %s</li>\"").trim()
+            if (body != "") {
+              def payload = JsonOutput.toJson(["tag_name": new_version, "name": new_version, "body": "${body}"])
+              def response = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '${payload}' ${apiUrl}").trim()
+              echo "${new_version} is now created"
+            } else {
+              error "No change since last release"
+            }
+          }
+        }
+      }
+    }
+  }
+}

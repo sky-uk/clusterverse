@@ -7,20 +7,20 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: t3a.nano
         version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 0, c: 0 }
+        vms_by_az: { a: 1, b: 1, c: 0 }
 
-#      sysdisks2:
-#        auto_volumes:
-#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", "volume_type": "gp2", "volume_size": 12, encrypted: True, "delete_on_termination": true }
-#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
-#          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
-#        flavor: t3a.nano
-#        version: "{{sysdisks_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
-#
+      sysdisks2:
+        auto_volumes:
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", "volume_type": "gp2", "volume_size": 12, encrypted: True, "delete_on_termination": true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: { owner: "root", group: "sudo", mode: "775" } }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
+        flavor: t3a.nano
+        version: "{{sysdisks_version | default('')}}"
+        vms_by_az: { a: 1, b: 1, c: 0 }
+
 #      sysdisks3:
 #        auto_volumes:
-#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: { owner: "root", group: "sudo", mode: "775" } }
+#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
 #          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
 #          - { device_name: "/dev/sdh", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
 #        flavor: t3a.nano

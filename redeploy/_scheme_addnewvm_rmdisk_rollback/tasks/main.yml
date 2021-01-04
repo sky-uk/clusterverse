@@ -5,6 +5,7 @@
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
+        # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
 
@@ -39,7 +40,7 @@
             name: "{{predeleterole}}"
           when: predeleterole is defined and predeleterole != ""
           vars:
-            hosts_to_remove: "{{ hosts_to_stop | json_query(\"[?contains('RUNNING,running', instance_state)]\") }}"
+            hosts_to_remove: "{{ hosts_to_stop | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
 
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
@@ -60,8 +61,8 @@
     - name: rescue
       include_tasks: rescue.yml
 
-    - name: rescue | end_play to prevent tidying of pre-rescued VMs
-      meta: end_play
+    - name: rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
+      fail: { msg: "Task '{{ansible_failed_task.name}}' failed in block.    Error message was: '{{ansible_failed_result.msg}}'" }
   when: canary!="tidy"
 
 
@@ -83,5 +84,5 @@
         msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
       when: hosts_to_clean | length == 0
   vars:
-    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running', instance_state))]\") }}"
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)
