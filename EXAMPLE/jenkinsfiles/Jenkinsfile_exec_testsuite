@@ -63,7 +63,7 @@ pipeline {
           }
           axis {
             name 'MYHOSTTYPES'
-            values '', 'sysdisks2'
+            values ''
           }
         }
         excludes {
