@@ -15,6 +15,10 @@
         - deprecate_str: { msg: "Loading variables via group_vars/clusterid is deprecated.  Please use merge_vars via cluster_defs in future" }
       when: merge_dict_vars_list is not defined
 
+    - name: Combine command-line cluster_vars_override into the loaded cluster_vars
+      set_fact:
+        cluster_vars: "{{cluster_vars | combine((cluster_vars_override | from_json), recursive=True)}}"
+      when: cluster_vars is defined and cluster_vars_override is defined
 
 - name: Preflight check
   block:

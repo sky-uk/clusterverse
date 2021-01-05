@@ -8,7 +8,7 @@ cluster_vars:
         flavor: "e2-micro"
         rootvol_size: "10"
         version: "{{sys_version | default('')}}"
-        vms_by_az: { b: 1, c: 1, d: 0 }
+        vms_by_az: { d: 1, b: 0, c: 0 }
 
       sysdisks2:
         auto_volumes:
@@ -17,7 +17,7 @@ cluster_vars:
         flavor: "e2-micro"
         rootvol_size: "10"
         version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { b: 1, c: 1, d: 0 }
+        vms_by_az: { d: 1, b: 0, c: 0 }
 
 #      sysdisks3:
 #        auto_volumes:
@@ -27,4 +27,4 @@ cluster_vars:
 #        flavor: "e2-micro"
 #        rootvol_size: "10"
 #        version: "{{sysdisks_version | default('')}}"
-#        vms_by_az: { b: 1, c: 1, d: 0 }
+#        vms_by_az: { d: 1, b: 0, c: 0 }
