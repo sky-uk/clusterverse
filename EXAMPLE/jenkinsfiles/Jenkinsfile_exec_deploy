@@ -7,7 +7,7 @@ String[] common_deploy_vars(params = null) {
   String IAC_RELEASE = ""
   if (params.RELEASE != "master" && params.RELEASE != null) {
     GIT_TOKEN = credentials("GITHUB_SVC_USER")
-    sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@github.com/sky-uk/clusterverse.git"
+    sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@github.com/dseeley/clusterverse.git"
     sh "git fetch --tags"
     sh "git checkout ${params.RELEASE}"
     IAC_RELEASE = ' -e release_version=' + params.RELEASE.replace('.', '_') as String
@@ -60,8 +60,7 @@ pipeline {
       steps {
         sh 'printenv | sort'
 
-        /* NOTE: This checkout is only needed if cutting & pasting this file into a custom pipeline job in Jenkins (so we don't have to keep committing to git)*/
-        //checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: 'https://github.com/sky-uk/clusterverse_test']]]
+        checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: 'https://github.com/dseeley/clusterverse_test']]]
 
         script {
           if (params.CLUSTER_ID == '') {

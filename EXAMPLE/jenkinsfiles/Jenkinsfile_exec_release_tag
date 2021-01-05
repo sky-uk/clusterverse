@@ -17,7 +17,7 @@ pipeline {
           if (new_version == "") {
             error "NEW_VERSION parameter not specified.  Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."
           } else {
-            def apiUrl = "https://api.github.com/repos/sky-uk/clusterverse/releases"
+            def apiUrl = "https://api.github.com/repos/dseeley/clusterverse/releases"
             def latestReleaseQuery = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X GET ${apiUrl}/latest").trim()
             def latestRelease = readJSON text: "${latestReleaseQuery}"
             if (new_version == "next") {
