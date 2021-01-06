@@ -11,12 +11,10 @@
         headers:
           Accept: "application/vnd.github.v3+json"
       register: github_list_qualys
-    - set_fact: 
-        qualys_url: "{{ github_list_qualys | json_query('json[].assets[?name==`'+ cloud_agent.qualys.bin_name +'`].url[] | [0]') }}"
 
     - name: cloud_agents | Get latest Qualys agent
       uri:
-        url: "{{ qualys_url }}"
+        url: "{{ github_list_qualys | json_query('json[].assets[?name=='+ cloud_agent.qualys.bin_name +'].url[] | [0]') }}"
         follow_redirects: none
         status_code: 302
         return_content: no
