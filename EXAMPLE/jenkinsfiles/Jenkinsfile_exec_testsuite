@@ -5,72 +5,87 @@ String generateMD5(String s, int len = 31) {
   MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()[0..len] as String
 }
 
-properties([
-//    disableConcurrentBuilds(),
-//    pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
-parameters([
-    extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'esxifree/dougalab,aws/eu-west-1,gcp/europe-west1', description: 'Specify which cloud/region(s) to test', multiSelectDelimiter: ',', visibleItemCount: 5),
-    choice(name: 'BUILDENV', choices: ['', 'sandbox'], description: "The environment in which to run the tests"),
-    string(name: 'CLUSTER_ID', defaultValue: 'testsuite', trim: true),
-    choice(name: 'DNS_TEST', choices: ['as_defined', 'force_disable', 'both'], description: "Whether to test with DNS as defined in cluster definitions (as_defined), or to force to disable (force_disable), or both"),
-    extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', multiSelectDelimiter: ',', visibleItemCount: 5),
-    choice(name: 'MYHOSTTYPES_TEST', choices: ['false', 'true'], description: "!!NOT ENABLED YET!! Run tests on pre-configured hosttypes.  Hosttype definitions \"sys\" and \"sysdisks2\" must exist in cluster_vars for all clusters."),
-    choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
-])
-])
+//@interface NonCPS {}
 
-//This effectively deep-copies the params variable that we receive from Jenkins build config (derived from the parameters above).  The original params is of type: java.base/java.util.Collections$UnmodifiableMap, so we cannot alter them (which we need to do below)
-HashMap params2 = evaluate(params.inspect())
+class MatrixBuilder {
+  HashMap jenkinsParams
+  HashMap matrixParams
+  Closure fnJenkinsParamsMutate
+  Closure fnMatrixAxesFilter
 
-// Mutate the parameters to do what we want
-switch (params2['DNS_TEST']) {
-  case 'as_defined':
-    params2.put('DNS_FORCE_DISABLE', ['false'])
-    break;
-  case 'force_disable':
-    params2.put('DNS_FORCE_DISABLE', ['true'])
-    break;
-  case 'both':
-    params2.put('DNS_FORCE_DISABLE', ['true', 'false'])
-    break;
-}
-params2.remove('DNS_TEST')
-println(params2.inspect() + "\n\n")
+  // Note: No constructor.  It is created automatically, and instance variables and getters/setters are created that map to the Map that is passed with the instantiation.  You can't do a lot of work in a Jenkins Groovy constructor anyway because of CPS (https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/)
 
-//Choice parameters are not returned as Lists, so convert them here.  Also, strings should be Lists too, as this is how the matrix works (the cartesian product of lists of lists)
-params2 = params2.each { key, choice -> params2.put(key, (choice instanceof String) ? choice.split(',') : choice) }          //params2.each { param -> param.value = (param.value instanceof String) ? param.value.split(',') : param.value }     //NOTE: Doesn't work due to https://issues.jenkins.io/browse/JENKINS-50997
+  List getMatrixAxes() {
+    this.matrixParams = Eval.me(jenkinsParams.inspect())
+    this.matrixParams = this.fnJenkinsParamsMutate ? this.fnJenkinsParamsMutate(this.matrixParams) : this.matrixParams
+    this.matrixParams = this.matrixParams.each { key, choice -> this.matrixParams.put(key, (choice instanceof String) ? choice.split(',') : choice) }          //this.matrixParams.each { param -> param.value = (param.value instanceof String) ? param.value.split(',') : param.value }     //NOTE: Doesn't work: https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
 
-println(params2.inspect() + "\n\n")
-
-@NonCPS
-List getMatrixAxes(Map matrix_axes) {
-  List axes = []
-  matrix_axes.each { axis, values ->
-    List axisList = []
-    values.each { value ->
-      axisList << [(axis): value]
-    }
-    axes << axisList
+    List allCombinations = this.getAxesCombinations()
+    return allCombinations.findAll(this.fnMatrixAxesFilter)
   }
-  // calculate cartesian product
-  axes.combinations()*.sum()
+
+  @NonCPS
+  private List getAxesCombinations() {
+    List axes = []
+    this.matrixParams.each { axis, values ->
+      List axisList = []
+      values.each { value ->
+        axisList << [(axis): value]
+      }
+      axes << axisList
+    }
+    axes.combinations()*.sum()    // calculates the cartesian product
+  }
 }
 
-println(getMatrixAxes(params2).inspect() + "\n\n")
+properties([
+    //disableConcurrentBuilds(),
+    //pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
+    parameters([
+        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'esxifree/dougalab,aws/eu-west-1,gcp/europe-west1', description: 'Specify which cloud/region(s) to test', multiSelectDelimiter: ',', visibleItemCount: 5),
+        choice(name: 'BUILDENV', choices: ['', 'sandbox'], description: "The environment in which to run the tests"),
+        string(name: 'CLUSTER_ID', defaultValue: 'testsuite', trim: true),
+        choice(name: 'DNS_TEST', choices: ['as_defined', 'force_disable', 'both'], description: "Whether to test with DNS as defined in cluster definitions (as_defined), or to force to disable (force_disable), or both"),
+        extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', multiSelectDelimiter: ',', visibleItemCount: 5),
+        choice(name: 'MYHOSTTYPES_TEST', choices: ['false', 'true'], description: "!!NOT ENABLED YET!! Run tests on pre-configured hosttypes.  Hosttype definitions \"sys\" and \"sysdisks2\" must exist in cluster_vars for all clusters."),
+        choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
+    ])
+])
 
-List axes = getMatrixAxes(params2).findAll { axis ->
-  !(axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
-      !(axis['REDEPLOY_SCHEME'] == '_scheme_addallnew_rmdisk_rollback' && axis['MYHOSTTYPES'] == 'true')
-}
+//def params = [BUILDENV: 'sandbox', DNS_TEST: 'both', REDEPLOY_SCHEME: '_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', MYHOSTTYPES: true, CLUSTER_ID: 'testsuite', CLOUD_REGION: 'esxifree/dougalab,aws/eu-west-1,gcp/europe-west1']
 
-println(axes.inspect() + "\n\n")
+Test1 = new MatrixBuilder(jenkinsParams: params,
+    fnJenkinsParamsMutate: { jenkinsParams ->
+      switch (jenkinsParams['DNS_TEST']) {
+        case 'as_defined':
+          jenkinsParams.put('DNS_FORCE_DISABLE', ['false'])
+          break;
+        case 'force_disable':
+          jenkinsParams.put('DNS_FORCE_DISABLE', ['true'])
+          break;
+        case 'both':
+          jenkinsParams.put('DNS_FORCE_DISABLE', ['true', 'false'])
+          break;
+      }
+      jenkinsParams.remove('DNS_TEST')
+      return jenkinsParams
+    },
+    fnMatrixAxesFilter: { axis ->
+      !(axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
+          !(axis['REDEPLOY_SCHEME'] == '_scheme_addallnew_rmdisk_rollback' && axis['MYHOSTTYPES'] == 'true')
+    }
+)
+
+println(Test1.getMatrixAxes().inspect())
+println(Test1.getMatrixParams().inspect())
+
 
 // parallel task map
 Map tasks = [failFast: false]
 
-for (int i = 0; i < axes.size(); i++) {
+for (int i = 0; i < Test1.getMatrixAxes().size(); i++) {
   // convert the Axis into valid values for withEnv step
-  Map axis = axes[i]
+  Map axis = Test1.getMatrixAxes()[i]
   List axisEnv = []
   axis.each { key, val ->
     axisEnv.add("${key}=${val}")
@@ -83,11 +98,11 @@ for (int i = 0; i < axes.size(); i++) {
         stage('deploy') {
           try {
             echo "${axisEnv}"
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
           } catch (Exception err) {
             if (params.CLEAN_ON_FAILURE) {
               echo "Running clean-up on cluster"
-              build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+              build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
             }
             currentBuild.result = 'FAILURE'
             error "Stage error:\n" + err
@@ -96,13 +111,13 @@ for (int i = 0; i < axes.size(); i++) {
         stage('redeploy canary=start,finish,tidy') {
           try {
             echo "${axisEnv}"
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
           } catch (Exception err) {
             if (params.CLEAN_ON_FAILURE) {
               echo "Running clean-up on cluster"
-              build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+              build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
             }
             currentBuild.result = 'FAILURE'
             error "Stage error:\n" + err
@@ -111,11 +126,11 @@ for (int i = 0; i < axes.size(); i++) {
         stage('redeploy canary=none (tidy_on_success)') {
           try {
             echo "${axisEnv}"
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: (env.MYHOSTTYPES ? env.MYHOSTTYPES : '')), gitParameter(name: 'RELEASE', value: 'master')]
           } catch (Exception err) {
             if (params.CLEAN_ON_FAILURE) {
               echo "Running clean-up on cluster"
-              build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+              build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
             }
             currentBuild.result = 'FAILURE'
             error "Stage error:\n" + err
@@ -124,11 +139,11 @@ for (int i = 0; i < axes.size(); i++) {
         stage('deploy on top') {
           try {
             echo "${axisEnv}"
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
           } catch (Exception err) {
             if (params.CLEAN_ON_FAILURE) {
               echo "Running clean-up on cluster"
-              build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+              build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
             }
             currentBuild.result = 'FAILURE'
             error "Stage error:\n" + err
@@ -137,7 +152,7 @@ for (int i = 0; i < axes.size(); i++) {
         stage('clean') {
           echo "${axisEnv}"
           catchError {
-            build job: 'deploy', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
+            build job: 'clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), booleanParam(name: 'APPEND_BUILD_NUMBER', value: false), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), gitParameter(name: 'RELEASE', value: 'master')]
           }
         }
       }
