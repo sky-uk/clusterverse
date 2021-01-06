@@ -2,6 +2,35 @@
 
 - name: cloud_agents | Qualys cloud agent
   block:
+    - name: cloud_agents | Retrieve Qualys agents from github
+      uri:
+        url: "{{ cloud_agent.qualys.github_release }}"
+        force_basic_auth: yes
+        url_username: "{{ environment_credentials.github_username }}"
+        url_password: "{{ environment_credentials.github_password }}"
+        headers:
+          Accept: "application/vnd.github.v3+json"
+      register: github_list_qualys
+
+    - name: cloud_agents | Get latest Qualys agent
+      uri:
+        url: "{{ github_list_qualys | json_query('json[].assets[?name=='+ cloud_agent.qualys.bin_name +'].url[] | [0]') }}"
+        follow_redirects: none
+        status_code: 302
+        return_content: no
+        force_basic_auth: yes
+        url_username: "{{ environment_credentials.github_username }}"
+        url_password: "{{ environment_credentials.github_password }}"
+        headers:
+          Accept: "application/octet-stream"
+      register: qualys_release_file
+
+    - name: cloud_agents | Download Qualys agents to tmp directory
+      get_url:
+        url: "{{ qualys_release_file.location }}"
+        dest: "/tmp/{{ cloud_agent.qualys.bin_name }}"
+        mode: 0755
+    
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
       apt:
@@ -12,7 +41,7 @@
     - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
       become: yes
       apt:
-        deb: "{{ cloud_agent.qualys.debpackage }}"
+        deb: "/tmp/{{ cloud_agent.qualys.bin_name }}"
         state: present
       when: ansible_os_family == 'Debian'
     
