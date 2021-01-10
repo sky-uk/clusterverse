@@ -1,0 +1,138 @@
+#!groovy
+
+//These will not be needed if we're running this as a pipeline SCM job, as these are automatically added to the 'scm' variable, but if we instead just cut & paste this file into a pipeline job, they will be used as fallback
+def DEFAULT_CLUSTERVERSE_URL = "https://github.com/dseeley/clusterverse"
+def DEFAULT_CLUSTERVERSE_BRANCH = "*/dps_esxi_RC"
+
+def create_custom_image(image_name, params = "") {
+  def dockerfile = """
+            FROM ubuntu:20.04
+            ARG DEBIAN_FRONTEND=noninteractive
+            ENV PIPENV_CACHE_DIR=${JENKINS_HOME}/.cache
+            ENV HOME=${JENKINS_HOME}
+            ENV TZ=Europe/London
+            USER root
+            RUN apt-get update && apt-get install -y pipenv git
+            """.stripIndent()
+
+  writeFile(file: "Dockerfile", text: dockerfile, encoding: "UTF-8")
+  return (docker.build(image_name, params + " ."))
+}
+
+node {
+  if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
+    println("Get bare clusterverse repo to obtain the version history for the RELEASE gitParameter")
+    git(changelog: false, poll: false, url: DEFAULT_CLUSTERVERSE_URL)
+  }
+}
+
+properties([
+    parameters([
+        string(name: 'APP_NAME', description: "An optional custom app_name to override the default in the playbook"),
+        booleanParam(name: 'APPEND_BUILD_NUMBER', defaultValue: false, description: 'Tick the box to append the Jenkins BUILD_NUMBER to APP_NAME'),
+        choice(name: 'CLOUD_REGION', choices: ['esxifree/dougalab', 'aws/eu-west-1', 'gcp/europe-west1'], description: "Choose a cloud/region"),
+        choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy"),
+        choice(name: 'CLUSTER_ID', choices: ['', 'testsuite'], description: "Select a cluster_id to deploy"),
+        booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),
+        choice(name: 'DEPLOY_TYPE', choices: ['deploy', 'redeploy', 'clean'], description: "Choose the deploy type"),
+        choice(name: 'REDEPLOY_SCHEME', choices: ['', '_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback'], description: "Choose the redeploy schemes"),
+        choice(name: 'CANARY', choices: ['none', 'start', 'finish', 'tidy'], description: "Choose the canary type"),
+        booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', defaultValue: false, description: 'Tick the box to tidy up successful canary (none or finish) redeploys (by default, old machines are left powered off)'),
+        string(name: 'MYHOSTTYPES', description: "comma-separated string, e.g. master,slave - In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types"),
+        gitParameter(name: 'RELEASE', type: 'PT_TAG', useRepository: 'clusterverse', branch: 'master', branchFilter: '.*', defaultValue: 'master', description: 'Choose an existing release version to deploy (or \'master\')', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'DESCENDING_SMART', tagFilter: '*'),
+        string(name: 'CV_GIT_URL', defaultValue: DEFAULT_CLUSTERVERSE_URL, description: "The main clusterverse URL."),
+        string(name: 'CV_GIT_BRANCH', defaultValue: DEFAULT_CLUSTERVERSE_BRANCH, description: "The clusterverse branch to test."),
+        credentials(name: 'CV_GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false)
+    ])
+])
+
+node {
+  sh 'printenv | sort'
+  echo "Params: $params"
+//  create_custom_image("ubuntu_python", "--network=host")
+  docker.image('ubuntu_python').inside {
+    stage('Check Environment') {
+      sh 'printenv | sort'
+      println("common_deploy_vars params:" + params)
+
+      if (params.CLUSTER_ID == '') {
+        error "CLUSTER_ID not defined"
+      }
+      if (params.APPEND_BUILD_NUMBER == true && params.APP_NAME == "") {
+        error "APP_NAME is required when APPEND_BUILD_NUMBER is set."
+      }
+    }
+    withCredentials([string(credentialsId: "VAULT_PASSWORD_${params.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+      env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+    }
+
+    sh 'ls -l'
+    if (scm) {
+      println("Checking out default scm: " + scm.userRemoteConfigs + " -- " + scm.branches)
+      checkout(scm)
+    } else {
+      println("No 'scm' params for clusterverse repo; using params.")
+      checkout([$class: 'GitSCM', branches: [[name: params.CV_GIT_BRANCH ? params.CV_GIT_BRANCH : DEFAULT_CLUSTERVERSE_BRANCH]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: params.CV_GIT_URL ? params.CV_GIT_URL : DEFAULT_CLUSTERVERSE_URL]]])
+    }
+
+    sh 'ls -l'
+    String requirementsYamlFile = './requirements.yml'
+    if (params.CV_GIT_URL && params.CV_GIT_BRANCH) {
+      println("Updating $requirementsYamlFile with source ($params.CV_GIT_URL) and version ($params.CV_GIT_BRANCH) as passed in from upstream.")
+      sh "cat ${requirementsYamlFile}"
+      HashMap requirementsYaml = readYaml file: requirementsYamlFile
+      HashMap clusterverse_role = requirementsYaml.roles.find { it.name == 'clusterverse' }
+      clusterverse_role.src = params.CV_GIT_URL
+      clusterverse_role.version = params.CV_GIT_BRANCH
+      sh "rm $requirementsYamlFile"
+      writeYaml file: requirementsYamlFile, data: requirementsYaml
+    }
+    sh "cat ${requirementsYamlFile}"
+
+
+    String IAC_RELEASE = ""
+    if (params.RELEASE != "master" && params.RELEASE != null) {
+      GIT_TOKEN = credentials("GITHUB_SVC_USER")
+      sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@" + DEFAULT_CLUSTERVERSE_URL.replaceFirst("^(http[s]?://)","") + ".git"
+      sh "git fetch --tags"
+      sh "git checkout ${params.RELEASE}"
+      IAC_RELEASE = ' -e release_version=' + params.RELEASE.replace('.', '_') as String
+    }
+
+    String DNS_FORCE_DISABLE = ""
+    if (params.DNS_FORCE_DISABLE == true && params.DNS_FORCE_DISABLE != null) {
+      DNS_FORCE_DISABLE = " -e _dns_nameserver_zone=''"
+    }
+
+    String MYHOSTTYPES = ""
+    if (params.MYHOSTTYPES != "" && params.MYHOSTTYPES != null) {
+      MYHOSTTYPES = ' -e myhosttypes=' + params.MYHOSTTYPES
+    }
+
+    String APP_NAME = ""
+    if (params.APP_NAME != "" && params.APP_NAME != null) {
+      APP_NAME = " -e app_name=" + params.APP_NAME
+      if (params.APPEND_BUILD_NUMBER == true) {
+        APP_NAME = APP_NAME + '-' + env.BUILD_NUMBER
+      }
+    }
+
+    def (CLOUD_TYPE, REGION) = params.CLOUD_REGION.split('/')
+
+    stage(params.DEPLOY_TYPE) {
+      if (params.DEPLOY_TYPE == 'deploy') {
+        withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE"
+        }
+      } else if (params.DEPLOY_TYPE == 'redeploy') {
+        withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE"
+        }
+      } else if (params.DEPLOY_TYPE == 'clean') {
+        withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME"
+        }
+      } else error("DEPLOY_TYPE invalid")
+    }
+  }
+}
