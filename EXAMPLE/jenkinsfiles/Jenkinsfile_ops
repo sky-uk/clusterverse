@@ -4,21 +4,32 @@
 def DEFAULT_CLUSTERVERSE_URL = "https://github.com/dseeley/clusterverse"
 def DEFAULT_CLUSTERVERSE_BRANCH = "*/dps_esxi_RC"
 
+def DEFAULT_CLUSTERVERSE_TESTSUITE_URL = "https://github.com/dseeley/clusterverse_test"
+def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "*/master"
+
+//This allows us to create our own Docker image for this specific use-case.  Once it is built, it will not be rebuilt, so only adds delay the first time we use it.
 def create_custom_image(image_name, params = "") {
+  def jenkins_username = sh(script: 'whoami', returnStdout: true).trim()
+  def jenkins_uid = sh(script: "id -u  ${jenkins_username}", returnStdout: true).trim()
+  def jenkins_gid = sh(script: "id -g  ${jenkins_username}", returnStdout: true).trim()
+
   def dockerfile = """
             FROM ubuntu:20.04
             ARG DEBIAN_FRONTEND=noninteractive
-            ENV PIPENV_CACHE_DIR=${JENKINS_HOME}/.cache
-            ENV HOME=${JENKINS_HOME}
+            ENV JENKINS_HOME=${env.JENKINS_HOME}
+            ENV HOME=${env.JENKINS_HOME}
+            ENV PIPENV_VENV_IN_PROJECT=true
             ENV TZ=Europe/London
-            USER root
-            RUN apt-get update && apt-get install -y pipenv git
+            RUN apt-get update && apt-get install -y ansible git python3-boto python3-boto3 python3-botocore python3-dev python3-distutils python3-dnspython python3-google-auth python3-googleapi python3-libcloud python3-jinja2 python3-jmespath python3-lxml python3-paramiko python3-pyvmomi python3-ruamel.yaml python3-setuptools python3-wheel
+            RUN groupadd -g ${jenkins_gid} ${jenkins_username} && useradd -m -u ${jenkins_uid} -g ${jenkins_gid} -s /bin/bash ${jenkins_username}
             """.stripIndent()
 
   writeFile(file: "Dockerfile", text: dockerfile, encoding: "UTF-8")
   return (docker.build(image_name, params + " ."))
 }
 
+
+//This allows us to copy&paste this entire script into a pipeline job in the GUI for faster development time (don't have to commit/push to Git to test every change).
 node {
   if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
     println("Get bare clusterverse repo to obtain the version history for the RELEASE gitParameter")
@@ -42,14 +53,22 @@ properties([
         gitParameter(name: 'RELEASE', type: 'PT_TAG', useRepository: 'clusterverse', branch: 'master', branchFilter: '.*', defaultValue: 'master', description: 'Choose an existing release version to deploy (or \'master\')', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'DESCENDING_SMART', tagFilter: '*'),
         string(name: 'CV_GIT_URL', defaultValue: DEFAULT_CLUSTERVERSE_URL, description: "The main clusterverse URL."),
         string(name: 'CV_GIT_BRANCH', defaultValue: DEFAULT_CLUSTERVERSE_BRANCH, description: "The clusterverse branch to test."),
-        credentials(name: 'CV_GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false)
+        credentials(name: 'CV_GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false),
+        string(name: 'USER_CMDLINE_VARS', defaultValue: '', description: "Any user-defined command-line parameters."),
     ])
 ])
 
 node {
   sh 'printenv | sort'
   echo "Params: $params"
-//  create_custom_image("ubuntu_python", "--network=host")
+
+//  def custom_docker_image
+//  stage('Create Docker image') {
+//    custom_docker_image = create_custom_image("ubuntu_cvtest", "")
+//  }
+
+//  create_custom_image("ubuntu_cvtest", "").inside {
+//  custom_docker_image.inside {
   docker.image('ubuntu_python').inside {
     stage('Check Environment') {
       sh 'printenv | sort'
@@ -67,12 +86,13 @@ node {
     }
 
     sh 'ls -l'
-    if (scm) {
+    println("currentBuild.getBuildCauses: " + currentBuild.getBuildCauses())
+    if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0) {
       println("Checking out default scm: " + scm.userRemoteConfigs + " -- " + scm.branches)
       checkout(scm)
     } else {
-      println("No 'scm' params for clusterverse repo; using params.")
-      checkout([$class: 'GitSCM', branches: [[name: params.CV_GIT_BRANCH ? params.CV_GIT_BRANCH : DEFAULT_CLUSTERVERSE_BRANCH]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: params.CV_GIT_URL ? params.CV_GIT_URL : DEFAULT_CLUSTERVERSE_URL]]])
+      println("No 'scm' params for clusterverse testsuite repo; using params.")
+      checkout([$class: 'GitSCM', branches: [[name: DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
     }
 
     sh 'ls -l'
@@ -122,17 +142,19 @@ node {
     stage(params.DEPLOY_TYPE) {
       if (params.DEPLOY_TYPE == 'deploy') {
         withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
-          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE"
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
         }
       } else if (params.DEPLOY_TYPE == 'redeploy') {
         withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
-          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE"
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py redeploy.yml -e canary=${params.CANARY} -e canary_tidy_on_success=${params.CANARY_TIDY_ON_SUCCESS} -e redeploy_scheme=${params.REDEPLOY_SCHEME} -e debug_nested_log_output=true $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
         }
       } else if (params.DEPLOY_TYPE == 'clean') {
         withCredentials([sshUserPrivateKey(credentialsId: "SSH_KEY_${CLOUD_TYPE.toUpperCase()}_${REGION.toUpperCase()}_${params.BUILDENV.toUpperCase()}", keyFileVariable: 'keyfile', usernameVariable: 'sshuser')]) {
-          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME"
+          sh "ansible-playbook -u ${sshuser} --private-key=${keyfile} -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME $params.USER_CMDLINE_VARS"
         }
       } else error("DEPLOY_TYPE invalid")
     }
   }
+  println("Pruning dangling docker images (might have been created due to parallel builds)")
+  sh 'docker image prune -f'
 }
