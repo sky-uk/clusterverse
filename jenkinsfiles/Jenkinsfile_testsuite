@@ -81,8 +81,9 @@ properties([
         choice(name: 'DNS_TEST', choices: ['as_defined', 'force_disable', 'both'], description: "Whether to test with DNS as defined in cluster definitions (as_defined), or to force to disable (force_disable), or both"),
         extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', multiSelectDelimiter: ',', visibleItemCount: 5),
         choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
-        choice(name: 'MYHOSTTYPES_TEST', choices: ['no_test', 'serial', 'parallel'], description: "Whether (and how) to run tests on pre-configured hosttypes.  Hosttype definitions \"sys\" and \"sysdisks2\" must exist in cluster_vars for all clusters."),
-        [name: 'MYHOSTTYPES_LIST', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: '', omitValueField: true, randomName: 'choice-parameter-144492480500806', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: false, script: ''], script: [classpath: [], sandbox: false, script: '''if (MYHOSTTYPES_TEST != \'no_test\') { return "<input name=\\"value\\" value=\\"sys,sysdisks2\\" class=\\"setting-input\\" type=\\"text\\">" } else { return "" } ''']]],
+        extendedChoice(name: 'MYHOSTTYPES_TEST', type: 'PT_MULTI_SELECT', value: 'nomyhosttypes,myhosttypes', defaultValue: 'nomyhosttypes', descriptionPropertyValue: 'Without myhosttypes, With myhosttypes', description: 'Whether to run tests on pre-configured hosttypes.', multiSelectDelimiter: ',', visibleItemCount: 2),
+        [$class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'These hosttype definitions must exist in cluster_vars for all clusters', name: 'MYHOSTTYPES_LIST', omitValueField: false, randomName: 'choice-parameter-423779762617532', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: false, script: 'return ""'], script: [classpath: [], sandbox: false, script: 'if (MYHOSTTYPES_TEST.split(\',\').contains(\'myhosttypes\')) { return ("<input name=\\"value\\" value=\\"sys,sysdisks2\\" class=\\"setting-input\\" type=\\"text\\">") }']]],
+        [$class: 'CascadeChoiceParameter', choiceType: 'PT_RADIO', description: 'Run the myhosttype test in serial or parallel', filterLength: 1, filterable: false, name: 'MYHOSTTYPES_SERIAL_PARALLEL', randomName: 'choice-parameter-424489601389882', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: false, script: 'return([])'], script: [classpath: [], sandbox: false, script: 'if (MYHOSTTYPES_TEST==\'nomyhosttypes,myhosttypes\') { return([\'serial:selected\',\'parallel\']) }']]],
         extendedChoice(name: 'IMAGE_TESTED', type: 'PT_MULTI_SELECT', value: '_ubuntuimage,_centosimage', defaultValue: '_ubuntuimage,_centosimage', descriptionPropertyValue: 'Ubuntu, CentOS', description: '!!!NOT IMPLEMENTED YET!! Specify which image(s) to test', multiSelectDelimiter: ',', visibleItemCount: 3),
     ])
 ])
@@ -120,6 +121,9 @@ SELFTEST = new MatrixBuilder([
       else if (jenkinsParamsCopy['DNS_TEST'] == 'force_disable') jenkinsParamsCopy.put('DNS_FORCE_DISABLE', 'true')
       else if (jenkinsParamsCopy['DNS_TEST'] == 'both') jenkinsParamsCopy.put('DNS_FORCE_DISABLE', 'true,false')
       jenkinsParamsCopy.remove('DNS_TEST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
       jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
       return jenkinsParamsCopy
     },
@@ -140,14 +144,14 @@ SELFTEST = new MatrixBuilder([
             echo "deploy"
           })
 
-          stage_cvops('redeploy', stageBuild, {
+          stage_cvops('redeploy (1/4 fail)', stageBuild, {
             echo "redeploy"
             //Test that script can fail individual stages (1 in 4 should fail)
             def x = Math.abs(new Random().nextInt() % 4) + 1
             if (x == 1) throw new IllegalStateException("Test failed stage")
           })
 
-          stage_cvops('deploy', stageBuild, {
+          stage_cvops('deploy on top', stageBuild, {
             echo "deploy on top"
           })
         }
@@ -165,6 +169,8 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
       else if (jenkinsParamsCopy['DNS_TEST'] == 'both') jenkinsParamsCopy.put('DNS_FORCE_DISABLE', 'true,false')
       jenkinsParamsCopy.remove('DNS_TEST')
       jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
       jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
       return jenkinsParamsCopy
     },
@@ -233,6 +239,9 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
       else if (jenkinsParamsCopy['DNS_TEST'] == 'force_disable') jenkinsParamsCopy.put('DNS_FORCE_DISABLE', 'true')
       else if (jenkinsParamsCopy['DNS_TEST'] == 'both') jenkinsParamsCopy.put('DNS_FORCE_DISABLE', 'true,false')
       jenkinsParamsCopy.remove('DNS_TEST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
+      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
       jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
       return jenkinsParamsCopy
     },
@@ -326,16 +335,17 @@ HashMap matrixBuilds = [:]
 //  }
 //}
 
-
-matrixBuilds["NOMYHOSTTYPES Matrix builds"] = {
-  stage("NOMYHOSTTYPES Matrix builds") {
-    echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixParams().inspect() + "\n")
-    echo("Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixAxes().inspect() + "\n")
-    parallel(CVTEST_NOMYHOSTTYPES.getTaskMap())
+if (params.MYHOSTTYPES_TEST.split(',').contains('nomyhosttypes')) {
+  matrixBuilds["NOMYHOSTTYPES Matrix builds"] = {
+    stage("NOMYHOSTTYPES Matrix builds") {
+      echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixParams().inspect() + "\n")
+      echo("Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixAxes().inspect() + "\n")
+      parallel(CVTEST_NOMYHOSTTYPES.getTaskMap())
+    }
   }
 }
 
-if (params.MYHOSTTYPES_LIST != '') {
+if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
   matrixBuilds["MYHOSTTYPES Matrix builds"] = {
     stage("MYHOSTTYPES Matrix builds") {
       echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_MYHOSTTYPES._getMatrixParams().inspect() + "\n")
@@ -346,7 +356,7 @@ if (params.MYHOSTTYPES_LIST != '') {
 }
 
 // Run the matrices in parallel (makes in mess in Blue Ocean, but is faster).  Else run in serial.
-if (params.MYHOSTTYPES_TEST == 'parallel') {
+if (params.hasProperty("MYHOSTTYPES_SERIAL_PARALLEL") && params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
   stage("All matrices") {
     parallel(matrixBuilds)
   }
