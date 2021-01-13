@@ -1,0 +1,36 @@
+---
+
+cluster_vars:
+  service_account_rawtext: &service_account_rawtext !vault |
+    $ANSIBLE_VAULT;1.1;AES256
+    7669080460651349243347331538721104778691266429457726036813912140404310
+  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20201211"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20201211a"
+  dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_nameserver_zone: &dns_nameserver_zone "zepkey.com."                               # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_server: "clouddns"                                                                # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "yes"
+  inventory_ip: "public"                                                                # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  ip_forward: "false"
+  ssh_whitelist: &ssh_whitelist ['10.0.0.0/8', '82.69.177.168/29']
+  metadata:
+    ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+    startup-script: "{%- if _ssh_whitelist is defined and _ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{_ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
+    user-data: ""
+  network_fw_tags: ["{{cluster_name}}-nwtag"]
+  firewall_rules:
+    - name: "{{cluster_name}}-extssh"
+      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
+      source_ranges: "{{_ssh_whitelist}}"
+      description: "SSH Access"
+    - name: "{{cluster_name}}-nwtag"
+      allowed: [{ip_protocol: "all"}]
+      source_tags: ["{{cluster_name}}-nwtag"]
+      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
+#    - name: "{{cluster_name}}-prometheus-node-exporter"
+#      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
+_service_account_rawtext: *service_account_rawtext
+_ssh_whitelist: *ssh_whitelist
+_dns_nameserver_zone: *dns_nameserver_zone

@@ -18,7 +18,6 @@
   retries: 5
   when: ansible_os_family == 'RedHat'
 
-# the variable "beats_target_hosts" will be deprecated in Clusterverse 4.0  
 - name: Metricbeat | Configure metricbeat
   block:
     - name: Metricbeat | Copy metricbeat configuration
@@ -41,4 +40,7 @@
         src: lib/systemd/system//metricbeat.service.j2
         dest: "/lib/systemd/system/metricbeat.service"
       notify: Metricbeat | Restart and enable metricbeat
+
+    - deprecate_str: {msg: "beats_target_hosts is deprecated.  Please use beats_config.metricbeat.output_logstash_hosts in future", version: "6"}
+      when: (beats_target_hosts is defined and (beats_target_hosts | length))
   when: (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.metricbeat.output_logstash_hosts is defined and (beats_config.metricbeat.output_logstash_hosts | length))
