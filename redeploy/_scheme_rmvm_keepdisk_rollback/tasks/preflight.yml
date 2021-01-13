@@ -35,9 +35,9 @@
 
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
       vars: { non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}" }
-      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
+      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
     - assert: { that: "(cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '==', 'current') | list | length) == (cluster_hosts_target | length)", fail_msg: "Cannot use this scheme to redeploy to a different-sized cluster" }
-      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
+      # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
