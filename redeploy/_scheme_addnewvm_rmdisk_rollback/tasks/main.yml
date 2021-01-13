@@ -19,6 +19,7 @@
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "retiring"
       when: (canary=="start" or canary=="none") and ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))
+      #TODO: Can probably remove the ' and ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))'
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state
       import_role:

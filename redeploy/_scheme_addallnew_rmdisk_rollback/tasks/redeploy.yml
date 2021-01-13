@@ -15,10 +15,25 @@
         new_state: "retiring"
 
     - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': {{cht_hosts_to_redeploy | to_json}}}'"
       register: r__mainclusteryml
       no_log: True
       ignore_errors: yes
+      vars:
+        # This should consist of the existing cluster_hosts_target, minus any existing hosts (cluster_hosts_state) that are not in the myhosttypes list.  Better to subtract from cluster_hosts_target, (rather than build a new one), because we might be increasing the cluster size.
+        cht_hosts_to_redeploy: |
+          {%- set cht_hosts_to_redeploy = cluster_hosts_target -%}
+          {%- for cht_idx in range((cht_hosts_to_redeploy | length - 1), -1, -1) -%}
+            {%- set breakloop = namespace(break=false) -%}
+            {%- for chs_host in cluster_hosts_state | json_query('[? (\'' + myhosttypes|default('') + '\' != \'\'  &&  !contains([\'' + myhosttypes|default('') + '\'], tagslabels.hosttype))].name') if not breakloop.break -%}
+              {%- if cht_hosts_to_redeploy[cht_idx].hostname | regex_replace('-(?!.*-).*') == chs_host | regex_replace('-(?!.*-).*') -%}
+                {%- set _ = cht_hosts_to_redeploy.pop(cht_idx) -%}
+                {%- set breakloop.break = true -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{cht_hosts_to_redeploy}}
+
     - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
       failed_when: r__mainclusteryml is failed
       when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
