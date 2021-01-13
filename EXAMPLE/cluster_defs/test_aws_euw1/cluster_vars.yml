@@ -31,7 +31,8 @@ cloud_agent:
 #    proxy: {host: "", port: ""}
 #  qualys:
 #    service: "qualys-cloud-agent"
-#    debpackage: ""
+#    github_release: ""
+#    bin_name: ""
 #    bin_path: "/usr/local/qualys/cloud-agent/bin"
 #    config_path: "/etc/default/qualys-cloud-agent"
 #    activation_id: ""
