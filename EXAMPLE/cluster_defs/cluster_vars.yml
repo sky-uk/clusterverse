@@ -48,9 +48,9 @@ cluster_vars:
   type: "{{cloud_type}}"
   region: "{{region}}"
   dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   dns_nameserver_zone: &dns_nameserver_zone ""                # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{cloud_type}}-{{region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
-  dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   custom_tagslabels:
     inv_resident_id: "myresident"
     inv_proposition_id: "myproposition"
