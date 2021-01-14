@@ -89,6 +89,13 @@
   when: cluster_vars.dns_server=="clouddns"
 
 - block:
+    - name: Install 'dig' for ns lookups. (yum - RedHat/CentOS)
+      become: true
+      yum:
+        name: "bind-utils"
+        state: present
+      when: ansible_os_family == 'RedHat'
+
     - name: config/dns/a/dig | debug whether we'll use external_dns_resolver
       debug:
         msg: "{% if not hostvars[item.hostname].ansible_host | regex_search('^(10\\.|192.168|172.1[6-9]\\.|172.2[0-9]\\.|172.3[01]\\.).*') %}@{{external_dns_resolver}}{% endif %}"
