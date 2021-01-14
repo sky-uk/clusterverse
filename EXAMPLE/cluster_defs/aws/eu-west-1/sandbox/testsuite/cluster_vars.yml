@@ -11,8 +11,8 @@ cluster_vars:
 
       sysdisks2:
         auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", "volume_type": "gp2", "volume_size": 12, encrypted: True, "delete_on_termination": true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: { owner: "root", group: "sudo", mode: "775" } }
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", "volume_type": "gp2", "volume_size": 9, encrypted: True, "delete_on_termination": true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: { owner: "root", group: "root", mode: "775" } }
           - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
         flavor: t3a.nano
         version: "{{sysdisks_version | default('')}}"
@@ -25,7 +25,7 @@ cluster_vars:
 #          - { device_name: "/dev/sdh", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
 #        flavor: t3a.nano
 #        version: "{{sysdisks_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        vms_by_az: { a: 1, b: 1, c: 0 }
 #
 #      hostnvme-multi:
 #        auto_volumes:
@@ -34,7 +34,7 @@ cluster_vars:
 #          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }
 #        flavor: i3en.2xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        vms_by_az: { a: 1, b: 1, c: 0 }
 #
 #      hostnvme-lvm:
 #        auto_volumes:
@@ -43,7 +43,7 @@ cluster_vars:
 #        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE" }
 #        flavor: i3en.2xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        vms_by_az: { a: 1, b: 1, c: 0 }
 #
 #      hosthdd-multi:
 #        auto_volumes:
@@ -52,7 +52,7 @@ cluster_vars:
 #          - { device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral2 }
 #        flavor: d2.xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        vms_by_az: { a: 1, b: 1, c: 0 }
 #
 #      hosthdd-lvm:
 #        auto_volumes:
@@ -62,4 +62,4 @@ cluster_vars:
 #        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE" }
 #        flavor: d2.xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        vms_by_az: { a: 1, b: 1, c: 0 }

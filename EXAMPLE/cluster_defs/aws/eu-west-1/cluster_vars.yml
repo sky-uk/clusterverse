@@ -1,4 +1,7 @@
 ---
 
+_ubuntu2004image: "ami-055958ae2f796344b"    # eu-west-1, 20.04, amd64, hvm-ssd, 20201210.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+_centos7image: "ami-0b850cf02cc00fdc8"    # eu-west-1, CentOS7, Procomputers
+
 cluster_vars:
-  image: "ami-055958ae2f796344b"    # eu-west-1, 20.04, amd64, hvm-ssd, 20201210.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+  image: "{{_ubuntu2004image}}"

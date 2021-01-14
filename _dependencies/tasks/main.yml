@@ -15,6 +15,12 @@
         - deprecate_str: { msg: "Loading variables via group_vars/clusterid is deprecated.  Please use merge_vars via cluster_defs in future" }
       when: merge_dict_vars_list is not defined
 
+    - name: Combine command-line cluster_vars_override into the loaded cluster_vars
+      set_fact:
+        cluster_vars: "{{cluster_vars | combine(_cluster_vars_override_templated, recursive=True)}}"
+      vars:
+        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line parameters are interpolated as a string, sometimes as a dict - this normalises them as a dict (which the 'combine' function, above, requires).
+      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
 
 - name: Preflight check
   block:

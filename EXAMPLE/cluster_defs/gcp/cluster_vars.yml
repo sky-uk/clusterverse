@@ -1,11 +1,13 @@
 ---
 
+_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210108"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+_centos7image: "projects/centos-cloud/global/images/centos-7-v20201216"
+
 cluster_vars:
   service_account_rawtext: &service_account_rawtext !vault |
     $ANSIBLE_VAULT;1.1;AES256
     7669080460651349243347331538721104778691266429457726036813912140404310
-  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20201211"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20201211a"
+  image: "{{_ubuntu2004image}}"
   dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone "zepkey.com."                               # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_server: "clouddns"                                                                # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.

@@ -7,6 +7,8 @@
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
       when: canary=="start" or canary=="none"
 
+    - assert: { that: "myhosttypes is not defined or myhosttypes == ''", fail_msg: "ERROR - This redeploy scheme does not support myhosttypes." }
+
 
 - name: Redeploy by replacing entire cluster; rollback on fail
   block:
@@ -39,5 +41,5 @@
         msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
       when: hosts_to_clean | length == 0
   vars:
-    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype)) ]\") }}"
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)
