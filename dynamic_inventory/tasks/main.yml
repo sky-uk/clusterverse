@@ -8,15 +8,24 @@
 - name: dynamic_inventory | dynamic_inventory_flat
   debug: msg="{{dynamic_inventory_flat}}"
 
-# The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
-# this is particularly useful if using a jumphost to access the destination host, and the ansible-running machine doesn't have direct access to it.
+### Ideally, we would like to verify that each host is contactable at this point.  However, no combination of the normal Ansible modules allow this.
+### Note: This play is running on localhost only - not on the remotes.
+#   + The 'wait_for' module cannot reliably wait for a usable ansible ssh pipeline to be created - it can only wait for the tcp ssh port to be open.  Neither can it can reliably search
+#     for a regex, as the response differs between VM flavours.  Most importantly, it does not work behind a bastion host (the 'host' field is waited on from localhost, not the bastion host).
+#   + The 'ping' module (used behind the scenes in wait_for_connection), can be told to be delegated to a remote host, which means (as normal), that the module is sent to the remote, and from there,
+#     checks for a connection to localhost.  This is a problem, because it cannot do this if the remote is not yet ready; it will wait for a short time, but often, not long enough (esp on RHEL
+#     or BSD VMs).  It *should* be possible to do {register: / until: / retries:}, but this does not work - once the connection fails for the first time, retries are not performed.
+#   + The 'wait_for_connection' module cannot be made to wait for a connection to a delegated host (https://github.com/ansible/ansible/issues/36519), so in this play it can only wait for the connection to
+#     localhost, which is of no value.  The only reliable solution for slow-to-create VMs appears to be to put 'wait_for_connection' in a new play, which runs per-host (i.e. from cluster.yml).
 - name: dynamic_inventory | Wait for SSH connectivity
   ping:
   delegate_to: "{{ item.inventory_ip }}"
   with_items: "{{ dynamic_inventory_flat }}"
-  register: r__ping
-  until: r__ping is success
-  retries: 5
+  failed_when: false
+  ignore_unreachable: yes
+  ignore_errors: yes
+- meta: clear_host_errors
+- deprecate_str: { msg: "Wait for SSH connectivity using 'ping' is deprecated (see comment in roles/clusterverse/dynamic_inventory/tasks/main.yml).  Please use 'wait_for_connection' in the top-level cluster.yml (see roles/clusterverse/EXAMPLE/cluster.yml)" }
 
 - name: dynamic_inventory | Refresh (clean it, because there is no file or plugin inventory defined) the in-memory inventory prior to building it (this is in case this module is called multiple times, and we otherwise only add hosts to existing inventory)
   meta: refresh_inventory
