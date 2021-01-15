@@ -8,3 +8,7 @@ cluster_vars:
     vpc_subnet_name: ""
     preemptible: "no"
     deletion_protection: "no"
+    service_account_rawtext: &service_account_rawtext !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      7669080460651349243347331538721104778691266429457726036813912140404310
+_service_account_rawtext: *service_account_rawtext

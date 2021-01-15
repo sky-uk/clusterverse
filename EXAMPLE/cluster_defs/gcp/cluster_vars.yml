@@ -4,9 +4,6 @@ _ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v202
 _centos7image: "projects/centos-cloud/global/images/centos-7-v20201216"
 
 cluster_vars:
-  service_account_rawtext: &service_account_rawtext !vault |
-    $ANSIBLE_VAULT;1.1;AES256
-    7669080460651349243347331538721104778691266429457726036813912140404310
   image: "{{_ubuntu2004image}}"
   dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone "zepkey.com."                               # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
@@ -33,6 +30,5 @@ cluster_vars:
 #      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
 #      source_tags: ["{{cluster_name}}-nwtag"]
 #      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
-_service_account_rawtext: *service_account_rawtext
 _ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone

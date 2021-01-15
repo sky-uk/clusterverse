@@ -47,9 +47,6 @@ cluster_name: "{{ app_name }}-{{ buildenv }}"         # Identifies the cluster w
 
 cluster_vars:
   type: &cloud_type "gcp"
-  service_account_rawtext: &service_account_rawtext !vault |
-    $ANSIBLE_VAULT;1.1;AES256
-    7669080460651349243347331538721104778691266429457726036813912140404310
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20201211"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20201211a"
   region: &region "europe-west1"
@@ -93,6 +90,9 @@ cluster_vars:
 #      sysdisks: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4"}]}
       sysdisks2: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc2", fstype: "ext4"}]}
 #      sysdisks_multi: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
+    service_account_rawtext: &service_account_rawtext !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      7669080460651349243347331538721104778691266429457726036813912140404310
     vpc_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
     vpc_host_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
