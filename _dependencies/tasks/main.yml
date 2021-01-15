@@ -19,8 +19,9 @@
       set_fact:
         cluster_vars: "{{cluster_vars | combine(_cluster_vars_override_templated, recursive=True)}}"
       vars:
-        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line parameters are interpolated as a string, sometimes as a dict - this normalises them as a dict (which the 'combine' function, above, requires).
+        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line parameters are interpolated as a string, sometimes as a dict - this normalises them as a dict (which the 'combine' filter, above, requires).
       when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
+
 
 - name: Preflight check
   block:
@@ -45,6 +46,10 @@
 
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
       when: cluster_vars.type == "aws"
+
+
+- name: Loaded/derived/overridden cluster_vars
+  debug: msg="{{cluster_vars}}"
 
 
 - name: Create gcp service account contents file from cluster_vars.service_account_rawtext (unless already defined by user)

@@ -2,10 +2,10 @@
 
 //These will not be needed if we're running this as a pipeline SCM job, as these are automatically added to the 'scm' variable, but if we instead just cut & paste this file into a pipeline job, they will be used as fallback
 def DEFAULT_CLUSTERVERSE_URL = "https://github.com/sky-uk/clusterverse"
-def DEFAULT_CLUSTERVERSE_BRANCH = "*/master"
+def DEFAULT_CLUSTERVERSE_BRANCH = "master"
 
 def DEFAULT_CLUSTERVERSE_TESTSUITE_URL = "https://github.com/sky-uk/clusterverse_test"
-def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "*/master"
+def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "master"
 
 //This allows us to create our own Docker image for this specific use-case.  Once it is built, it will not be rebuilt, so only adds delay the first time we use it.
 def create_custom_image(image_name, params = "") {
@@ -92,7 +92,7 @@ node {
       checkout(scm)
     } else {
       println("No 'scm' params for clusterverse testsuite repo; using params.")
-      checkout([$class: 'GitSCM', branches: [[name: DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'GITHUB_SVC_USER', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
+      checkout([$class: 'GitSCM', branches: [[name: "*/${DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: env.CV_GIT_CREDS ? env.CV_GIT_CREDS : '', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
     }
 
     sh 'ls -l'

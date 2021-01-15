@@ -89,7 +89,7 @@
   when: cluster_vars.dns_server=="clouddns"
 
 - block:
-    - name: Install 'dig' for ns lookups. (yum - RedHat/CentOS)
+    - name: Install 'dig (bind-utils)' for ns lookups. (yum - RedHat/CentOS)
       become: true
       yum:
         name: "bind-utils"
