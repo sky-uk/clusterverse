@@ -4,6 +4,14 @@ _ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v202
 _centos7image: "projects/centos-cloud/global/images/centos-7-v20201216"
 
 cluster_vars:
+#  env_setup:
+#    vars:
+#      ANSIBLE_SSH_ARGS: '-o UserKnownHostsFile=/dev/null -o ControlMaster=auto -o ControlPersist=60s -o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q ansible@bastion.clusterversetest.com"'
+#    files:
+#      id_rsa_bastion: |
+#        -----BEGIN RSA PRIVATE KEY-----
+#        M8fBuCjd/wbIi8uDGMGe8ezJKgIBAA3UNuiXK1H3DCXaCCA5QmASFhQhUlgIIEAv
+#        -----END RSA PRIVATE KEY-----
   image: "{{_ubuntu2004image}}"
   dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone "zepkey.com."                               # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)

@@ -87,7 +87,7 @@ node {
 
     sh 'ls -l'
     println("currentBuild.getBuildCauses: " + currentBuild.getBuildCauses())
-    if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0) {
+    if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0  ||  currentBuild.getBuildCauses('hudson.model.Cause$UpstreamCause').size() > 0) {
       println("Checking out default scm: " + scm.userRemoteConfigs + " -- " + scm.branches)
       checkout(scm)
     } else {
