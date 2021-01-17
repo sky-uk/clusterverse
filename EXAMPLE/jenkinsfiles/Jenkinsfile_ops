@@ -75,7 +75,8 @@ node {
       println("common_deploy_vars params:" + params)
 
       if (params.CLUSTER_ID == '') {
-        error "CLUSTER_ID not defined"
+        unstable("CLUSTER_ID not defined")
+        throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
       }
       if (params.APPEND_BUILD_NUMBER == true && params.APP_NAME == "") {
         error "APP_NAME is required when APPEND_BUILD_NUMBER is set."

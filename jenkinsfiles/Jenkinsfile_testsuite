@@ -338,18 +338,24 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
 /*** The actual pipeline stage definitions ***/
 /*********************************************/
 
+// A check stage - no actual work
 stage('Check Environment') {
   node {
     sh 'printenv | sort'
     println(params.inspect())
     if (params.BUILDENV == '') {
-      error "BUILDENV not defined"
+//      currentBuild.result = 'ABORTED'
+//      error "BUILDENV not defined"
+      unstable("BUILDENV not defined")
+      throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
     }
   }
 }
 
+// A map to be loaded with matrices (of stages)
 HashMap matrixBuilds = [:]
 
+// A 'self-test' matrix.  Only outputs debug.
 //matrixBuilds["SELFTEST1 Matrix builds"] = {
 //  stage("SELFTEST Matrix builds") {
 //    echo("Matrix 'params' used to build Matrix axes: \n" + SELFTEST._getMatrixParams().inspect() + "\n")
@@ -358,6 +364,8 @@ HashMap matrixBuilds = [:]
 //  }
 //}
 
+
+// A matrix of tests that test pipelines *without* myhosttypes configured
 if (params.MYHOSTTYPES_TEST.split(',').contains('nomyhosttypes')) {
   matrixBuilds["NOMYHOSTTYPES Matrix builds"] = {
     stage("NOMYHOSTTYPES Matrix builds") {
@@ -368,6 +376,7 @@ if (params.MYHOSTTYPES_TEST.split(',').contains('nomyhosttypes')) {
   }
 }
 
+// A matrix of tests that test pipelines *with* myhosttypes configured
 if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
   matrixBuilds["MYHOSTTYPES Matrix builds"] = {
     stage("MYHOSTTYPES Matrix builds") {
@@ -378,7 +387,7 @@ if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
   }
 }
 
-// Run the matrices in parallel (makes in mess in Blue Ocean, but is faster).  Else run in serial.
+// Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run in serial.
 if (params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
   stage("All matrices") {
     parallel(matrixBuilds)
