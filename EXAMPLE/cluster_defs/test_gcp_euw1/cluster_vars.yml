@@ -66,7 +66,7 @@ cluster_vars:
   ip_forward: "false"
   ssh_whitelist: &ssh_whitelist ['10.0.0.0/8']
   metadata:
-    ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+    ssh-keys: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_file is defined -%}{{ _host_ssh_connection_cfg.ansible_user }}:{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_file|string + '\nSSHFILE') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- else -%}{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}{%- endif -%}"
     startup-script: "{%- if _ssh_whitelist is defined and _ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{_ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
     user-data: ""
   custom_tagslabels:
@@ -97,7 +97,7 @@ cluster_vars:
       $ANSIBLE_VAULT;1.1;AES256
       7669080460651349243347331538721104778691266429457726036813912140404310
     ssh_connection_cfg:
-      host:
+      host: &host_ssh_connection_cfg
         ansible_user: "ansible"
         ansible_ssh_private_key_file: !vault |
           $ANSIBLE_VAULT;1.2;AES256;mgmt
@@ -118,3 +118,4 @@ _region: *region
 _gcp_service_account_rawtext: *gcp_service_account_rawtext
 _ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone
+_host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

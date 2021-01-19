@@ -108,7 +108,7 @@ cluster_vars:
       $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310
     ssh_connection_cfg:
-      host:
+      host: &host_ssh_connection_cfg
         ansible_user: "ansible"
         ansible_ssh_private_key_file: !vault |
           $ANSIBLE_VAULT;1.2;AES256;sandbox
@@ -126,3 +126,4 @@ _cloud_type: *cloud_type
 _region: *region
 _ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone
+_host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

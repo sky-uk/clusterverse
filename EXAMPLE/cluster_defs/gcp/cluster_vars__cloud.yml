@@ -11,7 +11,7 @@ cluster_vars:
   inventory_ip: "private"                                                                         # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   ip_forward: "false"
   metadata:
-    ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+    ssh-keys: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_file is defined -%}{{ _host_ssh_connection_cfg.ansible_user }}:{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_file|string + '\nSSHFILE') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- else -%}{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}{%- endif -%}"
     startup-script: "{%- if _ssh_whitelist is defined and _ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{_ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
     user-data: ""
   network_fw_tags: ["{{cluster_name}}-nwtag"]

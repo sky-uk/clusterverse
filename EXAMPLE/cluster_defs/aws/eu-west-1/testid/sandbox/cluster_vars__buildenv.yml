@@ -7,7 +7,7 @@ cluster_vars:
       $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310
     ssh_connection_cfg:
-      host:
+      host: &host_ssh_connection_cfg
         ansible_user: "ansible"
         ansible_ssh_private_key_file: !vault |
           $ANSIBLE_VAULT;1.2;AES256;sandbox
@@ -83,3 +83,4 @@ cluster_vars:
 #        flavor: d2.xlarge
 #        version: "{{sys_version | default('')}}"
 #        vms_by_az: { a: 1, b: 1, c: 0 }
+_host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }
