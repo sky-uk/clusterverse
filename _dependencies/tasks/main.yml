@@ -8,8 +8,8 @@
             from: "{{ merge_dict_vars_list }}"
             ignore_missing_files: True
 
-        - name: Loaded/derived/overridden cluster_vars
-          debug: msg="{{cluster_vars}}"
+#        - name: Loaded/derived/overridden cluster_vars
+#          debug: msg="{{cluster_vars}}"
       when: merge_dict_vars_list is defined and merge_dict_vars_list | length > 0
 
     - block:

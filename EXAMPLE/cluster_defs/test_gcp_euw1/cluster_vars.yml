@@ -7,7 +7,8 @@ redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addne
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
-#wait_for_dns: False
+skip_dynamic_inventory_sshwait: true
+
 prometheus_node_exporter_install: false
 filebeat_install: false
 metricbeat_install: false
@@ -49,7 +50,7 @@ cloud_agent:
 bind9:
   sandbox: {server: "", key_name: "", key_secret: ""}
 
-cluster_name: "{{ app_name }}-{{ buildenv }}"         # Identifies the cluster within the cloud environment
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 cluster_vars:
   type: &cloud_type "gcp"
