@@ -7,6 +7,8 @@ redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addne
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
+skip_dynamic_inventory_sshwait: true
+
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
@@ -42,21 +44,19 @@ cloud_agent:
 bind9:
   sandbox: {server: "", key_name: "", key_secret: ""}
 
-cluster_name: "{{ app_name }}-{{ buildenv }}"         # Identifies the cluster within the cloud environment
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 cluster_vars:
   type: "{{cloud_type}}"
   region: "{{region}}"
-  dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   dns_nameserver_zone: &dns_nameserver_zone ""                # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{cloud_type}}-{{region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
   custom_tagslabels:
-    inv_resident_id: "myresident"
-    inv_proposition_id: "myproposition"
     inv_environment_id: "{{buildenv}}"
     inv_service_id: "{{app_class}}"
     inv_cluster_id: "{{cluster_name}}"
     inv_cluster_type: "{{app_name}}"
-    inv_cost_centre: "1234"
+  ssh_whitelist: &ssh_whitelist ['10.0.0.0/8']
+_ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone

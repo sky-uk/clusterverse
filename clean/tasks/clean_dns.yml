@@ -13,7 +13,7 @@
             server: "{{bind9[buildenv].server}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             state: "absent"
-            record: "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+            record: "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
           with_items: "{{ hosts_to_clean }}"
 
         - name: clean/dns/nsupdate | Delete CNAME records
@@ -22,8 +22,8 @@
             key_secret: "{{bind9[buildenv].key_secret}}"
             server: "{{bind9[buildenv].server}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
-            value:  "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+            record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+            value:  "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
             type: CNAME
             state: absent
           with_items: "{{ hosts_to_clean }}"

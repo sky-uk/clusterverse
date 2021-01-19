@@ -5,8 +5,8 @@ merge_dict_vars_list:
   - "./cluster_defs/app_vars.yml"
   - "./cluster_defs/{{ cloud_type }}/"
   - "./cluster_defs/{{ cloud_type }}/{{ region }}/"
-  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/"
-  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/{{ clusterid }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ clusterid }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ clusterid }}/{{ buildenv }}/"
 
 #merge_dict_vars_list:
 #  - "./cluster_defs/{{ clusterid }}/"

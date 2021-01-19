@@ -7,6 +7,12 @@ redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addne
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
+#wait_for_dns: False
+prometheus_node_exporter_install: false
+filebeat_install: false
+metricbeat_install: false
+canary: none
+
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
@@ -43,7 +49,7 @@ cloud_agent:
 bind9:
   sandbox: {server: "", key_name: "", key_secret: ""}
 
-cluster_name: "{{ app_name }}-{{ buildenv }}"         # Identifies the cluster within the cloud environment
+cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 cluster_vars:
   type: &cloud_type "aws"
@@ -82,24 +88,35 @@ cluster_vars:
 #      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
 #    - proto: "tcp"
 #      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
-#      group_name: "{{buildenv}}-private-sg"
+#      group_name: ["{{buildenv}}-private-sg"]
 #      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."
   sandbox:
     hosttype_vars:
-      sys: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3a.nano, version: "{{sys_version | default('')}}", auto_volumes: []}
-#      sysdisks2: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3a.nano, version: "{{sysdisks_version | default('')}}", auto_volumes: [{device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }, {device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}]}
-#      sysdisks3: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: t3a.nano, version: "{{sysdisks_version | default('')}}", auto_volumes: [{device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "root", mode: "775"} }, {device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}, {device_name: "/dev/sdh", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}]}
-#      sysdisks-snapshot: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: t3a.nano, version: "{{sys_version | default('')}}", auto_volumes: [{"snapshot_tags": {"tag:backup_id": "57180566894481854905"}, device_name: "/dev/sdf", mountpoint: "/media/data", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }]}
-#      hostnvme-multi: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: i3en.2xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }] }
-#      hostnvme-lvm: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: i3en.2xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} }
-#      hosthdd-multi: {vms_by_az: {a: 1, b: 0, c: 0}, flavor: d2.xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral2}] }
-#      hosthdd-lvm:   {vms_by_az: {a: 1, b: 0, c: 0}, flavor: d2.xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {device_name: "/dev/sdd", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral2}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} }
+      sys: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: t3a.nano, version: "{{sys_version | default('')}}", auto_volumes: []}
+#      sysdisks2: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: t3a.nano, version: "{{sysdisks_version | default('')}}", auto_volumes: [{"device_name": "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}]}
+#      sysdisks3: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: t3a.nano, version: "{{sysdisks_version | default('')}}", auto_volumes: [{"device_name": "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true, perms: {owner: "root", group: "sudo", mode: "775"} }, {"device_name": "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}, {"device_name": "/dev/sdh", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true}]}
+#      sysdisks-snapshot: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: t3a.nano, version: "{{sys_version | default('')}}", auto_volumes: [{"snapshot_tags": {"tag:backup_id": "57180566894481854905"}, "device_name": "/dev/sdf", mountpoint: "/media/data", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }]}
+#      hostnvme-multi: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: i3en.2xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {"device_name": "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", "volume_type": "gp2", "volume_size": 1, encrypted: True, "delete_on_termination": true }] }
+#      hostnvme-lvm: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: i3en.2xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} }
+#      hosthdd-multi: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: d2.xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral2}] }
+#      hosthdd-lvm:   {vms_by_az: {a: 1, b: 1, c: 0}, flavor: d2.xlarge, version: "{{sys_version | default('')}}", auto_volumes: [{device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral0}, {device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral1}, {device_name: "/dev/sdd", mountpoint: "/media/data", fstype: "ext4", "volume_type": "ephemeral", ephemeral: ephemeral2}], lvmparams: {vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE"} }
     aws_access_key: !vault |
-      $ANSIBLE_VAULT;1.1;AES256
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310
     aws_secret_key: !vault |
-      $ANSIBLE_VAULT;1.1;AES256
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310
+    ssh_connection_cfg:
+      host:
+        ansible_user: "ansible"
+        ansible_ssh_private_key_file: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;sandbox
+          7669080460651349243347331538721104778691266429457726036813912140404310
+#      bastion:
+#        ssh_args: '-o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q top@10.119.113.133"'
+#        ssh_priv_key: !vault |
+#          $ANSIBLE_VAULT;1.2;AES256;sandbox
+#          7669080460651349243347331538721104778691266429457726036813912140404310
     vpc_name: "test{{buildenv}}"
     vpc_subnet_name_prefix: "{{buildenv}}-test-{{_region}}"
     key_name: "test__id_rsa"

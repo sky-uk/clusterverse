@@ -1,47 +1,39 @@
 ---
 
-- name: clusterverse | Set up the environment
-  hosts: localhost:all
-  connection: local
-  gather_facts: no
-  tasks:
-    - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -fr requirements.yml", run_once: yes, tags: ["always"] }
-
-    - { include_role: { name: 'clusterverse/_dependencies', apply: { tags: ["always"]} }, tags: ["always"] }
-    - { name: "clusterverse | Set env vars", set_fact: { envvars: "{{ cluster_vars.env_setup.vars | default({}) }}" }, tags: ["always"] }
-    - { name: "clusterverse | Copy env files", local_action: "copy content={{item.value}} dest={{item.key}}", with_dict: "{%- if cluster_vars.env_setup.files is defined -%}{{ cluster_vars.env_setup.files }}{%- else -%}{}{%- endif -%}", run_once: yes, tags: ["always"] }
-
 - name: clusterverse | Deploy the cluster
   hosts: localhost
   connection: local
   gather_facts: no
-  environment: "{{envvars}}"
   tasks:
+    - { name: "Get dependent roles via ansible-galaxy", local_action: "command ansible-galaxy install -fr requirements.yml", tags: ["always"] }
+
     - { include_role: { name: "clusterverse/clean", apply: { tags: ["clusterverse_clean"]} }, tags: ["clusterverse_clean"], when: "clean is defined" }
     - { include_role: { name: "clusterverse/create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
     - { include_role: { name: "clusterverse/dynamic_inventory", apply: { tags: ["clusterverse_dynamic_inventory"]} }, tags: ["clusterverse_dynamic_inventory"] }
+    - { name: "clusterverse | Copy ansible_ssh_private_key_file", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file}} dest='id_rsa_ansible_ssh_private_key_file' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file is defined", no_log: yes, tags: ["always"] }
+    - { name: "clusterverse | Copy bastion sshkey", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key}} dest='id_rsa_bastion' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined", no_log: yes, tags: ["always"] }
+
 
 - name: clusterverse | Wait for SSH connections
   hosts: all
   gather_facts: no
-  environment: "{{hostvars['localhost'].envvars}}"
   tasks: [ {wait_for_connection: "", tags: ["always"] } ]
+
 
 - name: clusterverse | Configure the cluster
   hosts: all
-  environment: "{{hostvars['localhost'].envvars}}"
   tasks: [ { include_role: { name: "clusterverse/config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] } ]
+
 
 ## Application roles
 - name: Application roles
   hosts: all
-  environment: "{{hostvars['localhost'].envvars}}"
   tasks:
     - { include_role: { name: "testrole", apply: { tags: ["testrole"]} }, tags: ["testrole"] }
 ##
 
+
 - name: clusterverse | Perform cluster readiness operations
   hosts: localhost
   connection: local
-  environment: "{{envvars}}"
   tasks: [ { include_role: { name: "clusterverse/readiness", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] } ]

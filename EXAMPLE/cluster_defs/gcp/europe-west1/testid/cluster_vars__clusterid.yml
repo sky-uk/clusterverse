@@ -1,0 +1,13 @@
+---
+
+cluster_vars:
+  dns_nameserver_zone: &dns_nameserver_zone ""                   # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_user_domain: "{%- if _dns_nameserver_zone -%}{{cloud_type}}-{{region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
+  custom_tagslabels:
+    territory: "uk"
+    cost_centre: &cost_centre "0000000000"
+    billing_team: ""
+    service: &service ""
+    inv_resident_id: *service
+    inv_cost_centre: *cost_centre
+_dns_nameserver_zone: *dns_nameserver_zone

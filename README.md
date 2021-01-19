@@ -34,7 +34,7 @@ To active the pipenv:
 ### GCP
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.
-+ Store the contents within the `cluster_vars/service_account_rawtext` variable. 
++ Store the contents within the `cluster_vars/gcp_service_account_rawtext` variable. 
   + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input. 
 + Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
 

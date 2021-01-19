@@ -63,7 +63,7 @@
         - name: disks_auto_aws_gcp | Touch a file with the mountpoint and device name for testing that disk attachment is correct
           become: yes
           file:
-            path: "{{item.mountpoint}}/__clusterversetest_{{ item.mountpoint | regex_replace('\/', '_') }}_{{ item.device_name | regex_replace('\/', '_') }}"
+            path: "{{item.mountpoint}}/__clusterversetest_{{ item.mountpoint | regex_replace('\\/', '_') }}_{{ item.device_name | regex_replace('\/', '_') }}"
             state: touch
           loop: "{{auto_vols}}"
 
@@ -136,7 +136,7 @@
         - name: disks_auto_aws_gcp | Touch a file with the mountpoint and device name for testing that disk attachment is correct
           become: yes
           file:
-            path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}/__clusterversetest_{{ hosttype_vars.auto_volumes[0].mountpoint | regex_replace('\/', '_') }}"
+            path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}/__clusterversetest_{{ hosttype_vars.auto_volumes[0].mountpoint | regex_replace('\\/', '_') }}"
             state: touch
 
         - name: disks_auto_aws_gcp | Find all __clusterversetest_ files in newly mounted disks

@@ -1,0 +1,30 @@
+---
+
+_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210112"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+_centos7image: "projects/centos-cloud/global/images/centos-7-v20201216"
+
+cluster_vars:
+  image: "{{_ubuntu2004image}}"
+  dns_cloud_internal_domain: "c.{{ (_gcp_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_server: "clouddns"                                                                          # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "no"
+  inventory_ip: "private"                                                                         # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  ip_forward: "false"
+  metadata:
+    ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+    startup-script: "{%- if _ssh_whitelist is defined and _ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{_ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
+    user-data: ""
+  network_fw_tags: ["{{cluster_name}}-nwtag"]
+  firewall_rules:
+    - name: "{{cluster_name}}-extssh"
+      allowed: [{ip_protocol: "tcp", ports: ["22"]}]
+      source_ranges: "{{_ssh_whitelist}}"
+      description: "SSH Access"
+#    - name: "{{cluster_name}}-nwtag"
+#      allowed: [{ip_protocol: "all"}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
+#    - name: "{{cluster_name}}-prometheus-node-exporter"
+#      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."

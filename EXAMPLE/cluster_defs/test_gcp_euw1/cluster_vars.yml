@@ -7,6 +7,12 @@ redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addne
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
+#wait_for_dns: False
+prometheus_node_exporter_install: false
+filebeat_install: false
+metricbeat_install: false
+canary: none
+
 app_name: "test"                  # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
 app_class: "test"                 # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
@@ -50,10 +56,10 @@ cluster_vars:
   image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20201211"           # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20201211a"
   region: &region "europe-west1"
-  dns_cloud_internal_domain: "c.{{ (_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_nameserver_zone: &dns_nameserver_zone ""                                          # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_cloud_internal_domain: "c.{{ (_gcp_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_nameserver_zone: &dns_nameserver_zone ""                                                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
-  dns_server: ""                                                                        # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  dns_server: "clouddns"                                                                # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "yes"
   inventory_ip: "public"                                                                # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
   ip_forward: "false"
@@ -76,10 +82,6 @@ cluster_vars:
       allowed: [{ip_protocol: "tcp", ports: ["22"]}]
       source_ranges: "{{_ssh_whitelist}}"
       description: "SSH Access"
-    - name: "{{cluster_name}}-nwtag"
-      allowed: [{ip_protocol: "all"}]
-      source_tags: ["{{cluster_name}}-nwtag"]
-      description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
 #    - name: "{{cluster_name}}-prometheus-node-exporter"
 #      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
 #      source_tags: ["{{cluster_name}}-nwtag"]
@@ -90,17 +92,28 @@ cluster_vars:
 #      sysdisks: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4"}]}
       sysdisks2: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc2", fstype: "ext4"}]}
 #      sysdisks_multi: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, rootvol_size: "10", version: "{{sysdisks_version | default('')}}", auto_volumes: [{auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/var/log/mysvc", fstype: "ext4", perms: {owner: "root", group: "sudo", mode: "775"}}, {auto_delete: true, interface: "SCSI", volume_size: 2,  mountpoint: "/var/log/mysvc2", fstype: "ext4"}, {auto_delete: true, interface: "SCSI", volume_size: 3,  mountpoint: "/var/log/mysvc3", fstype: "ext4"}]}
-    service_account_rawtext: &service_account_rawtext !vault |
+    gcp_service_account_rawtext: &gcp_service_account_rawtext !vault |
       $ANSIBLE_VAULT;1.1;AES256
       7669080460651349243347331538721104778691266429457726036813912140404310
-    vpc_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
-    vpc_host_project_id: "{{ (_service_account_rawtext | string | from_json).project_id }}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
+    ssh_connection_cfg:
+      host:
+        ansible_user: "ansible"
+        ansible_ssh_private_key_file: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mgmt
+          7669080460651349243347331538721104778691266429457726036813912140404310
+#      bastion:
+#        ssh_args: '-o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q top@10.119.113.133"'
+#        ssh_priv_key: !vault |
+#          $ANSIBLE_VAULT;1.2;AES256;mgmt
+#          7669080460651349243347331538721104778691266429457726036813912140404310
+    vpc_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+    vpc_host_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""
     preemptible: "no"
     deletion_protection: "no"
 _cloud_type: *cloud_type
 _region: *region
-_service_account_rawtext: *service_account_rawtext
+_gcp_service_account_rawtext: *gcp_service_account_rawtext
 _ssh_whitelist: *ssh_whitelist
 _dns_nameserver_zone: *dns_nameserver_zone

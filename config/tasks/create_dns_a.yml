@@ -8,7 +8,7 @@
         server: "{{bind9[buildenv].server}}"
         ttl: 60
         zone: "{{cluster_vars.dns_nameserver_zone}}"
-        record: "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+        record: "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
         value: "{{ hostvars[item.hostname]['ansible_host'] }}"
       become: false
       delegate_to: localhost

@@ -17,15 +17,17 @@
 #     or BSD VMs).  It *should* be possible to do {register: / until: / retries:}, but this does not work - once the connection fails for the first time, retries are not performed.
 #   + The 'wait_for_connection' module cannot be made to wait for a connection to a delegated host (https://github.com/ansible/ansible/issues/36519), so in this play it can only wait for the connection to
 #     localhost, which is of no value.  The only reliable solution for slow-to-create VMs appears to be to put 'wait_for_connection' in a new play, which runs per-host (i.e. from cluster.yml).
-- name: dynamic_inventory | Wait for SSH connectivity
-  ping:
-  delegate_to: "{{ item.inventory_ip }}"
-  with_items: "{{ dynamic_inventory_flat }}"
-  failed_when: false
-  ignore_unreachable: yes
-  ignore_errors: yes
-- meta: clear_host_errors
-- deprecate_str: { msg: "Wait for SSH connectivity using 'ping' is deprecated (see comment in roles/clusterverse/dynamic_inventory/tasks/main.yml).  Please use 'wait_for_connection' in the top-level cluster.yml (see roles/clusterverse/EXAMPLE/cluster.yml)" }
+- block:
+    - name: dynamic_inventory | Wait for SSH connectivity
+      ping:
+      delegate_to: "{{ item.inventory_ip }}"
+      with_items: "{{ dynamic_inventory_flat }}"
+      failed_when: false
+      ignore_unreachable: yes
+      ignore_errors: yes
+    - meta: clear_host_errors
+    - deprecate_str: { msg: "Wait for SSH connectivity using 'ping' is deprecated (see comment in roles/clusterverse/dynamic_inventory/tasks/main.yml).  Please use 'wait_for_connection' in the top-level cluster.yml (see roles/clusterverse/EXAMPLE/cluster.yml)" }
+  when: skip_dynamic_inventory_sshwait is not defined or (skip_dynamic_inventory_sshwait|bool == false)
 
 - name: dynamic_inventory | Refresh (clean it, because there is no file or plugin inventory defined) the in-memory inventory prior to building it (this is in case this module is called multiple times, and we otherwise only add hosts to existing inventory)
   meta: refresh_inventory
@@ -37,6 +39,9 @@
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
     regionzone: "{{ item.regionzone | default(omit) }}"
+    ansible_ssh_common_args: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default(omit) }}"
+    ansible_user: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user | default(omit) }}"
+    ansible_ssh_private_key_file: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file | default(None) | ternary('id_rsa_ansible_ssh_private_key_file', omit) }}"
   with_items: "{{ dynamic_inventory_flat }}"
 
 - name: dynamic_inventory | stat the inventory_file path
@@ -51,7 +56,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %}{{''}}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'ansible_user' in hostvars[hostname] %}ansible_user='{{ hostvars[hostname].ansible_user }}'{% endif %} {% if 'ansible_ssh_private_key_file' in hostvars[hostname] %}ansible_ssh_private_key_file='{{ hostvars[hostname].ansible_ssh_private_key_file }}'{% endif %} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %} {% if 'ansible_ssh_common_args' in hostvars[hostname] %}ansible_ssh_common_args='{{ hostvars[hostname].ansible_ssh_common_args }}'{% endif %}{{''}}
       {% endfor %}
 
       {% endif %}
@@ -62,5 +67,5 @@
     new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
 
 - name: dynamic_inventory | current inventory_hostnames
-  debug:  msg="{{ lookup('inventory_hostnames','all').split(',') }}"
+  debug: msg="{{ lookup('inventory_hostnames','all').split(',') }}"
   when: lookup('inventory_hostnames','all') | length

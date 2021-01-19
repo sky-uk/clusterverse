@@ -31,7 +31,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 ```
 
 ### Mandatory command-line variables:
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `cluster_vars.{{build_env}}`)
++ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
 
 ### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
