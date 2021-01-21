@@ -158,9 +158,10 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 To import the role into your project, create a [`requirements.yml`](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/requirements.yml) file containing:
 ```
-- src: https://github.com/sky-uk/clusterverse
-  version: master           ## branch, hash, or tag 
-  name: clusterverse
+roles:
+  - name: clusterverse
+    src: https://github.com/sky-uk/clusterverse
+    version: master          ## branch, hash, or tag 
 ```
 + If you use a `cluster.yml` file similar to the example found in [EXAMPLE/cluster.yml](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/cluster.yml), clusterverse will be installed from Ansible Galaxy _automatically_ on each run of the playbook.
 

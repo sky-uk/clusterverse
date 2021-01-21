@@ -11,15 +11,15 @@ cluster_vars:
         ansible_ssh_private_key_file: !vault |
           $ANSIBLE_VAULT;1.2;AES256;sandbox
           7669080460651349243347331538721104778691266429457726036813912140404310
-#      bastion:
-#        ssh_args: '-o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q top@10.119.113.133"'
-#        ssh_priv_key: !vault |
-#          $ANSIBLE_VAULT;1.2;AES256;sandbox
-#          7669080460651349243347331538721104778691266429457726036813912140404310
-    vpc_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"             # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
-    vpc_host_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"        # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
+      bastion:
+        ssh_args: '-o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
+        ssh_priv_key: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;sandbox
+          7669080460651349243347331538721104778691266429457726036813912140404310
+    vpc_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"            # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+    vpc_host_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"       # Would differ from vpc_project_id if Shared VPC is in use, (the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
-    vpc_subnet_name: ""
+    vpc_subnet_name: ""                                                                               # Can be omitted if using default subnets
     preemptible: "no"
     deletion_protection: "no"
 
@@ -27,7 +27,6 @@ cluster_vars:
       sys:
         auto_volumes: [ ]
         flavor: "e2-micro"
-        rootvol_size: "10"
         version: "{{sys_version | default('')}}"
         vms_by_az: { d: 1, b: 1, c: 0 }
 
@@ -36,18 +35,17 @@ cluster_vars:
           - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4", perms: { owner: "root", group: "root", mode: "775" } }
           - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc2", fstype: "ext4" }
         flavor: "e2-micro"
-        rootvol_size: "10"
+        rootvol_size: "25"
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { d: 1, b: 1, c: 0 }
 
-#      sysdisks3:
-#        auto_volumes:
-#          - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4" }
-#          - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc2", fstype: "ext4" }
-#          - { auto_delete: true, interface: "SCSI", volume_size: 3, mountpoint: "/media/mysvc3", fstype: "ext4" }
-#        flavor: "e2-micro"
-#        rootvol_size: "10"
-#        version: "{{sysdisks_version | default('')}}"
-#        vms_by_az: { d: 1, b: 1, c: 0 }
+      sysdisks3:
+        auto_volumes:
+          - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc", fstype: "ext4" }
+          - { auto_delete: true, interface: "SCSI", volume_size: 2, mountpoint: "/media/mysvc2", fstype: "ext4" }
+          - { auto_delete: true, interface: "SCSI", volume_size: 3, mountpoint: "/media/mysvc3", fstype: "ext4" }
+        flavor: "e2-micro"
+        version: "{{sysdisks_version | default('')}}"
+        vms_by_az: { d: 1, b: 1, c: 0 }
 _gcp_service_account_rawtext: *gcp_service_account_rawtext
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

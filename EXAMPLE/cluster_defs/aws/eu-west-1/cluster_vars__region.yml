@@ -1,7 +1,0 @@
----
-
-_ubuntu2004image: "ami-04ffbabc7935ec0e9"    # eu-west-1, 20.04, amd64, hvm-ssd, 20210108.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-_centos7image: "ami-0b850cf02cc00fdc8"    # eu-west-1, CentOS7
-
-cluster_vars:
-  image: "{{_ubuntu2004image}}"

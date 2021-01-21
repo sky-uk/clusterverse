@@ -76,9 +76,9 @@ properties([
     //disableConcurrentBuilds(),
     //pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
     parameters([
-        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/eu-central-1,gcp/us-west2', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
-        choice(name: 'BUILDENV', choices: ['', 'dev'], description: "The environment in which to run the tests"),
-        string(name: 'CLUSTER_ID', defaultValue: 'telem', trim: true),
+        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/us-west-2,gcp/us-west2', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
+        choice(name: 'BUILDENV', choices: ['', 'dev', 'mgmt'], description: "The environment in which to run the tests"),
+        string(name: 'CLUSTER_ID', defaultValue: 'top_peacock', trim: true),
         [name: 'DNS_FORCE_DISABLE', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: '', randomName: 'choice-parameter-31196915540455', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: ''], script: [classpath: [], sandbox: true, script: 'return [\'false:selected\',\'true\',\'true,false\']']]],
         extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', visibleItemCount: 5),
         choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
@@ -106,7 +106,7 @@ class cStageBuild {
     this.userParams.each({paramName, paramVal ->
       userParamsString += " -e ${paramName}=${paramVal}"
     })
-    return(userParamsString + " -vvvv")
+    return(userParamsString + " -vvv")
   }
 }
 

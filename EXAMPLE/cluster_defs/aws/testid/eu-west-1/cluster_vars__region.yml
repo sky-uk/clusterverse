@@ -1,0 +1,5 @@
+---
+
+cluster_vars:
+  image: "ami-04ffbabc7935ec0e9"      # eu-west-1, ubuntu, 20.04, amd64, hvm-ssd, 20210108.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#  image: "ami-0b850cf02cc00fdc8"      # eu-west-1, CentOS7
