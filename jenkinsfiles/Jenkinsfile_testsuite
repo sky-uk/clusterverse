@@ -234,7 +234,7 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
           })
 
           stage('clean') {
-            if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE) {
+            if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
               if (stageBuild.result != 'SUCCESS') echo "Stage failure: Running clean-up on cluster..."
               catchError {
                 build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: env.BRANCH_NAME ? env.BRANCH_NAME : DEFAULT_CLUSTERVERSE_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
@@ -316,8 +316,10 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
             })
 
             stage('clean') {
-              if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE) {
-                if (stageBuild.result != 'SUCCESS') echo "Stage failure: Running clean-up on cluster..."
+              if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+                if (stageBuild.result != 'SUCCESS') {
+                  echo "Stage failure: Running clean-up on cluster..."
+                }
                 catchError {
                   build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: env.BRANCH_NAME ? env.BRANCH_NAME : DEFAULT_CLUSTERVERSE_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
                 }

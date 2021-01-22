@@ -2,7 +2,7 @@
 
 cluster_vars:
   dns_cloud_internal_domain: "{{region}}.compute.internal"        # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  dns_server: "route53"             # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   route53_private_zone: yes         # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
   assign_public_ip: "no"
   inventory_ip: "private"           # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
