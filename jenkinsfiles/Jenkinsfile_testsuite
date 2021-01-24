@@ -76,7 +76,7 @@ properties([
     //disableConcurrentBuilds(),
     //pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
     parameters([
-        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/us-west-2,gcp/us-west2', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
+        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/us-west-2,aws/eu-central-1,aws/eu-west-1,gcp/us-west2,gcp/europe-west1', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
         choice(name: 'BUILDENV', choices: ['', 'dev', 'mgmt'], description: "The environment in which to run the tests"),
         string(name: 'CLUSTER_ID', defaultValue: 'top_peacock', trim: true),
         [name: 'DNS_FORCE_DISABLE', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: '', randomName: 'choice-parameter-31196915540455', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: ''], script: [classpath: [], sandbox: true, script: 'return [\'false:selected\',\'true\',\'true,false\']']]],
@@ -106,7 +106,7 @@ class cStageBuild {
     this.userParams.each({paramName, paramVal ->
       userParamsString += " -e ${paramName}=${paramVal}"
     })
-    return(userParamsString + " -vvv")
+    return(userParamsString + " -vvvv")
   }
 }
 
@@ -233,9 +233,11 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
             build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: env.BRANCH_NAME ? env.BRANCH_NAME : DEFAULT_CLUSTERVERSE_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
           })
 
-          stage('clean') {
-            if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
-              if (stageBuild.result != 'SUCCESS') echo "Stage failure: Running clean-up on cluster..."
+          if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+            stage('clean') {
+              if (stageBuild.result != 'SUCCESS') {
+                echo "Stage failure: Running clean-up on cluster..."
+              }
               catchError {
                 build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: env.BRANCH_NAME ? env.BRANCH_NAME : DEFAULT_CLUSTERVERSE_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
               }
@@ -310,13 +312,13 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
             // Run the mono-redeploy over all hosttypes
             stageBuild.userParams.put("release_version", "3_0_0")
             params.MYHOSTTYPES_LIST.split(',').each({ my_host_type ->
-              stage_cvops("redeploy canary=none (tidy_on_success)  ($my_host_type)", stageBuild, {
+              stage_cvops("redeploy canary=none ($my_host_type) (tidy_on_success)", stageBuild, {
                 build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: env.BRANCH_NAME ? env.BRANCH_NAME : DEFAULT_CLUSTERVERSE_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
               })
             })
 
-            stage('clean') {
-              if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+            if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+              stage('clean') {
                 if (stageBuild.result != 'SUCCESS') {
                   echo "Stage failure: Running clean-up on cluster..."
                 }
@@ -389,7 +391,7 @@ if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
   }
 }
 
-// Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run in serial.
+// Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run serially.
 if (params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
   stage("All matrices") {
     parallel(matrixBuilds)

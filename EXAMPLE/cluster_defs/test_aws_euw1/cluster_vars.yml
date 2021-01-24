@@ -45,9 +45,6 @@ cloud_agent:
 #    customer_id: ""
 #    proxy: {host: "", port: ""}
 
-## Bind configuration and credentials, per environment
-bind9:
-  sandbox: {server: "", key_name: "", key_secret: ""}
 
 cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
@@ -72,11 +69,11 @@ cluster_vars:
   custom_tagslabels:
     inv_resident_id: "myresident"
     inv_proposition_id: "myproposition"
+    inv_cost_centre: "0000000000"
     inv_environment_id: "{{buildenv}}"
     inv_service_id: "{{app_class}}"
     inv_cluster_id: "{{cluster_name}}"
     inv_cluster_type: "{{app_name}}"
-    inv_cost_centre: "0000000000"
   ssh_whitelist: &ssh_whitelist ['10.0.0.0/8']
   secgroups_existing: []
   secgroup_new:
@@ -113,7 +110,7 @@ cluster_vars:
           $ANSIBLE_VAULT;1.2;AES256;sandbox
           7669080460651349243347331538721104778691266429457726036813912140404310
       bastion:
-        ssh_args: '-o ProxyCommand="ssh -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
+        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
         ssh_priv_key: !vault |
           $ANSIBLE_VAULT;1.2;AES256;sandbox
           7669080460651349243347331538721104778691266429457726036813912140404310
@@ -121,6 +118,8 @@ cluster_vars:
     vpc_subnet_name_prefix: "{{buildenv}}-test-{{_region}}"
     key_name: "test__id_rsa"
     termination_protection: "no"
+    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server' (defined above))
+
 _cloud_type: *cloud_type
 _region: *region
 _ssh_whitelist: *ssh_whitelist

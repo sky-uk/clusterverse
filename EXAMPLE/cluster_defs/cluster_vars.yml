@@ -41,10 +41,6 @@ cloud_agent:
 #    customer_id: ""
 #    proxy: {host: "", port: ""}
 
-## Bind configuration and credentials, per environment
-bind9:
-  sandbox: {server: "", key_name: "", key_secret: ""}
-
 cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within the cloud environment
 
 cluster_vars:

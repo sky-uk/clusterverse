@@ -8,9 +8,9 @@
       block:
         - name: clean/dns/nsupdate | Delete A records
           nsupdate:
-            key_name: "{{bind9[buildenv].key_name}}"
-            key_secret: "{{bind9[buildenv].key_secret}}"
-            server: "{{bind9[buildenv].server}}"
+            key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
+            key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
+            server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             state: "absent"
             record: "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
@@ -18,9 +18,9 @@
 
         - name: clean/dns/nsupdate | Delete CNAME records
           nsupdate:
-            key_name: "{{bind9[buildenv].key_name}}"
-            key_secret: "{{bind9[buildenv].key_secret}}"
-            server: "{{bind9[buildenv].server}}"
+            key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
+            key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
+            server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
             value:  "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
@@ -29,7 +29,7 @@
           with_items: "{{ hosts_to_clean }}"
           vars:
             cname_to_check: "{{ item.name | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_user_domain}}."
-            cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+bind9[buildenv].server) }}"
+            cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)) }}"
           when: (item.name + '.' + cluster_vars.dns_user_domain + "." == cname_value)
       when: cluster_vars.dns_server == "nsupdate"
 
@@ -134,6 +134,9 @@
               with_nested:
                 - "{{ hosts_to_clean }}"
                 - "{{ gcp_dns_resource_record_set_info__and__gcp_dns_managed_zone_info | json_query(\"[?record.type=='A']\") }}"
+              register: r__gcp_dns_resource_record_set
+              until: r__gcp_dns_resource_record_set is success
+              retries: 10
               when: item.0.name == (item.1.record.name | regex_replace('^(.*?)\\..*$', '\\1'))
 
             - name: clean/dns/clouddns | Delete CNAME records
@@ -151,6 +154,9 @@
               with_nested:
                 - "{{ hosts_to_clean }}"
                 - "{{ gcp_dns_resource_record_set_info__and__gcp_dns_managed_zone_info | json_query(\"[?record.type=='CNAME']\") }}"
+              register: r__gcp_dns_resource_record_set
+              until: r__gcp_dns_resource_record_set is success
+              retries: 10
               when: ((item.0.name |regex_replace('-(?!.*-).*')) == (item.1.record.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.record.rrdatas[0] | regex_replace('^(.*?)\\..*$', '\\1'))
           vars:
             gcp_dns_resource_record_set_info__and__gcp_dns_managed_zone_info: |

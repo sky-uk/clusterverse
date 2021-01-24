@@ -9,6 +9,7 @@ def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "master"
 
 //This allows us to create our own Docker image for this specific use-case.  Once it is built, it will not be rebuilt, so only adds delay the first time we use it.
 def create_custom_image(image_name, params = "") {
+  // TODO: Create a lock-file and wait on it if it is set (instead of building the same image in parallel then deleting it).
   def jenkins_username = sh(script: 'whoami', returnStdout: true).trim()
   def jenkins_uid = sh(script: "id -u  ${jenkins_username}", returnStdout: true).trim()
   def jenkins_gid = sh(script: "id -g  ${jenkins_username}", returnStdout: true).trim()
@@ -25,7 +26,12 @@ def create_custom_image(image_name, params = "") {
             """.stripIndent()
 
   writeFile(file: "Dockerfile", text: dockerfile, encoding: "UTF-8")
-  return (docker.build(image_name, params + " ."))
+  custom_build = docker.build(image_name, params + " .")
+
+  println("Pruning dangling docker images (might have been created due to parallel builds)")
+  sh 'docker image prune -f'
+
+  return (custom_build)
 }
 
 
@@ -41,7 +47,7 @@ properties([
     parameters([
         string(name: 'APP_NAME', description: "An optional custom app_name to override the default in the playbook"),
         booleanParam(name: 'APPEND_BUILD_NUMBER', defaultValue: false, description: 'Tick the box to append the Jenkins BUILD_NUMBER to APP_NAME'),
-        choice(name: 'CLOUD_REGION', choices: ['aws/eu-west-1','aws/eu-central-1', 'gcp/europe-west1', 'gcp/us-west2'], description: "Choose a cloud/region"),
+        choice(name: 'CLOUD_REGION', choices: ['aws/us-west-2', 'aws/eu-central-1', 'aws/eu-west-1', 'gcp/us-west2', 'gcp/europe-west1'], description: "Choose a cloud/region"),
         choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'mgmt', 'tools', 'stage', 'prod'], description: "Choose an environment to deploy"),
         string(name: 'CLUSTER_ID', defaultValue: '', description: "Select a cluster_id to deploy", trim: true),
         booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),
@@ -150,6 +156,4 @@ node {
       } else error("DEPLOY_TYPE invalid")
     }
   }
-  println("Pruning dangling docker images (might have been created due to parallel builds)")
-  sh 'docker image prune -f'
 }

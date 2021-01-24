@@ -23,7 +23,7 @@ cluster_vars:
       allowed: [{ip_protocol: "all"}]
       source_tags: ["{{cluster_name}}-nwtag"]
       description: "Access from all VMs attached to the {{cluster_name}}-nwtag group"
-    - name: "{{cluster_name}}-prometheus-node-exporter"
-      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
-      source_tags: ["{{cluster_name}}-nwtag"]
-      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
+#    - name: "{{cluster_name}}-prometheus-node-exporter"
+#      allowed: [{ip_protocol: "tcp", ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]}]
+#      source_tags: ["{{cluster_name}}-nwtag"]
+#      description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
