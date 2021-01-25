@@ -3,12 +3,12 @@
 - block:
     - name: config/dns/a/nsupdate | create/update A records in bind (nsupdate)
       nsupdate:
-        key_name: "{{bind9[buildenv].key_name}}"
-        key_secret: "{{bind9[buildenv].key_secret}}"
-        server: "{{bind9[buildenv].server}}"
+        key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
+        key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
+        server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
         ttl: 60
         zone: "{{cluster_vars.dns_nameserver_zone}}"
-        record: "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+        record: "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
         value: "{{ hostvars[item.hostname]['ansible_host'] }}"
       become: false
       delegate_to: localhost
@@ -80,15 +80,25 @@
         target: "{%- if item.1.visibility == 'private' -%} {{ hostvars[item.0.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.0.hostname]['ansible_host'] }} {%- endif -%}"
         type: A
         ttl: 60
-      become: false
-      delegate_to: localhost
-      run_once: true
       with_nested:
         - "{{ cluster_hosts_target }}"
         - "{{ r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
+      become: false
+      delegate_to: localhost
+      run_once: true
+      register: r__gcp_dns_resource_record_set
+      until: r__gcp_dns_resource_record_set is success
+      retries: 10
   when: cluster_vars.dns_server=="clouddns"
 
 - block:
+    - name: Install 'dig (bind-utils)' for ns lookups. (yum - RedHat/CentOS)
+      become: true
+      yum:
+        name: "bind-utils"
+        state: present
+      when: ansible_os_family == 'RedHat'
+
     - name: config/dns/a/dig | debug whether we'll use external_dns_resolver
       debug:
         msg: "{% if not hostvars[item.hostname].ansible_host | regex_search('^(10\\.|192.168|172.1[6-9]\\.|172.2[0-9]\\.|172.3[01]\\.).*') %}@{{external_dns_resolver}}{% endif %}"

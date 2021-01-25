@@ -1,0 +1,25 @@
+---
+
+prometheus_node_exporter_install: false
+filebeat_install: false
+metricbeat_install: false
+
+beats_config:
+  filebeat:
+#    output_logstash_hosts: ["localhost:5044"]        # The destination hosts for filebeat-gathered logs
+#    extra_logs_paths:                                # The array is optional, if you need to add more paths or files to scrape for logs
+#      - /var/log/myapp/*.log
+  metricbeat:
+#    output_logstash_hosts: ["localhost:5044"]        # The destination hosts for metricbeat-gathered metrics
+#    diskio:                                          # Diskio retrieves metrics for all disks partitions by default. When diskio.include_devices is defined, only look for defined partitions
+#      include_devices: ["sda", "sdb", "nvme0n1", "nvme1n1", "nvme2n1"]
+
+
+cluster_vars:
+  dns_nameserver_zone: &dns_nameserver_zone ""                   # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_user_domain: "{%- if _dns_nameserver_zone -%}{{cloud_type}}-{{region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
+  custom_tagslabels:
+    inv_resident_id: "myresident"
+    inv_proposition_id: "myproposition"
+    inv_cost_centre: "0000000000"
+_dns_nameserver_zone: *dns_nameserver_zone

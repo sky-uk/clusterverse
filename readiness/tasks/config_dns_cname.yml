@@ -2,9 +2,9 @@
 
 - name: create/dns/cname/nsupdate | create/update CNAME records in bind (nsupdate)
   nsupdate:
-    key_name: "{{bind9[buildenv].key_name}}"
-    key_secret: "{{bind9[buildenv].key_secret}}"
-    server: "{{bind9[buildenv].server}}"
+    key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
+    key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
+    server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
     zone: "{{cluster_vars.dns_nameserver_zone}}"
     record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
     value:  "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
@@ -66,4 +66,7 @@
       become: false
       delegate_to: localhost
       run_once: true
+      register: r__gcp_dns_resource_record_set
+      until: r__gcp_dns_resource_record_set is success
+      retries: 10
   when: cluster_vars.dns_server == "clouddns"

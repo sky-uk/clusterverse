@@ -31,7 +31,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 ```
 
 ### Mandatory command-line variables:
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `cluster_vars.{{build_env}}`)
++ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
 
 ### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
@@ -47,6 +47,7 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e wait_for_dns=false` - Does not wait for DNS resolution
 + `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 + `-e debug_nested_log_output=true` - Show the log output from nested calls to embedded Ansible playbooks (i.e. when redeploying)
++ `-e cluster_vars_override='{"sandbox":{"hosttype_vars":{"sys":{"vms_by_az":{"b":1,"c":1,"d":0}}}}}'` - Ability to override cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
 + `clusterverse_clean`: Deletes all VMs and security groups (also needs `-e clean=[current|retiring|redeployfail|_all_]` on command line)

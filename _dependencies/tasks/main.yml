@@ -2,10 +2,14 @@
 
 - name: Load cluster definitions
   block:
-    - name: Derive cluster definitions by merging tiered configuration files
-      merge_vars:
-        from: "{{ merge_dict_vars_list }}"
-        ignore_missing_files: True
+    - block:
+        - name: Derive cluster definitions by merging tiered configuration files
+          merge_vars:
+            from: "{{ merge_dict_vars_list }}"
+            ignore_missing_files: True
+
+#        - name: Loaded/derived/overridden cluster_vars
+#          debug: msg="{{cluster_vars}}"
       when: merge_dict_vars_list is defined and merge_dict_vars_list | length > 0
 
     - block:
@@ -14,6 +18,14 @@
 
         - deprecate_str: { msg: "Loading variables via group_vars/clusterid is deprecated.  Please use merge_vars via cluster_defs in future" }
       when: merge_dict_vars_list is not defined
+
+
+    - name: Combine command-line cluster_vars_override into the loaded cluster_vars
+      set_fact:
+        cluster_vars: "{{cluster_vars | combine(_cluster_vars_override_templated, recursive=True)}}"
+      vars:
+        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line parameters are interpolated as a string, sometimes as a dict - this normalises them as a dict (which the 'combine' filter, above, requires).
+      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
 
 
 - name: Preflight check
@@ -41,11 +53,11 @@
       when: cluster_vars.type == "aws"
 
 
-- name: Create gcp service account contents file from cluster_vars.service_account_rawtext (unless already defined by user)
+- name: Create gcp service account contents file from cluster_vars[buildenv].gcp_service_account_rawtext (unless already defined by user)
   block:
     - name: "set gcp_credentials_file fact"
       set_fact:
-        gcp_credentials_file: "gcp__{{ (cluster_vars.service_account_rawtext | string | from_json).project_id }}.json"
+        gcp_credentials_file: "gcp__{{ (cluster_vars[buildenv].gcp_service_account_rawtext | string | from_json).project_id }}.json"
       when: gcp_credentials_file is not defined
 
     - name: dynamic_inventory | stat the gcp_credentials_file
@@ -53,6 +65,6 @@
       register: r__stat_gcp_credentials_file
 
     - name: "Copy credentials into gcp_credentials_file as {{gcp_credentials_file}}"
-      local_action: copy content={{cluster_vars.service_account_rawtext}} dest={{gcp_credentials_file}}
+      local_action: copy content={{cluster_vars[buildenv].gcp_service_account_rawtext}} dest={{gcp_credentials_file}}
       when: not (stat_inventory_file.stat is defined and stat_inventory_file.stat.exists|bool == false )
   when: cluster_vars.type == "gcp"

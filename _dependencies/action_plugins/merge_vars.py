@@ -55,7 +55,10 @@ from ansible.errors import AnsibleError
 from ansible.plugins.action import ActionBase
 from ansible.utils.vars import merge_hash
 from ansible.module_utils._text import to_native, to_text
+from ansible.utils.display import Display
 from os import path, listdir
+
+display = Display()
 
 class ActionModule(ActionBase):
 
@@ -86,6 +89,7 @@ class ActionModule(ActionBase):
                 dirfiles.sort()
                 files = files + dirfiles
             elif not (path.isfile(source) or path.isdir(source)) and self.ignore_missing_files:
+                display.warning("Missing source file/dir ignored due to ignore_missing_files: " + source)
                 continue
             else:
                 failed = True

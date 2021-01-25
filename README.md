@@ -34,7 +34,7 @@ To active the pipenv:
 ### GCP
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.
-+ Store the contents within the `cluster_vars/service_account_rawtext` variable. 
++ Store the contents within the `cluster_vars/gcp_service_account_rawtext` variable. 
   + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input. 
 + Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
 
@@ -158,9 +158,10 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 To import the role into your project, create a [`requirements.yml`](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/requirements.yml) file containing:
 ```
-- src: https://github.com/sky-uk/clusterverse
-  version: master           ## branch, hash, or tag 
-  name: clusterverse
+roles:
+  - name: clusterverse
+    src: https://github.com/sky-uk/clusterverse
+    version: master          ## branch, hash, or tag 
 ```
 + If you use a `cluster.yml` file similar to the example found in [EXAMPLE/cluster.yml](https://github.com/sky-uk/clusterverse/blob/master/EXAMPLE/cluster.yml), clusterverse will be installed from Ansible Galaxy _automatically_ on each run of the playbook.
 

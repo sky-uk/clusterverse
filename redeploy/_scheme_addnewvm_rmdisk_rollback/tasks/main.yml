@@ -5,7 +5,7 @@
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
-        # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))].name\") }}"
+        # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
 
@@ -19,6 +19,7 @@
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "retiring"
       when: (canary=="start" or canary=="none") and ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))
+      #TODO: Can probably remove the ' and ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state')))'
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state
       import_role:
@@ -47,7 +48,7 @@
             name: clusterverse/redeploy/__common
             tasks_from: poweroff_vms.yml
       vars:
-        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype))]\") }}"
+        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))]\") }}"
       when: (canary=="finish" or canary=="none")
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)
@@ -84,5 +85,5 @@
         msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
       when: hosts_to_clean | length == 0
   vars:
-    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains('\"+ myhosttypes|default('') + \"', tagslabels.hosttype)) ]\") }}"
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)
