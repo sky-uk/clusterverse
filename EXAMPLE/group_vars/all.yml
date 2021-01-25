@@ -1,0 +1,12 @@
+---
+
+merge_dict_vars_list:
+  - "./cluster_defs/cluster_vars.yml"
+  - "./cluster_defs/app_vars.yml"
+  - "./cluster_defs/{{ cloud_type }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ clusterid }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ clusterid }}/{{ region }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ clusterid }}/{{ region }}/{{ buildenv }}/"
+
+#merge_dict_vars_list:
+#  - "./cluster_defs/{{ clusterid }}/"

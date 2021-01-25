@@ -7,6 +7,9 @@
     - assert: { that: "redeploy_scheme is defined and redeploy_scheme in redeploy_schemes_supported" }
     - assert: { that: "cluster_hosts_state | length", msg: "Redeploy only possible with an existing cluster." }
 
+    - assert: { that: "myhosttypes.split(',') | difference(cluster_vars[buildenv].hosttype_vars) | length == 0", fail_msg: "Please ensure that myhosttypes are set within cluster_vars[{{buildenv}}].hosttype_vars." }
+      when: myhosttypes is defined and myhosttypes != ""
+
 - name: "Run the {{redeploy_scheme}} redploy scheme"
   include_role:
     name: "{{role_path}}/{{redeploy_scheme}}"

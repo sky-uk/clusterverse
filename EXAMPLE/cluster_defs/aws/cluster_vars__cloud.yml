@@ -1,0 +1,26 @@
+---
+
+cluster_vars:
+  dns_cloud_internal_domain: "{{region}}.compute.internal"        # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_server: "route53"             # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  route53_private_zone: yes         # Only used when cluster_vars.type == 'aws'. Defaults to true if not set.
+  assign_public_ip: "no"
+  inventory_ip: "private"           # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  user_data: |-
+    #cloud-config
+    system_info:
+      default_user:
+        name: ansible
+  secgroups_existing: []
+  secgroup_new:
+    - proto: "tcp"
+      ports: ["22"]
+      cidr_ip: "{{_ssh_whitelist}}"
+      rule_desc: "SSH Access"
+    - proto: all
+      group_name: ["{{cluster_name}}-sg"]
+      rule_desc: "Access from all VMs attached to the {{ cluster_name }}-sg group"
+#    - proto: "tcp"
+#      ports: ["{{ prometheus_node_exporter_port | default(9100) }}"]
+#      group_name: ["{{buildenv}}-private-sg"]
+#      rule_desc: "Prometheus instances attached to {{buildenv}}-private-sg can access the exporter port(s)."

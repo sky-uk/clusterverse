@@ -11,60 +11,31 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 + Python >= 2.7
 
 
-## Usage
-This example depends on the [clusterverse](https://github.com/sky-uk/clusterverse) role.  It can be collected automatically using `ansible-galaxy`, or you could reference it using git sub-branches.  This example uses `ansible-galaxy`.  
-
-To import the [clusterverse](https://github.com/sky-uk/clusterverse) role into the current directory:
-+ `ansible-galaxy install -r requirements.yml`
-
-
-### Cluster Variables
-One of the mandatory command-line variables is `clusterid`, which defines the name of the directory under `group_vars`, from which variable files will be imported.
-
-#### group_vars/\<clusterid\>/cluster_vars.yml:
-```
-app_name: "nginx"                 # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.
-app_class: "webserver"            # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
-
-cluster_vars:
-  region: ""
-  image: ""
-  ...
-  <buildenv>:
-    hosttype_vars:
-      <hosttype>: {...}
-    ...
-```
-
-Variables defined in here override defaults in `roles/clusterverse/_dependencies/defaults/main.yml`, and can be overriden by defining them on the command-line.
-
-#### group_vars/\<clusterid\>/app_vars.yml:
-Contains your application-specific variables
-
 ---
 ## Invocation examples: _deploy_, _scale_, _repair_
 The `cluster.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again it will do nothing.  If the cluster_vars are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster).
 
 ### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.1
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_ -e release_version=v1.0.1
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py -e clean=_all_
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
-+ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
++ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
 
 ### Optional extra variables:
-+ `-e app_name=<nginx>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
-+ `-e app_class=<proxy>` - Normally defined in `group_vars/<clusterid>/cluster_vars.yml`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
++ `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
++ `-e app_class=<proxy>` - Normally defined in `/cluster_defs/`.  The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 + `-e release_version=<v1.0.1>` - Identifies the application version that is being deployed.
 + `-e clean=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_`, as well as networking and security groups
 + `-e pkgupdate=[always|onCreate]` - Upgrade the OS packages (not good for determinism).  `onCreate` only upgrades when creating the VM for the first time.
@@ -75,10 +46,12 @@ ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster
 + `-e metricbeat_install=false` - Does not install metricbeat
 + `-e wait_for_dns=false` - Does not wait for DNS resolution
 + `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
++ `-e debug_nested_log_output=true` - Show the log output from nested calls to embedded Ansible playbooks (i.e. when redeploying)
++ `-e cluster_vars_override='{"sandbox":{"hosttype_vars":{"sys":{"vms_by_az":{"b":1,"c":1,"d":0}}}}}'` - Ability to override cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
 + `clusterverse_clean`: Deletes all VMs and security groups (also needs `-e clean=[current|retiring|redeployfail|_all_]` on command line)
-+ `clusterverse_create`: Creates only EC2 VMs, based on the hosttype_vars values in group_vars/all/cluster.yml
++ `clusterverse_create`: Creates only EC2 VMs, based on the hosttype_vars values in `/cluster_defs/`
 + `clusterverse_config`: Updates packages, sets hostname, adds hosts to DNS
 
 
@@ -89,15 +62,16 @@ The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful
 
 ### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=vtp_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 
 ### Mandatory command-line variables:
-+ `-e clusterid=<vtp_aws_euw1>` - A directory named `clusterid` must be present in `group_vars`.  Holds the parameters that define the cluster; enables a multi-tenanted repository.
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
 + `-e canary=['start', 'finish', 'none', 'tidy']` - Specify whether to start or finish a canary deploy, or 'none' deploy
 

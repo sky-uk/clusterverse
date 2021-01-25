@@ -73,7 +73,7 @@
     - name: create/gcp | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       gce_pd:
         credentials_file: "{{gcp_credentials_file}}"
-        service_account_email: "{{gcp_credentials_json.client_email}}"
+        service_account_email: "{{ (lookup('file', gcp_credentials_file) | from_json).client_email }}"
         project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         detach_only : yes
@@ -91,9 +91,7 @@
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{ [_bootdisk] + (_autodisks | default([])) }}"
-        metadata:
-          startup-script: "{%- if cluster_vars.ssh_guard_whitelist is defined and cluster_vars.ssh_guard_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{cluster_vars.ssh_guard_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
-          ssh-keys: "{{ cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) }} {{ cliargs.remote_user }}"
+        metadata: "{{ cluster_vars.metadata | default(omit) }}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
         network_interfaces:
           - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
@@ -105,7 +103,7 @@
         state: present
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
       vars:
-        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].rootvol_size}}"}}
+        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].rootvol_size | default(omit) }}"}}
         _autodisks: "{{item.auto_volumes | json_query(\"[].{auto_delete: auto_delete, interface: interface, device_name: device_name, initialize_params: initialize_params, source: {selfLink: src.source_url}}\") }}"
         _labels:
           name: "{{item.hostname}}"
@@ -143,7 +141,6 @@
       gce_labels:
         project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
         credentials_file: "{{gcp_credentials_file}}"
-        service_account_email: "{{gcp_credentials_json.client_email}}"
         resource_url: "{{item.resource_url}}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
       with_items: "{{_ec2_vols_denormalised_by_device}}"
@@ -166,7 +163,7 @@
 #    - name: create/gcp | Attach (or create) volumes where 'src' is present (e.g. inserted as part of _scheme_rmvm_keepdisk_rollback scheme)
 #      gce_pd:
 #        credentials_file: "{{gcp_credentials_file}}"
-#        service_account_email: "{{gcp_credentials_json.client_email}}"
+#        service_account_email: "{{ (lookup('file', gcp_credentials_file) | from_json).client_email }}"
 #        project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
 #        zone: "{{cluster_vars.region}}-{{item.az_name}}"
 #        delete_on_termination: yes
@@ -208,7 +205,6 @@
 #      gce_labels:
 #        project_id: "{{cluster_vars[buildenv].vpc_project_id}}"
 #        credentials_file: "{{gcp_credentials_file}}"
-#        service_account_email: "{{gcp_credentials_json.client_email}}"
 #        resource_url: "{{item.resource_url}}"
 #        labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
 #      with_items: "{{_ec2_vols_denormalised_by_device}}"

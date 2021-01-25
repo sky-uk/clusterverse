@@ -8,18 +8,11 @@
 - name: dynamic_inventory | dynamic_inventory_flat
   debug: msg="{{dynamic_inventory_flat}}"
 
-# The following is using ping (instead of wait_for to check for port 22) to actually establish SSH connectivity with the destination host,
-# this is particularly useful if using a jumphost to access the destination host, and the ansible-running machine doesn't have direct access to it.
-- name: dynamic_inventory | Wait for SSH connectivity
-  ping:
-  delegate_to: "{{ item.inventory_ip }}"
-  with_items: "{{ dynamic_inventory_flat }}"
-  register: r__ping
-  until: r__ping is success
-  retries: 5
-
 - name: dynamic_inventory | Refresh (clean it, because there is no file or plugin inventory defined) the in-memory inventory prior to building it (this is in case this module is called multiple times, and we otherwise only add hosts to existing inventory)
   meta: refresh_inventory
+
+- name: dynamic_inventory | get (only network) facts - to determine the local IP/network
+  setup: { gather_subset: ["network"] }
 
 - name: dynamic_inventory | Add hosts to dynamic inventory
   add_host:
@@ -28,7 +21,15 @@
     ansible_host: "{{ item.inventory_ip }}"
     hosttype: "{{ item.hosttype }}"
     regionzone: "{{ item.regionzone | default(omit) }}"
+    ansible_ssh_common_args: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args if (_bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool))) else (omit) }}"    # Don't use the bastion if we're running in the same subnet (assumes all hosts in subnet can operate as a bastion), or if the user sets '-e force_use_bastion=true'
+    ansible_user: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user | default(omit) }}"
+    ansible_ssh_private_key_file: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file | default(None) | ternary('id_rsa_ansible_ssh_private_key_file', omit) }}"
   with_items: "{{ dynamic_inventory_flat }}"
+  vars:
+    _local_cidr: "{{ (ansible_default_ipv4.network+'/'+ansible_default_ipv4.netmask) | ipaddr('network/prefix') }}"                                 # Get the network the localhost IP is in
+    _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"   # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
+    _bastion_in_host_net: "{{ query('dig', _bastion_host, errors='ignore') | map('ipaddr', _local_cidr) | select() | list | length > 0 }}"          # Check each bastion IP (there could be multiple results from the 'dig'), and see they're in the _local_cidr range.
+
 
 - name: dynamic_inventory | stat the inventory_file path
   stat: path={{inventory_file}}
@@ -42,7 +43,7 @@
       {% if groupname not in ["all", "ungrouped"] -%}
       [{{ groupname }}]
       {% for hostname in groups[groupname] %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %}{{''}}
+      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'ansible_user' in hostvars[hostname] %}ansible_user='{{ hostvars[hostname].ansible_user }}'{% endif %} {% if 'ansible_ssh_private_key_file' in hostvars[hostname] %}ansible_ssh_private_key_file='{{ hostvars[hostname].ansible_ssh_private_key_file }}'{% endif %} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %} {% if 'ansible_ssh_common_args' in hostvars[hostname] %}ansible_ssh_common_args='{{ hostvars[hostname].ansible_ssh_common_args }}'{% endif %}{{''}}
       {% endfor %}
 
       {% endif %}
@@ -53,5 +54,26 @@
     new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
 
 - name: dynamic_inventory | current inventory_hostnames
-  debug:  msg="{{ lookup('inventory_hostnames','all').split(',') }}"
-  when: lookup('inventory_hostnames','all') | length
+  debug: msg="{{ query('inventory_hostnames','all', errors='ignore') }}"
+
+
+### Ideally, we would like to verify that each host is contactable at this point.  However, no combination of the normal Ansible modules allow this.
+### Note: This play is running on localhost only - not on the remotes.
+#   + The 'wait_for' module cannot reliably wait for a usable ansible ssh pipeline to be created - it can only wait for the tcp ssh port to be open.  Neither can it can reliably search for a regex,
+#     as the response differs between VM flavours.  Most importantly, it does not work behind a bastion host (the 'host' field is waited on from localhost, not the the host through the bastion).
+#   + The 'ping' module (used below), can be told to be delegated to a remote host, which means (as normal), that the module is sent to the remote, and from there, checks
+#     for a connection to localhost.  This is a problem, because it cannot do this if the remote is not yet ready; it will wait for a short time, but often, not long enough (esp on RHEL
+#     or BSD VMs).  It *should* be possible to do {register: / until: / retries:}, but this does not work - once the connection fails for the first time, retries are not performed.
+#   + The 'wait_for_connection' module cannot be made to wait for a connection to a delegated host (https://github.com/ansible/ansible/issues/36519), so in this play it can only wait for the connection
+#     to localhost, which is of no value.  The only reliable solution for slow-to-create VMs appears to be to put 'wait_for_connection' in a new play, which runs per-host (i.e. from cluster.yml).
+- block:
+    - name: dynamic_inventory | Wait for SSH connectivity (using reverse-delegated ping.  Deprecated.)
+      ping:
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['all'] }}"
+      failed_when: false
+      ignore_unreachable: yes
+      ignore_errors: yes
+    - meta: clear_host_errors
+    - deprecate_str: { msg: "Waiting for SSH connectivity using 'ping' is unreliable and thus deprecated (see comment in roles/clusterverse/dynamic_inventory/tasks/main.yml).  Please use 'wait_for_connection' in the top-level cluster.yml (see roles/clusterverse/EXAMPLE/cluster.yml)" }
+  when: skip_dynamic_inventory_sshwait is not defined or (skip_dynamic_inventory_sshwait|bool == false)
