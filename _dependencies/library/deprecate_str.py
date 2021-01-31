@@ -1,4 +1,5 @@
 # Copyright 2020 Dougal Seeley <github@dougalseeley.com>
+# BSD 3-Clause License
 
 from __future__ import (absolute_import, division, print_function)
 

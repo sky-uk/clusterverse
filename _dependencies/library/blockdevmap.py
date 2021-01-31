@@ -1,4 +1,5 @@
 # Copyright 2020 Dougal Seeley <github@dougalseeley.com>
+# BSD 3-Clause License
 # https://github.com/dseeley/blockdevmap
 
 # Copyright 2017 Amazon.com, Inc. and its affiliates. All Rights Reserved.
