@@ -19,7 +19,7 @@
       include_tasks: rescue.yml
 
     - name: rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
-      fail: { msg: "Task '{{ansible_failed_task.name}}' failed in block.    Error message was: '{{ansible_failed_result.msg}}'" }
+      fail: { msg: ["Task '{{ansible_failed_task.name}}' failed in block (but rescued)", "{{ansible_failed_result.msg}}"] }
   when: canary!="tidy"
 
 
