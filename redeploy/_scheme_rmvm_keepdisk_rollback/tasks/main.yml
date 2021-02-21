@@ -30,12 +30,12 @@
 
     - name: Run redeploy per hosttype.  Create one at a time, then stop previous.
       include_tasks: by_hosttype.yml
-      with_items: "{{ myhosttypes_array }}"
+      with_items: "{{ myhosttypes_array | default([]) }}"
       loop_control:
         loop_var: hosttype
       vars:
-        cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | dict_agg('hosttype')}}"
-        myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
+        cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | default({}) | dict_agg('hosttype') }}"
+        myhosttypes_array: "{%- if myhosttypes is defined -%}{{ myhosttypes.split(',') }}{%- elif cluster_hosts_target_by_hosttype is defined and cluster_hosts_target_by_hosttype.keys() | length -%}{{ cluster_hosts_target_by_hosttype.keys() | list }}{%- else -%}[]{%- endif -%}"
 
     - fail:
       when: testfail is defined and testfail == "fail_1"
@@ -89,7 +89,7 @@
         myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
 
     - name: rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
-      fail: { msg: "Task '{{ansible_failed_task.name}}' failed in block.    Error message was: '{{ansible_failed_result.msg}}'" }
+      fail: { msg: ["Task '{{ansible_failed_task.name}}' failed in block (but rescued)", "{{ansible_failed_result.msg}}"] }
   when: canary!="tidy"
 
 
