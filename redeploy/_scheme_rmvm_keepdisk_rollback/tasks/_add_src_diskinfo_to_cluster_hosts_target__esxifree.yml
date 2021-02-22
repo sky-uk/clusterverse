@@ -22,9 +22,9 @@
     cluster_hosts_target: |
       {%- for cht_host in cluster_hosts_target -%}
         {%- for cht_autovol in cht_host.auto_volumes -%}
-          {%- for chs_host_info_result in r__vmware_guest_disk_info.results -%}
-            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host_info_result.item.name | regex_replace('-(?!.*-).*') -%}
-              {%- for chs_host_diskinfo in chs_host_info_result.guest_disk_info | to_json | from_json | json_query('*| [?unit_number!=`0` && backing_type==\'FlatVer2\' && contains(backing_filename, \'--' + cht_autovol.volname + '.vmdk\')]') -%}
+          {%- for vmware_guest_disk_info_result in r__vmware_guest_disk_info.results | selectattr('item.tagslabels.lifecycle_state', '!=', 'current')-%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == vmware_guest_disk_info_result.item.name | regex_replace('-(?!.*-).*') -%}
+              {%- for chs_host_diskinfo in vmware_guest_disk_info_result.guest_disk_info | to_json | from_json | json_query('*| [?unit_number!=`0` && backing_type==\'FlatVer2\' && contains(backing_filename, \'--' + cht_autovol.volname + '.vmdk\')]') -%}
                 {%- set _ = cht_autovol.update({'volume_size': (chs_host_diskinfo.capacity_in_bytes/1073741824)|int, 'src': {'backing_filename': chs_host_diskinfo.backing_filename, 'copy_or_move': _scheme_rmvm_keepdisk_rollback__copy_or_move }}) -%}
               {%- endfor -%}
             {%- endif -%}
