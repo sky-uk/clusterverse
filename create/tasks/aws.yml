@@ -93,7 +93,7 @@
         snapshot: "{{item.auto_volume.snapshot | default(omit)}}"
         device_name: "{{item.auto_volume.device_name}}"
         encrypted: "{{item.auto_volume.encrypted}}"
-        volume_size: "{%- if 'src' not in item.auto_volume -%}{{item.auto_volume.volume_size}}{%- endif -%}"
+        volume_size: "{%- if 'src' in item.auto_volume -%}{{omit}}{%- else -%}{{item.auto_volume.volume_size}}{%- endif -%}"
         volume_type: "{{item.auto_volume.volume_type}}"
         delete_on_termination: yes
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
