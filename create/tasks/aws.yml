@@ -3,7 +3,7 @@
 - name: cluster_hosts_target_denormalised_by_volume
   debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
 
-- name: create/aws | Create AWS security group
+- name: create/aws | Create security groups
   ec2_group:
     name: "{{ cluster_name }}-sg"
     description: "{{ cluster_name }} rules"

@@ -1,9 +1,9 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
 A full-lifecycle, immutable cloud infrastructure cluster management **role**, using Ansible.
-+ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS and GCP
++ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS, GCP and Azure
 + **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
 + **Scale-up:**  If you change the cluster definitions and rerun the deploy, new nodes will be added.
-+ **Redeploy (e.g. up-version):** If you need to up-version, the `redeploy.yml` playbook will replace each node in turn, (with optional callbacks), and rollback if any failures occur. 
++ **Redeploy (e.g. up-version):** If you need to up-version, or replace the underlying OS, (i.e. to achieve fully immutable, zero-patching redeploys), the `redeploy.yml` playbook will replace each node in the cluster (via various redeploy schemes), and rollback if any failures occur. 
 
 **clusterverse** is designed to manage base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, Kafka, Elasticsearch, or Cassandra.
 
@@ -22,21 +22,32 @@ To active the pipenv:
 
 ### AWS
 + AWS account with IAM rights to create EC2 VMs and security groups in the chosen VPCs/subnets.  Place the credentials in:
-  + `cluster_vars/<buildenv>/aws_access_key:`
-  + `cluster_vars/<buildenv>/aws_secret_key:`
+  + `cluster_vars[buildenv].aws_access_key:`
+  + `cluster_vars[buildenv].aws_secret_key:`
 + Preexisting VPCs:
-  + `cluster_vars/<buildenv>/vpc_name: my-vpc-{{buildenv}}`
+  + `cluster_vars[buildenv].vpc_name: my-vpc-{{buildenv}}`
 + Preexisting subnets. This is a prefix - the cloud availability zone will be appended to the end (e.g. `a`, `b`, `c`).
-  + `cluster_vars/<buildenv>/vpc_subnet_name_prefix: my-subnet-{{region}}`
+  + `cluster_vars[buildenv].vpc_subnet_name_prefix: my-subnet-{{region}}`
 + Preexisting keys (in AWS IAM):
-  + `cluster_vars/<buildenv>/key_name: my_key__id_rsa`
+  + `cluster_vars[buildenv].key_name: my_key__id_rsa`
 
 ### GCP
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.
-+ Store the contents within the `cluster_vars/gcp_service_account_rawtext` variable. 
++ Store the contents within the `cluster_vars[buildenv].gcp_service_account_rawtext` variable. 
   + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input. 
 + Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
+
+### Azure
++ Create an Azure account.
++ Create a Tenant and a Subscription
++ Create a Resource group and networks/subnetworks within that.
++ Create a service principal - add the credentials to:
+  + `cluster_vars[buildenv].azure_subscription_id`
+  + `cluster_vars[buildenv].azure_client_id`
+  + `cluster_vars[buildenv].azure_secret`
+  + `cluster_vars[buildenv].azure_tenant`
+
 
 ### DNS
 DNS is optional.  If unset, no DNS names will be created.  If DNS is required, you will need a DNS zone delegated to one of the following:
@@ -183,7 +194,7 @@ The role is designed to run in two modes:
 + The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
 + It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `none` or `tidy`. 
 + It contains callback hooks:
-  + `mainclusteryml`: This is the name of the deployment playbook.  It is called to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
+  + `mainclusteryml`: This is the name of the deployment playbook.  It is called to deploy nodes for the new cluster, or to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
   + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs. 
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
@@ -217,7 +228,7 @@ The role is designed to run in two modes:
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_rmvm_keepdisk_rollback**
       + Redeploys the nodes one by one, and moves the secondary (non-root) disks from the old to the new (note, only non-ephemeral disks can be moved).
-      + _Cluster topology must remain identical.  More disks may be added, but none may change or be removed._
+      + _Cluster node topology must remain identical.  More disks may be added, but none may change or be removed._
       + **It assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
       + For each node in the cluster:
         + Run `predeleterole`
@@ -228,3 +239,4 @@ The role is designed to run in two modes:
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
       + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+      + (Azure functionality coming soon)

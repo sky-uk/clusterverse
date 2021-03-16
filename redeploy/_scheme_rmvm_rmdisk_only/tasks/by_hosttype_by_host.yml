@@ -9,9 +9,9 @@
     hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del.hostname + \"`]\") }}"
   when: predeleterole is defined and predeleterole != ""
 
-- import_role:
+- include_role:
     name: clusterverse/clean
-    tasks_from: clean_vms.yml
+    tasks_from: "{{cluster_vars.type}}.yml"
   vars:
     hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del.hostname + \"`]\") }}"
 

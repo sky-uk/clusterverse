@@ -1,0 +1,30 @@
+---
+
+- name: poweron_vms/gcp | hosts_to_start
+  debug: msg="{{hosts_to_start}}"
+
+- name: poweron_vms/gcp | Power-on VM(s)
+  block:
+    - name: poweron_vms/gcp | Power-on VM(s) asynchronously
+      gcp_compute_instance:
+        name: "{{item.name}}"
+        project: "{{cluster_vars[buildenv].vpc_project_id}}"
+        zone: "{{ item.regionzone }}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{gcp_credentials_file}}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        status: "RUNNING"
+        labels: "{{ item.tagslabels }}"
+      with_items: "{{ hosts_to_start }}"
+      register: r__gcp_compute_instance
+      async: 7200
+      poll: 0
+
+    - name: poweron_vms/gcp | Wait for VM(s) to power-on
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: async_jobs
+      until: async_jobs.finished
+      retries: 300
+      with_items: "{{r__gcp_compute_instance.results}}"
+  when: hosts_to_start | length

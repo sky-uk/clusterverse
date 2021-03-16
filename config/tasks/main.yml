@@ -52,13 +52,13 @@
     mode: 0755
   when: (static_journal is defined and static_journal|bool)
 
-- name: Create partition table, format and attach volumes - AWS or GCP
-  include_tasks: disks_auto_aws_gcp.yml
-  when: cluster_vars.type == "aws" or cluster_vars.type == "gcp"
+- name: Create partition table, format and attach volumes - AWS, GCP or Azure
+  include_tasks: disks_auto_aws_gcp_azure.yml
+  when: cluster_vars.type == "aws" or cluster_vars.type == "gcp" or cluster_vars.type == "azure"
 
 - name: Create partition table, format and attach volumes - generic
   include_tasks: disks_auto_generic.yml
-  when: cluster_vars.type != "aws" and cluster_vars.type != "gcp"
+  when: cluster_vars.type != "aws" and cluster_vars.type != "gcp" and cluster_vars.type != "azure"
 
 - name: install prometheus node exporter daemon
   include_tasks: prometheus_node_exporter.yml

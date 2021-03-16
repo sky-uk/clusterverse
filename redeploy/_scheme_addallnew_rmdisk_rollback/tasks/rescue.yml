@@ -11,7 +11,7 @@
     - name: rescue | Change lifecycle_state label from 'current' to 'redeployfail'
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "redeployfail"
@@ -20,7 +20,7 @@
     - name: rescue | Change lifecycle_state label from 'retiring' to 'current' state
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
         new_state: "current"
@@ -57,7 +57,7 @@
 - name: rescue | poweroff the failed VMs
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: poweroff_vms.yml
+    tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
   when: hosts_to_stop | length
   vars:
     hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"

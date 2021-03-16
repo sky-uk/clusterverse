@@ -1,0 +1,28 @@
+---
+
+- name: poweroff_vms/aws | hosts_to_stop
+  debug: msg="{{hosts_to_stop}}"
+
+- name: poweroff_vms/aws | Power-off VM(s) and set maintenance_mode=true
+  block:
+    - name: poweroff_vms/aws | Set maintenance_mode=true
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        resource: "{{ item.instance_id }}"
+        tags:
+          maintenance_mode: "true"
+      with_items: "{{ hosts_to_stop }}"
+
+    - name: poweroff_vms/aws | Power-off VM(s)
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "stopped"
+        instance_ids: "{{ hosts_to_stop | json_query(\"[].instance_id\") }}"
+        wait: true
+      delegate_to: localhost
+      run_once: true
+  when: hosts_to_stop | length

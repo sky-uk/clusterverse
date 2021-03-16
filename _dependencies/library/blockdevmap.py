@@ -18,22 +18,16 @@ module: blockdevmap
 version_added: 1.0.0
 short_description: blockdevmap
 description:
-    - Map the block device name as defined in AWS/GCP (e.g. /dev/sdf) with the volume provided to the OS
+    - Map the block device name as defined in AWS/GCP/Azure (e.g. /dev/sdf) with the volume provided to the OS
 authors:
     - Dougal Seeley <blockdevmap@dougalseeley.com>
     - Amazon.com Inc.
 '''
 
 EXAMPLES = '''
-- name: Get block device map information for GCP
+- name: Get block device map information for cloud
   blockdevmap:
-    cloud_type: gcp
-  become: yes
-  register: r__blockdevmap
-
-- name: Get block device map information for AWS
-  blockdevmap:
-    cloud_type: aws
+    cloud_type: <gcp|aws|azure>
   become: yes
   register: r__blockdevmap
 
@@ -48,6 +42,7 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
+## AWS Nitro
 "device_map": [
     {
         "FSTYPE": "ext4",
@@ -86,6 +81,7 @@ RETURN = '''
         "volume_id": "vol-0b05e48d5677db81a"
     }
     
+## AWS non-Nitro
 "device_map": [
     {
         "FSTYPE": "",
@@ -109,11 +105,142 @@ RETURN = '''
         "device_name_cloud": "/dev/sda1",
         "device_name_os": "/dev/xvda1"
     }
+
+## AZURE    
+"device_map": [
+    {
+        "FSTYPE": "",
+        "HCTL": "0:0:0:0",
+        "MODEL": "Virtual Disk",
+        "MOUNTPOINT": "",
+        "NAME": "sda",
+        "SERIAL": "6002248071748569390b23178109d35e",
+        "SIZE": "32212254720",
+        "TYPE": "disk",
+        "UUID": "",
+        "device_name_cloud": "ROOTDISK",
+        "device_name_os": "/dev/sda",
+        "parttable_type": "gpt"
+    },
+    {
+        "FSTYPE": "xfs",
+        "HCTL": "",
+        "MODEL": "",
+        "MOUNTPOINT": "/boot",
+        "NAME": "sda1",
+        "SERIAL": "",
+        "SIZE": "524288000",
+        "TYPE": "part",
+        "UUID": "8bd4ad1d-13a7-4bb1-a40c-b05444f11db3",
+        "device_name_cloud": "",
+        "device_name_os": "/dev/sda1",
+        "parttable_type": "gpt"
+    },
+    {
+        "FSTYPE": "",
+        "HCTL": "",
+        "MODEL": "",
+        "MOUNTPOINT": "",
+        "NAME": "sda14",
+        "SERIAL": "",
+        "SIZE": "4194304",
+        "TYPE": "part",
+        "UUID": "",
+        "device_name_cloud": "",
+        "device_name_os": "/dev/sda14",
+        "parttable_type": "gpt"
+    },
+    {
+        "FSTYPE": "vfat",
+        "HCTL": "",
+        "MODEL": "",
+        "MOUNTPOINT": "/boot/efi",
+        "NAME": "sda15",
+        "SERIAL": "",
+        "SIZE": "519045632",
+        "TYPE": "part",
+        "UUID": "F5EB-013D",
+        "device_name_cloud": "",
+        "device_name_os": "/dev/sda15",
+        "parttable_type": "gpt"
+    },
+    {
+        "FSTYPE": "xfs",
+        "HCTL": "",
+        "MODEL": "",
+        "MOUNTPOINT": "/",
+        "NAME": "sda2",
+        "SERIAL": "",
+        "SIZE": "31161581568",
+        "TYPE": "part",
+        "UUID": "40a878b6-3fe8-4336-820a-951a19f79a76",
+        "device_name_cloud": "",
+        "device_name_os": "/dev/sda2",
+        "parttable_type": "gpt"
+    },
+    {
+        "FSTYPE": "",
+        "HCTL": "0:0:0:1",
+        "MODEL": "Virtual Disk",
+        "MOUNTPOINT": "",
+        "NAME": "sdb",
+        "SERIAL": "60022480c891da018bdd14b5dd1895b0",
+        "SIZE": "4294967296",
+        "TYPE": "disk",
+        "UUID": "",
+        "device_name_cloud": "RESOURCEDISK",
+        "device_name_os": "/dev/sdb",
+        "parttable_type": "dos"
+    },
+    {
+        "FSTYPE": "ext4",
+        "HCTL": "",
+        "MODEL": "",
+        "MOUNTPOINT": "/mnt/resource",
+        "NAME": "sdb1",
+        "SERIAL": "",
+        "SIZE": "4292870144",
+        "TYPE": "part",
+        "UUID": "95192b50-0c76-4a03-99a7-67fdc225504f",
+        "device_name_cloud": "",
+        "device_name_os": "/dev/sdb1",
+        "parttable_type": "dos"
+    },
+    {
+        "FSTYPE": "",
+        "HCTL": "1:0:0:0",
+        "MODEL": "Virtual Disk",
+        "MOUNTPOINT": "",
+        "NAME": "sdc",
+        "SERIAL": "60022480b71fde48d1f2212130abc54e",
+        "SIZE": "1073741824",
+        "TYPE": "disk",
+        "UUID": "",
+        "device_name_cloud": "0",
+        "device_name_os": "/dev/sdc",
+        "parttable_type": ""
+    },
+    {
+        "FSTYPE": "",
+        "HCTL": "1:0:0:1",
+        "MODEL": "Virtual Disk",
+        "MOUNTPOINT": "",
+        "NAME": "sdd",
+        "SERIAL": "60022480aa9c0d340c125a5295ee678d",
+        "SIZE": "1073741824",
+        "TYPE": "disk",
+        "UUID": "",
+        "device_name_cloud": "1",
+        "device_name_os": "/dev/sdd",
+        "parttable_type": ""
+    }
+]
 '''
 
 from ctypes import *
 from fcntl import ioctl
 import subprocess
+import os
 import sys
 import json
 import re
@@ -220,8 +347,8 @@ class cBlockDevMap(object):
 
     def get_lsblk(self):
         # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).  Cannot use the --json output as it not supported on older versions of lsblk (e.g. CentOS 7)
-        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE', '-P', '-b']).decode().rstrip().split('\n')
-        os_device_names = [dict((map(lambda x: x.strip("\""), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
+        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE,HCTL', '-P', '-b']).decode().rstrip().split('\n')
+        os_device_names = [dict((map(lambda x: x.strip("\"").rstrip(), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
         os_device_names = [dev for dev in os_device_names if dev['TYPE'] in ['disk', 'part', 'lvm']]
         os_device_names.sort(key=lambda k: k['NAME'])
 
@@ -243,6 +370,26 @@ class cLsblkMapper(cBlockDevMap):
         self.device_map = self.get_lsblk()
         for os_device in self.device_map:
             os_device.update({"device_name_os": "/dev/" + os_device['NAME'], "device_name_cloud": ""})
+
+
+class cAzureMapper(cBlockDevMap):
+    def __init__(self, **kwds):
+        super(cAzureMapper, self).__init__(**kwds)
+
+        self.device_map = self.get_lsblk()
+
+        # The Azure root and resource disks are symlinked at install time (by cloud-init) to /dev/disk/cloud/azure_[root|resource]. (They are NOT at predictable /dev/sd[a|b] locations)
+        # Other managed 'azure_datadisk' disks are mapped by udev (/etc/udev/rules.d/66-azure-storage.rules) when attached.
+        devrootdisk = os.path.basename(os.path.realpath('/dev/disk/cloud/azure_root'))
+        devresourcedisk = os.path.basename(os.path.realpath('/dev/disk/cloud/azure_resource'))
+
+        for os_device in self.device_map:
+            os_device.update({"device_name_os": "/dev/" + os_device['NAME']})
+            if os_device['NAME'] not in [devrootdisk,devresourcedisk]:
+                lun = os_device['HCTL'].split(':')[-1] if len(os_device['HCTL']) else ""
+                os_device.update({"device_name_cloud": lun})
+            else:
+                os_device.update({"device_name_cloud": "ROOTDISK" if os_device['NAME'] in devrootdisk else "RESOURCEDISK"})
 
 
 class cGCPMapper(cBlockDevMap):
@@ -324,11 +471,11 @@ class cAwsMapper(cBlockDevMap):
 
 def main():
     if not (len(sys.argv) > 1 and sys.argv[1] == "console"):
-        module = AnsibleModule(argument_spec={"cloud_type": {"type": "str", "required": True, "choices": ['aws', 'gcp', 'lsblk']}}, supports_check_mode=True)
+        module = AnsibleModule(argument_spec={"cloud_type": {"type": "str", "required": True, "choices": ['aws', 'gcp', 'azure', 'lsblk']}}, supports_check_mode=True)
     else:
         # For testing without Ansible (e.g on Windows)
         class cDummyAnsibleModule():
-            params = {"cloud_type": "aws"}
+            params = {"cloud_type": "azure"}
 
             def exit_json(self, changed, **kwargs):
                 print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -346,6 +493,8 @@ def main():
         blockdevmap = cAwsMapper(module=module)
     elif module.params['cloud_type'] == 'gcp':
         blockdevmap = cGCPMapper(module=module)
+    elif module.params['cloud_type'] == 'azure':
+        blockdevmap = cAzureMapper(module=module)
     elif module.params['cloud_type'] == 'lsblk':
         blockdevmap = cLsblkMapper(module=module)
     else:

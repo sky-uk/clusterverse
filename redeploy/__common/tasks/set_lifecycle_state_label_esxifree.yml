@@ -1,0 +1,14 @@
+---
+
+- name: set_lifecycle_state_label/esxifree | hosts_to_relabel
+  debug: msg="{{hosts_to_relabel}}"
+
+- name: "set_lifecycle_state_label/esxifree | Change lifecycle_state label to {{new_state}}"
+  esxifree_guest:
+    hostname: "{{ cluster_vars.esxi_ip }}"
+    username: "{{ cluster_vars.username }}"
+    password: "{{ cluster_vars.password }}"
+    name: "{{item.name}}"
+    state: "unchanged"
+    annotation: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
+  with_items: "{{ hosts_to_relabel | default([]) }}"

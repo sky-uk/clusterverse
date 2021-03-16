@@ -14,7 +14,7 @@
     - name: by_hosttype_by_host | Power off old VM
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: poweroff_vms.yml
+        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
   vars:
     _host_to_redeploy_nosuffix: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}"   #Remove the cluster_suffix from the hostname
     hosts_to_stop: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state!='current' && starts_with(name, '\" + _host_to_redeploy_nosuffix + \"')]\") }}"
@@ -29,14 +29,14 @@
   when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
 
 - name: by_hosttype_by_host | re-acquire cluster_hosts_state (NOT cluster_hosts_target, as we are augmenting this in _add_src_diskinfo_to_cluster_hosts_target__ (also, it is not affected by change of state))
-  import_role:
+  include_role:
     name: clusterverse/cluster_hosts
-    tasks_from: get_cluster_hosts_state.yml
+    tasks_from: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
 
 - name: by_hosttype_by_host | Power on new VM (not needed for normal redeploy, but for rescue case)
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: poweron_vms.yml
+    tasks_from: "poweron_vms_{{cluster_vars.type}}.yml"
   vars:
     hosts_to_start: "{{ cluster_hosts_state | selectattr('name', '==', host_to_redeploy.hostname) | list }}"
 
@@ -45,6 +45,6 @@
     name: clusterverse/dynamic_inventory
 
 - name: by_hosttype_by_host | re-acquire cluster_hosts_state (NOT cluster_hosts_target, as we are augmenting this in _add_src_diskinfo_to_cluster_hosts_target__ (also, it is not affected by change of state))
-  import_role:
+  include_role:
     name: clusterverse/cluster_hosts
-    tasks_from: get_cluster_hosts_state.yml
+    tasks_from: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"

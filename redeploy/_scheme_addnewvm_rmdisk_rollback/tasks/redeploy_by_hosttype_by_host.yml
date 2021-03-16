@@ -30,7 +30,7 @@
     - name: Power off old VMs
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: poweroff_vms.yml
+        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_stop: "{{ hosts_to_remove }}"
 

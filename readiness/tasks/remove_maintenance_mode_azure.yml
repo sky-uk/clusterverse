@@ -1,0 +1,30 @@
+---
+
+- name: remove_maintenance_mode/azure | Set maintenance_mode=false asynchronously
+  azure.azcollection.azure_rm_virtualmachine:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    append_tags: yes
+    tags:
+      maintenance_mode: "false"
+    name: "{{ item.name }}"
+    zones: ["{{ (item.regionzone.split('-'))[1] }}"]
+  register: r__azure_rm_virtualmachine
+  with_items: "{{ cluster_hosts_state }}"
+  delegate_to: localhost
+  run_once: true
+  async: 7200
+  poll: 0
+
+- name: remove_maintenance_mode/azure | Wait for maintenance_mode labelling to finish
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: async_jobs
+  until: async_jobs.finished
+  retries: 300
+  with_items: "{{r__azure_rm_virtualmachine.results}}"
+  delegate_to: localhost
+  run_once: true

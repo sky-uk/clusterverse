@@ -1,0 +1,41 @@
+---
+
+- name: get_cluster_hosts_state/azure | Get existing instance info
+  azure.azcollection.azure_rm_virtualmachine_info:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    tags:
+      - "cluster_name:{{cluster_name}}"
+  register: r__azure_rm_virtualmachine_info
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/azure | Get zone instance info
+  azure.azcollection.azure_rm_resource_info:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    resource_name: "{{ item.name }}"
+    resource_type: VirtualMachines
+    provider: Compute
+  with_items: "{{ r__azure_rm_virtualmachine_info.vms }}"
+  register: r__azure_rm_resource_info
+  until: "(r__azure_rm_resource_info.response | json_query(\"[?properties.provisioningState!='Succeeded']|length(@)\")) == 0"
+  retries: 18   #3 mins
+  delay: 10
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/azure | r__azure_rm_resource_info
+  debug: msg="{{r__azure_rm_resource_info}}"
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/azure | Set cluster_hosts_state
+  set_fact:
+    cluster_hosts_state: "{{r__azure_rm_resource_info.results | json_query(\"[].{name: response[0].name, regionzone: join('-',[response[0].location,response[0].zones[0]]), tagslabels: response[0].tags, instance_id: response[0].id, instance_state: item.power_state}\") }}"

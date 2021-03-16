@@ -1,0 +1,18 @@
+---
+
+- name: set_lifecycle_state_label/azure | hosts_to_relabel
+  debug: msg="{{hosts_to_relabel}}"
+
+- name: "set_lifecycle_state_label/azure | Change lifecycle_state label to {{new_state}}"
+  azure.azcollection.azure_rm_virtualmachine:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    append_tags: yes
+    name: "{{ item.name }}"
+    tags:
+      lifecycle_state: "{{ new_state }}"
+    zones: ["{{ (item.regionzone.split('-'))[1] }}"]
+  with_items: "{{ hosts_to_relabel | default([]) }}"

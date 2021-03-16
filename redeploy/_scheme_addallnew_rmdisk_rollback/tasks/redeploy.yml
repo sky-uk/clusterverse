@@ -9,7 +9,7 @@
     - name: Change lifecycle_state label from 'current' to 'retiring'
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "retiring"
@@ -78,7 +78,7 @@
     - name: Power off old VMs
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: poweroff_vms.yml
+        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
 

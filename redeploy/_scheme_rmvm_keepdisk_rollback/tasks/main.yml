@@ -10,7 +10,7 @@
         - name: Change lifecycle_state label from 'current' to 'retiring'
           include_role:
             name: clusterverse/redeploy/__common
-            tasks_from: set_lifecycle_state_label.yml
+            tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
           vars:
             hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
             new_state: "retiring"
@@ -55,7 +55,7 @@
     - name: rescue | Change lifecycle_state label from 'current' to 'redeployfail'
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "redeployfail"
@@ -63,7 +63,7 @@
     - name: rescue | Change lifecycle_state label from 'retiring' to 'current'
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
         new_state: "current"
@@ -99,12 +99,12 @@
 
     - include_role:
         name: clusterverse/clean
-        tasks_from: clean_dns.yml
+        tasks_from: dns.yml
       when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
 
     - include_role:
         name: clusterverse/clean
-        tasks_from: clean_vms.yml
+        tasks_from: "{{cluster_vars.type}}.yml"
       when: (hosts_to_clean | length)
 
     - debug:

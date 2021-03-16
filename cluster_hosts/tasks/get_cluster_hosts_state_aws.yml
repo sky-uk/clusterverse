@@ -1,0 +1,17 @@
+---
+
+- name: get_cluster_hosts_state/aws | Get existing instance info
+  ec2_instance_info:
+    filters:
+      "tag:cluster_name": "{{cluster_name}}"
+      "instance-state-name": ["running", "stopped"]
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{cluster_vars.region}}"
+  register: r__ec2_instance_info
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/aws | Set cluster_hosts_state
+  set_fact:
+    cluster_hosts_state: "{{r__ec2_instance_info.instances | json_query(\"[].{name: tags.Name, regionzone: placement.availability_zone, tagslabels: tags, instance_id: instance_id, instance_state: state.name}\") }}"

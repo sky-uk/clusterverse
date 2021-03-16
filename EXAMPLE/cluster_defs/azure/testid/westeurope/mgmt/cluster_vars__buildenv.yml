@@ -1,0 +1,69 @@
+---
+
+cluster_vars:
+  sandbox:
+    azure_subscription_id: !vault |
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    azure_client_id: !vault |
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    azure_secret: !vault |
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    azure_tenant: !vault |
+      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      7669080460651349243347331538721104778691266429457726036813912140404310
+    ssh_connection_cfg:
+      host: &host_ssh_connection_cfg
+        ansible_user: "ansible"
+        ansible_ssh_private_key_file: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;sandbox
+          7669080460651349243347331538721104778691266429457726036813912140404310
+      bastion:
+        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
+        ssh_priv_key: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;sandbox
+          7669080460651349243347331538721104778691266429457726036813912140404310
+    azure_resource_group: "compute"
+    vnet_name: "{{buildenv}}"
+    vpc_subnet_name_prefix: "{{buildenv}}-test-{{region}}"
+#    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')
+
+    hosttype_vars:
+      sys:
+        auto_volumes: [ ]
+        flavor: Standard_B1ls
+        version: "{{sys_version | default('')}}"
+        vms_by_az: { 1: 1, 2: 0, 3: 0 }
+
+#      sysdisks2:
+#        auto_volumes:
+#          - { device_name: "0", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4", caching: "ReadOnly", perms: { owner: "root", group: "root", mode: "775" } }
+#          - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc1", fstype: "ext4", caching: "ReadOnly" }
+#        flavor: Standard_B1ls
+#        os_disk_size_gb: "35"              # This is optional, and if set, MUST be bigger than the original image size (e.g. 30GB for Ubuntu2004)
+#        version: "{{sysdisks_version | default('')}}"
+#        vms_by_az: { 1: 1, 2: 0, 3: 0 }
+
+#      sysdisks2lvm:
+#        auto_volumes:
+#          - { device_name: "0", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4", caching: "ReadOnly" }
+#          - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4", caching: "ReadOnly" }
+#        lvmparams: {vg_name: vg0, lv_name: lv0, lv_size: +100%FREE}
+#        flavor: Standard_B1ls
+#        os_disk_size_gb: "35"              # This is optional, and if set, MUST be bigger than the original image size (e.g. 30GB for Ubuntu2004)
+#        version: "{{sysdisks_version | default('')}}"
+#        vms_by_az: { 1: 1, 2: 0, 3: 0 }
+
+#      sysdisks4:
+#        auto_volumes:
+#          - { device_name: "3", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc3", fstype: "ext4", caching: "ReadOnly" }
+#          - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc1", fstype: "ext4", caching: "ReadOnly" }
+#          - { device_name: "0", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4", caching: "ReadOnly" }
+#          - { device_name: "2", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc2", fstype: "ext4", caching: "ReadOnly" }
+#        flavor: Standard_B2s    # B1ls only supports 2 disks (B2s supports 4)
+#        version: "{{sysdisks_version | default('')}}"
+#        vms_by_az: { 1: 1, 2: 1, 3: 0 }
+
+_host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

@@ -17,17 +17,22 @@ The `cluster.yml` sub-role immutably deploys a cluster from the config defined a
 
 ### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+```
+### Azure:
+```
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
@@ -62,13 +67,17 @@ The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful
 
 ### AWS:
 ```
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
-ansible-playbook -u ubuntu --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 ### GCP:
 ```
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
-ansible-playbook -u <username> --private-key=/home/<user>/.ssh/<rsa key> redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+```
+### Azure:
+```
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 
 ### Mandatory command-line variables:

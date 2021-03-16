@@ -4,7 +4,7 @@
   debug: msg="{{hosts_to_clean}}"
 
 - block:
-    - name: clean/dns/nsupdate | Delete DNS entries from bind (nsupdate)
+    - name: clean/dns/nsupdate | Delete DNS entries
       block:
         - name: clean/dns/nsupdate | Delete A records
           nsupdate:
@@ -33,7 +33,7 @@
           when: (item.name + '.' + cluster_vars.dns_user_domain + "." == cname_value)
       when: cluster_vars.dns_server == "nsupdate"
 
-    - name: clean/dns/route53 | Delete DNS entries from route53
+    - name: clean/dns/route53 | Delete DNS entries
       block:
         - name: clean/dns/route53 | Get A records
           route53:
@@ -90,7 +90,7 @@
           when: (item.1.set.value is defined)  and  ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
       when: cluster_vars.dns_server == "route53"
 
-    - name: clean/dns/clouddns | Delete DNS entries from clouddns
+    - name: clean/dns/clouddns | Delete DNS entries
       block:
         - name: clean/dns/clouddns | Get managed zone(s)
           gcp_dns_managed_zone_info:

@@ -27,14 +27,14 @@
   block:
     - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
 
-    - import_role:
+    - include_role:
         name: clusterverse/clean
-        tasks_from: clean_dns.yml
+        tasks_from: dns.yml
       when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
 
-    - import_role:
+    - include_role:
         name: clusterverse/clean
-        tasks_from: clean_vms.yml
+        tasks_from: "{{cluster_vars.type}}.yml"
       when: (hosts_to_clean | length)
 
     - debug:
