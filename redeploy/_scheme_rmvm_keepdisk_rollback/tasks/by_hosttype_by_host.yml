@@ -8,16 +8,20 @@
       include_role:
         name: "{{predeleterole}}"
       vars:
-        hosts_to_remove: "{{ hosts_to_stop }}"
+        hosts_to_remove: "{{ hosts_to_change }}"
       when: predeleterole is defined and predeleterole != ""
 
     - name: by_hosttype_by_host | Power off old VM
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
+        tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+      vars:
+        hosts_to_powerchange: "{{ hosts_to_change }}"
+        powerchange_new_state: "stop"
+
   vars:
     _host_to_redeploy_nosuffix: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}"   #Remove the cluster_suffix from the hostname
-    hosts_to_stop: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state!='current' && starts_with(name, '\" + _host_to_redeploy_nosuffix + \"')]\") }}"
+    hosts_to_change: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state!='current' && starts_with(name, '\" + _host_to_redeploy_nosuffix + \"')]\") }}"
 
 - name: "by_hosttype_by_host | Run {{mainclusteryml}} to add {{host_to_redeploy.hostname}} to cluster"
   shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{host_to_redeploy | to_json}}]}'"
@@ -36,9 +40,10 @@
 - name: by_hosttype_by_host | Power on new VM (not needed for normal redeploy, but for rescue case)
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: "poweron_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
   vars:
-    hosts_to_start: "{{ cluster_hosts_state | selectattr('name', '==', host_to_redeploy.hostname) | list }}"
+    hosts_to_powerchange: "{{ cluster_hosts_state | selectattr('name', '==', host_to_redeploy.hostname) | list }}"
+    powerchange_new_state: "start"
 
 - name: by_hosttype_by_host | re-acquire the dynamic inventory
   include_role:

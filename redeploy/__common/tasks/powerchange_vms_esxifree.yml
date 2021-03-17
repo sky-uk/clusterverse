@@ -1,0 +1,28 @@
+---
+
+- name: "powerchange_vms/esxifree | hosts_to_powerchange (to {{powerchange_new_state}})"
+  debug: msg="{{hosts_to_powerchange}}"
+
+- name: "powerchange_vms/esxifree | {{powerchange_new_state}} VM(s) and set maintenance_mode=true"
+  block:
+    - name: powerchange_vms/esxifree | Set maintenance_mode=true (if stopping)
+      esxifree_guest:
+        hostname: "{{ cluster_vars.esxi_ip }}"
+        username: "{{ cluster_vars.username }}"
+        password: "{{ cluster_vars.password }}"
+        name: "{{item.name}}"
+        state: unchanged
+        annotation: "{{ item.tagslabels | combine({'maintenance_mode': 'true'}) }}"
+      with_items: "{{ hosts_to_powerchange }}"
+      when: "powerchange_new_state == 'stop'"
+
+    - name: "powerchange_vms/esxifree | {{powerchange_new_state}} VMs asynchronously"
+      esxifree_guest:
+        hostname: "{{ cluster_vars.esxi_ip }}"
+        username: "{{ cluster_vars.username }}"
+        password: "{{ cluster_vars.password }}"
+        name: "{{item.name}}"
+        state: "{% if powerchange_new_state == 'stop' %}shutdownguest{% else %}poweredon{% endif %}"
+      with_items: "{{ hosts_to_powerchange }}"
+  when: hosts_to_powerchange | length
+  

@@ -30,9 +30,10 @@
     - name: Power off old VMs
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
+        tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
       vars:
-        hosts_to_stop: "{{ hosts_to_remove }}"
+        hosts_to_powerchange: "{{ hosts_to_remove }}"
+        powerchange_new_state: "stop"
 
     - name: re-acquire the dynamic inventory
       include_role:

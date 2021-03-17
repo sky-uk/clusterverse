@@ -1,0 +1,28 @@
+---
+
+- name: "powerchange_vms/aws | hosts_to_powerchange (to {{powerchange_new_state}})"
+  debug: msg="{{hosts_to_powerchange}}"
+
+- name: "powerchange_vms/aws | {{powerchange_new_state}} VM(s) and set maintenance_mode=true (if stopping)"
+  block:
+    - name: powerchange_vms/aws | Set maintenance_mode=true (if stopping)
+      ec2_tag:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        resource: "{{ item.instance_id }}"
+        tags: { maintenance_mode: "true" }
+      with_items: "{{ hosts_to_powerchange }}"
+      when: "powerchange_new_state == 'stop'"
+
+    - name: "powerchange_vms/aws | {{powerchange_new_state}} VMs"
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "{% if powerchange_new_state == 'stop' %}stopped{% else %}running{% endif %}"
+        instance_ids: "{{ hosts_to_powerchange | json_query(\"[].instance_id\") }}"
+        wait: true
+      delegate_to: localhost
+      run_once: true
+  when: hosts_to_powerchange | length

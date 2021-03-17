@@ -57,8 +57,8 @@
 - name: rescue | poweroff the failed VMs
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
-  when: hosts_to_stop | length
+    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+  when: hosts_to_powerchange | length
   vars:
-    hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
-
+    hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
+    powerchange_new_state: "stop"

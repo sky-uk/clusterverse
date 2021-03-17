@@ -7,9 +7,10 @@
 - name: rescue | Power-on the 'retiring' VMs
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: "poweron_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
   vars:
-    hosts_to_start: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+    hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+    powerchange_new_state: "start"
 
 - name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
@@ -61,6 +62,7 @@
 - name: rescue | Power-off the VMs
   include_role:
     name: clusterverse/redeploy/__common
-    tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
   vars:
-    hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
+    hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
+    powerchange_new_state: "stop"

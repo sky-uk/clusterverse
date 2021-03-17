@@ -78,9 +78,10 @@
     - name: Power off old VMs
       include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
+        tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
       vars:
-        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+        hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring']\") }}"
+        powerchange_new_state: "stop"
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
       import_role:

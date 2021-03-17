@@ -41,14 +41,17 @@
             name: "{{predeleterole}}"
           when: predeleterole is defined and predeleterole != ""
           vars:
-            hosts_to_remove: "{{ hosts_to_stop | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
+            hosts_to_remove: "{{ hosts_to_change | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
 
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
             name: clusterverse/redeploy/__common
-            tasks_from: "poweroff_vms_{{cluster_vars.type}}.yml"
+            tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+          vars:
+            hosts_to_powerchange: "{{ hosts_to_change }}"
+            powerchange_new_state: "stop"
       vars:
-        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))]\") }}"
+        hosts_to_change: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))]\") }}"
       when: (canary=="finish" or canary=="none")
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)
