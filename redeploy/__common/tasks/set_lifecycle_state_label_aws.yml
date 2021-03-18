@@ -1,0 +1,14 @@
+---
+
+- name: set_lifecycle_state_label/aws | hosts_to_relabel
+  debug: msg="{{hosts_to_relabel}}"
+
+- name: "set_lifecycle_state_label/aws | Change lifecycle_state label to {{new_state}}"
+  ec2_tag:
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{cluster_vars.region}}"
+    resource: "{{ item.instance_id }}"
+    tags:
+      lifecycle_state: "{{new_state}}"
+  with_items: "{{ hosts_to_relabel | default([]) }}"

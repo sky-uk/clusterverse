@@ -2,16 +2,15 @@
 
 - name: "Clean the cluster of VMs with lifecycle_state = {{clean}}"
   block:
-    - name: clean | Delete DNS
-      include_tasks: clean_dns.yml
+    - name: clean | hosts_to_clean
+      debug: msg={{hosts_to_clean}}
+
+    - name: clean | DNS
+      include_tasks: dns.yml
       when: (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
 
-    - name: clean | Delete VMs
-      include_tasks: clean_vms.yml
-
-    - name: clean | Delete Networking
-      include_tasks: clean_networking.yml
-      when: clean == '_all_'
+    - name: "clean | {{cluster_vars.type}}"
+      include_tasks: "{{cluster_vars.type}}.yml"
   vars:
     hosts_to_clean: |
       {%- if clean == '_all_' -%}

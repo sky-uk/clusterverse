@@ -1,7 +1,13 @@
 ---
 
 - name: Get the state of the VMs in the cluster
-  include_tasks: get_cluster_hosts_state.yml
+  include_tasks: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
+
+- name: get_cluster_hosts_state | cluster_hosts_state
+  debug: msg="{{cluster_hosts_state}}"
+  delegate_to: localhost
+  run_once: true
+  when: cluster_hosts_state is defined
 
 - assert:
     that:

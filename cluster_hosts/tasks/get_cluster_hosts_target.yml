@@ -10,7 +10,7 @@
           {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
             {% set _dummy = res.extend([{
               'hosttype': hostttype,
-              'hostname': cluster_name + '-' + hostttype + '-' + azname + azcount|string + '-' + cluster_suffix|string,
+              'hostname': cluster_name + '-' + hostttype + '-' + azname|string + azcount|string + '-' + cluster_suffix|string,
               'az_name': azname|string,
               'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
               'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes
@@ -20,102 +20,12 @@
       {%- endfor %}
       {{ res }}
 
-- name: get_cluster_hosts_target/aws | AWS-specific modifications to cluster_hosts_target - add subnets.
-  block:
-    # Dynamically look up VPC ID by name from aws
-    - name: get_cluster_hosts_target | Looking up VPC facts to extract ID
-      ec2_vpc_net_info:
-        region: "{{ cluster_vars.region }}"
-        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
-        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
-        filters:
-          "tag:Name": "{{ cluster_vars[buildenv].vpc_name }}"
-      register: r__ec2_vpc_net_info
-      delegate_to: localhost
-      run_once: true
 
-    - name: get_cluster_hosts_target/aws | Set VPC ID in variable
-      set_fact:
-        vpc_id: "{{ r__ec2_vpc_net_info.vpcs[0].id }}"
+- name: get_cluster_hosts_target | Augment with cloud-specific parameters (if necessary)
+  include: "{{ item }}"
+  loop: "{{ query('first_found', params) }}"
+  vars: { params: { files: ["get_cluster_hosts_target_{{cluster_vars.type}}.yml"], skip: true } }
 
-    - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
-      ec2_vpc_subnet_info:
-        region: "{{ cluster_vars.region }}"
-        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
-        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
-        filters:
-          vpc-id: "{{ vpc_id }}"
-      register: r__ec2_vpc_subnet_info
-      delegate_to: localhost
-      run_once: true
-
-    - name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
-      set_fact:
-        cluster_hosts_target: |
-          {%- for host in cluster_hosts_target -%}
-            {%- set subnet_id = r__ec2_vpc_subnet_info | to_json | from_json | json_query('subnets[?starts_with(tags.Name, \'' + cluster_vars[buildenv].vpc_subnet_name_prefix + host.az_name +'\')].subnet_id|[0]') -%}
-            {%- set _dummy = host.update({'vpc_subnet_id': subnet_id | string}) -%}
-          {%- endfor %}
-          {{ cluster_hosts_target }}
-
-    - block:
-        - name: get_cluster_hosts_target/aws | Get snapshots info
-          ec2_snapshot_info:
-            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-            region: "{{ cluster_vars.region }}"
-            filters: "{{ _snapshot_tags[0] }}"
-          register: r__ebs_snapshots
-          delegate_to: localhost
-          run_once: true
-
-        - name: get_cluster_hosts_target/aws | Assert that number of snapshots eq number of hosts
-          assert:
-            that:
-              - _available_snapshots|length == cluster_hosts_target|length
-            quiet: true
-            fail_msg: "There are {{ _available_snapshots|length }} available snapshots and {{ cluster_hosts_target|length }} nodes. Snapshot restore available only to the same infrastructure size."
-          vars:
-            _available_snapshots: "{{ r__ebs_snapshots.snapshots|json_query('[].snapshot_id') }}"
-          delegate_to: localhost
-          run_once: true
-
-        ## [ See github.com/ansible/ansible/issues/27299 for reason for  '| to_json | from_json' ]
-        - name: get_cluster_hosts_target/aws | update cluster_hosts_target with snapshot_id
-          set_fact:
-            cluster_hosts_target: |
-              {%- for host in cluster_hosts_target -%}
-                {%- set cluster_host_topology = host.hostname | regex_replace('^.*(-.*?-).*$', '\\1') -%}
-                {%- for vol in host.auto_volumes -%}
-                  {%- set cur_snapshot = r__ebs_snapshots | default([]) | to_json | from_json | json_query('snapshots[?contains(tags.Name, \'' + cluster_host_topology + '\')]') -%}
-                  {%- if cur_snapshot and 'snapshot_tags' in vol.keys() -%}
-                    {%- set _dummy = vol.update({'snapshot': cur_snapshot[0].snapshot_id}) -%}
-                    {%- set _dummy = vol.pop('snapshot_tags') -%}
-                  {%- endif %}
-                {%- endfor %}
-              {%- endfor %}
-              {{ cluster_hosts_target }}
-      vars:
-        _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
-      when: _snapshot_tags|length > 0
-  when: cluster_vars.type == "aws"
-
-
-- name: get_cluster_hosts_target/gcp | GCP-specific modifications to cluster_hosts_target
-  block:
-    - name: get_cluster_hosts_target/gcp | Update cluster_hosts_target auto_volumes with device_name and initialize_params
-      set_fact:
-        cluster_hosts_target: |-
-          {%- for host in cluster_hosts_target -%}
-            {%- for vol in host.auto_volumes -%}
-              {%- if 'device_name' not in vol -%}
-                {%- set _dummy = vol.update({'device_name': host.hostname + '--' + vol.mountpoint | basename }) -%}
-                {%- set _dummy = vol.update({'initialize_params': {'disk_name': vol.device_name, 'disk_size_gb': vol.volume_size}}) -%}
-              {%- endif -%}
-            {%- endfor %}
-          {%- endfor %}
-          {{ cluster_hosts_target }}
-  when: cluster_vars.type == "gcp"
 
 - name: get_cluster_hosts_target | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}

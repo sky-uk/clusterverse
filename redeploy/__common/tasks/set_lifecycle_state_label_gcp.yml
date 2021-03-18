@@ -1,0 +1,16 @@
+---
+
+- name: set_lifecycle_state_label/aws | hosts_to_relabel
+  debug: msg="{{hosts_to_relabel}}"
+
+- name: "set_lifecycle_state_label/gcp | Change lifecycle_state label to {{new_state}}"
+  gcp_compute_instance:
+    name: "{{item.name}}"
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    zone: "{{ item.regionzone }}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+    status: "{{item.instance_state}}"
+    labels: "{{ item.tagslabels | combine({'lifecycle_state': new_state}) }}"
+  with_items: "{{ hosts_to_relabel | default([]) }}"

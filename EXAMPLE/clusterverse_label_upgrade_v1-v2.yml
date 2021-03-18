@@ -5,12 +5,12 @@
   connection: local
   gather_facts: true
   tasks:
-    - import_role:
+    - include_role:
         name: 'clusterverse/_dependencies'
 
-    - import_role:
+    - include_role:
         name: 'clusterverse/cluster_hosts'
-        tasks_from: get_cluster_hosts_state.yml
+        tasks_from: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
 
     - block:
         - name: clusterverse_label_upgrade_v1-v2 | Add lifecycle_state and cluster_suffix label to AWS EC2 VM
