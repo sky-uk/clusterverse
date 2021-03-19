@@ -59,4 +59,4 @@
         project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         state: absent
       when: create_gcp_network is defined and create_gcp_network|bool
-  when: clean == '_all_'
+  when: clean is defined and clean == '_all_'

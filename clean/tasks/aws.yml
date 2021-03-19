@@ -33,4 +33,4 @@
         name: "{{ cluster_name }}-sg"
         vpc_id: "{{vpc_id}}"
         state: absent
-  when: clean == '_all_'
+  when: clean is defined and clean == '_all_'
