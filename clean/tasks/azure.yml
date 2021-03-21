@@ -143,4 +143,4 @@
 #      delay: 3
 #      retries: 300
 #      with_items: "{{r__azure_rm_networkinterface.results}}"
-#  when: clean == '_all_'
+#  when: clean is defined and clean == '_all_'
