@@ -1,5 +1,11 @@
 ---
 
+# Note: Azure, irritatingly, doesn't provide all the info we need for cluster_hosts_state/dynamic_inventory in one place. We have to run each of these, passing the results of the previous into the next.
+#  + VM info: azure_rm_virtualmachine_info
+#  + VM AZ info: azure_rm_resource_info
+#  + Private IP info: azure_rm_networkinterface_info
+#  + Public IP info: azure_rm_publicipaddress_info
+
 - name: get_cluster_hosts_state/azure | Get existing instance info
   azure.azcollection.azure_rm_virtualmachine_info:
     client_id: "{{cluster_vars[buildenv].azure_client_id}}"
@@ -13,7 +19,12 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/azure | Get zone instance info
+#- name: get_cluster_hosts_state/azure | r__azure_rm_virtualmachine_info
+#  debug: msg="{{r__azure_rm_virtualmachine_info}}"
+#  delegate_to: localhost
+#  run_once: true
+
+- name: get_cluster_hosts_state/azure | Get instance resource info (for VM AZ info)
   azure.azcollection.azure_rm_resource_info:
     client_id: "{{cluster_vars[buildenv].azure_client_id}}"
     secret: "{{cluster_vars[buildenv].azure_secret}}"
@@ -31,11 +42,72 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/azure | r__azure_rm_resource_info
-  debug: msg="{{r__azure_rm_resource_info}}"
+#- name: get_cluster_hosts_state/azure | r__azure_rm_resource_info
+#  debug: msg="{{r__azure_rm_resource_info}}"
+#  delegate_to: localhost
+#  run_once: true
+
+- name: get_cluster_hosts_state/azure | Get network interface info (per instance)
+  azure.azcollection.azure_rm_networkinterface_info:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    name: "{{ item.networkInterface | basename }}"
+  with_items: "{{ r__azure_rm_resource_info.results | json_query(\"[].{name: item.name, regionzone: join('-',[item.location,response[0].zones[0]]), tagslabels: item.tags, instance_id: item.id, instance_state: item.power_state, networkInterface: response[0].properties.networkProfile.networkInterfaces[0].id }\") }}"
+  register: r__azure_rm_networkinterface_info
+  delegate_to: localhost
+  run_once: true
+  async: 7200
+  poll: 0
+
+- name: get_cluster_hosts_state/azure | Wait for network interface info
+  async_status: { jid: "{{ item.ansible_job_id }}" }
+  register: r__async_status__azure_rm_networkinterface_info
+  until: r__async_status__azure_rm_networkinterface_info.finished
+  delay: 3
+  retries: 300
+  with_items: "{{r__azure_rm_networkinterface_info.results}}"
   delegate_to: localhost
   run_once: true
 
+#- name: get_cluster_hosts_state/azure | r__async_status__azure_rm_networkinterface_info
+#  debug: msg="{{r__async_status__azure_rm_networkinterface_info}}"
+#  delegate_to: localhost
+#  run_once: true
+
+
+- name: get_cluster_hosts_state/azure | Get publicipaddress info (per instance)
+  azure.azcollection.azure_rm_publicipaddress_info:
+    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+    secret: "{{cluster_vars[buildenv].azure_secret}}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    name: "{{ item.networkinterfaces[0].ip_configurations[0].public_ip_address | basename }}"
+  with_items: "{{ r__async_status__azure_rm_networkinterface_info.results  }}"
+  register: r__azure_rm_publicipaddress_info
+  delegate_to: localhost
+  run_once: true
+  async: 7200
+  poll: 0
+
+- name: get_cluster_hosts_state/azure | Wait for publicipaddress info
+  async_status: { jid: "{{ item.ansible_job_id }}" }
+  register: r__async_status__azure_rm_publicipaddress_info
+  until: r__async_status__azure_rm_publicipaddress_info.finished
+  delay: 3
+  retries: 300
+  with_items: "{{r__azure_rm_publicipaddress_info.results}}"
+  delegate_to: localhost
+  run_once: true
+
+#- name: get_cluster_hosts_state/azure | r__async_status__azure_rm_publicipaddress_info
+#  debug: msg="{{r__async_status__azure_rm_publicipaddress_info}}"
+#  delegate_to: localhost
+#  run_once: true
+
 - name: get_cluster_hosts_state/azure | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{r__azure_rm_resource_info.results | json_query(\"[].{name: response[0].name, regionzone: join('-',[response[0].location,response[0].zones[0]]), tagslabels: response[0].tags, instance_id: response[0].id, instance_state: item.power_state}\") }}"
+    cluster_hosts_state: "{{r__async_status__azure_rm_publicipaddress_info.results | json_query(\"[].{name: item.item.item.item.name, regionzone: item.item.item.item.regionzone, tagslabels: item.item.item.item.tagslabels, instance_id: item.item.item.item.instance_id, instance_state: item.item.item.item.instance_state, ipv4: {private: item.item.networkinterfaces[0].ip_configurations[0].private_ip_address, public: publicipaddresses[0].ip_address} }\") }}"

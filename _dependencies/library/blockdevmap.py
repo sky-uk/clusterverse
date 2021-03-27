@@ -427,7 +427,7 @@ class cAwsMapper(cBlockDevMap):
                     self.module.fail_json(msg=os_device_path + ": FileNotFoundError" + str(e))
                 except TypeError as e:
                     if instance_store_count < len(instance_store_map):
-                        os_device.update({"device_name_os": os_device_path, "device_name_cloud": '/dev/' + instance_store_map[instance_store_count]['ephemeral_map'], "volume_id": dev.get_volume_id()})
+                        os_device.update({"device_name_os": os_device_path, "device_name_cloud": '/dev/' + instance_store_map[instance_store_count]['ephemeral_map'], "volume_id": instance_store_map[instance_store_count]['ephemeral_id']})
                         instance_store_count += 1
                     else:
                         self.module.warn(u"%s is not an EBS device and there is no instance store mapping." % os_device_path)

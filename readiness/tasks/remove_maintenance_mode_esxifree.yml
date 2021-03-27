@@ -8,4 +8,4 @@
     name: "{{item.name}}"
     state: "unchanged"
     annotation: "{{ item.tagslabels | combine({'maintenance_mode': 'false'}) }}"
-  with_items: "{{ cluster_hosts_state | json_query(\"[].instance_id\") }}"
+  with_items: "{{ cluster_hosts_state }}"

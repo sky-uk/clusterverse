@@ -5,7 +5,7 @@
   connection: local
   gather_facts: true
   tasks:
-    - include:
+    - include_role:
         name: 'clusterverse/_dependencies'
 
     - include_role:

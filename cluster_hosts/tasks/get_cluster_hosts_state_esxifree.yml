@@ -40,4 +40,4 @@
 
 - name: get_cluster_hosts_state/esxifree | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{ r__vmware_guest_info.results | json_query(\"[].{name: instance.hw_name, regionzone: None, tagslabels: instance.annotation, instance_id: instance.moid, instance_state: instance.hw_power_status}\") }}"
+    cluster_hosts_state: "{{ r__vmware_guest_info.results | json_query(\"[].{name: instance.hw_name, regionzone: None, tagslabels: instance.annotation, instance_id: instance.moid, instance_state: instance.hw_power_status, ipv4: {private: item.ip_address, public: null} }\") }}"
