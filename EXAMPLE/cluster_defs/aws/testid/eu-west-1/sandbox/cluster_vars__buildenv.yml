@@ -50,6 +50,13 @@ cluster_vars:
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
+      hostnvme-notnitro:
+        auto_volumes:
+          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+        flavor: i3.large
+        version: "{{sys_version | default('')}}"
+        vms_by_az: { a: 1, b: 1, c: 0 }
+
       hostnvme-multi:
         auto_volumes:
           - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }

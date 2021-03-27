@@ -66,4 +66,3 @@
   vars:
     hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='redeployfail']\") }}"
     powerchange_new_state: "stop"
-
