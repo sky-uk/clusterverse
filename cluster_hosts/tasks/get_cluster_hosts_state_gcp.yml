@@ -23,4 +23,4 @@
         {%- endfor -%}
       {{ res }}
   vars:
-    _cluster_hosts_state__urlregion: "{{r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP} }\") }}"
+    _cluster_hosts_state__urlregion: "{{r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP}, disk_info_cloud: disks }\") }}"

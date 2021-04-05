@@ -55,7 +55,7 @@
     tenant: "{{cluster_vars[buildenv].azure_tenant}}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     name: "{{ item.networkInterface | basename }}"
-  with_items: "{{ r__azure_rm_resource_info.results | json_query(\"[].{name: item.name, regionzone: join('-',[item.location,response[0].zones[0]]), tagslabels: item.tags, instance_id: item.id, instance_state: item.power_state, networkInterface: response[0].properties.networkProfile.networkInterfaces[0].id }\") }}"
+  with_items: "{{ r__azure_rm_resource_info.results | to_json | from_json | json_query(\"[].{name: item.name, regionzone: join('-',[item.location,response[0].zones[0]]), tagslabels: item.tags, instance_id: item.id, instance_state: item.power_state, networkInterface: response[0].properties.networkProfile.networkInterfaces[0].id }\") }}"
   register: r__azure_rm_networkinterface_info
   delegate_to: localhost
   run_once: true

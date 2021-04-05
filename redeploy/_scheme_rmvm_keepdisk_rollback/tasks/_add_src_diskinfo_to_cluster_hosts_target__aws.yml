@@ -1,27 +1,14 @@
 ---
 
-- name: _get_diskinfo_aws | ec2_instance_info
-  ec2_instance_info:
-    filters:
-      "instance-state-name": ["running", "stopped"]
-      "tag:cluster_name": "{{cluster_name}}"
-    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-    region: "{{cluster_vars.region}}"
-  register: r__ec2_instance_info
-
-- name: _get_diskinfo_aws | r__ec2_instance_info
-  debug: msg={{r__ec2_instance_info}}
-
-- name: _get_diskinfo_aws | augment cluster_hosts_target auto_volumes with source disk info
+- name: _add_src_diskinfo_to_cluster_hosts_target/aws | augment cluster_hosts_target auto_volumes with source disk info
   set_fact:
     cluster_hosts_target: |
       {%- for cht_host in cluster_hosts_target -%}
         {%- for cht_autovol in cht_host.auto_volumes -%}
-          {%- for ec2_instance_info_result in r__ec2_instance_info.instances | selectattr('tags.lifecycle_state', '!=', 'current') -%}
-            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == ec2_instance_info_result.tags.Name | regex_replace('-(?!.*-).*') -%}
-              {%- for chs_host_diskinfo in ec2_instance_info_result.block_device_mappings | selectattr('device_name', '==', cht_autovol.device_name) | selectattr('device_name', '!=', '/dev/sda1') -%}
-                {%- set _ = cht_autovol.update({'src': {'instance_id': ec2_instance_info_result.instance_id, 'device_name': chs_host_diskinfo.device_name, 'volume_id': chs_host_diskinfo.ebs.volume_id }}) -%}
+          {%- for chs_host in cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '!=', 'current') -%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.tagslabels.Name | regex_replace('-(?!.*-).*') -%}
+              {%- for chs_host_diskinfo in chs_host.disk_info_cloud | selectattr('device_name', '==', cht_autovol.device_name) | selectattr('device_name', '!=', '/dev/sda1') -%}
+                {%- set _ = cht_autovol.update({'src': {'instance_id': chs_host.instance_id, 'device_name': chs_host_diskinfo.device_name, 'volume_id': chs_host_diskinfo.ebs.volume_id }}) -%}
               {%- endfor -%}
             {%- endif -%}
           {%- endfor -%}
@@ -29,5 +16,5 @@
       {%- endfor -%}
       {{cluster_hosts_target}}
 
-- name: _get_diskinfo_aws | cluster_hosts_target
+- name: _add_src_diskinfo_to_cluster_hosts_target/aws | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Copyright 2020 Dougal Seeley <github@dougalseeley.com>
+# Copyright (c) 2021, Dougal Seeley
+# https://github.com/dseeley/esxifree_guest
 # BSD 3-Clause License
 
 from __future__ import absolute_import, division, print_function
@@ -23,9 +24,10 @@ author:
 requirements:
 - python >= 2.7
 - paramiko
+- xmltodict
 notes:
     - Please make sure that the user used for esxifree_guest should have correct level of privileges.
-    - Tested on vSphere 6.7
+    - Tested on vSphere 7.0.2
 options:
   hostname:
     description:
@@ -343,6 +345,7 @@ import sys
 import base64
 import yaml
 import errno  # For the python2.7 IOError, because FileNotFound is for python3
+import xmltodict
 
 # define a custom yaml representer to force quoted strings
 yaml.add_representer(str, lambda dumper, data: dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"'))
@@ -359,7 +362,6 @@ except ImportError:
     from cookielib import CookieJar
     from httplib import HTTPResponse
 import ssl
-import xml.dom.minidom
 
 if sys.version_info[0] < 3:
     from io import BytesIO as StringIO
@@ -381,7 +383,8 @@ class vmw_soap_client(object):
         self.vmware_soap_session_cookie = None
         self.host = host
         response, cookies = self.send_req("<RetrieveServiceContent><_this>ServiceInstance</_this></RetrieveServiceContent>")
-        sessionManager_name = xml.dom.minidom.parseString(response.read()).getElementsByTagName("sessionManager")[0].firstChild.data
+        xmltodictresponse = xmltodict.parse(response.read())
+        sessionManager_name = xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrieveServiceContentResponse']['returnval']['sessionManager']['#text']
 
         response, cookies = self.send_req("<Login><_this>" + sessionManager_name + "</_this><userName>" + username + "</userName><password>" + password + "</password></Login>")
         self.vmware_soap_session_cookie = cookies['vmware_soap_session'].value
@@ -406,17 +409,16 @@ class vmw_soap_client(object):
         while time_s > 0:
             response, cookies = self.send_req('<RetrieveProperties><_this type="PropertyCollector">ha-property-collector</_this><specSet><propSet><type>Task</type><all>false</all><pathSet>info</pathSet></propSet><objectSet><obj type="Task">' + task + '</obj><skip>false</skip></objectSet></specSet></RetrieveProperties>')
             if isinstance(response, HTTPResponse) or isinstance(response, addinfourl):
-                xmldom = xml.dom.minidom.parseString(response.read())
-                if len(xmldom.getElementsByTagName('state')):
-                    if xmldom.getElementsByTagName('state')[0].firstChild.data == 'success':
-                        response = xmldom.getElementsByTagName('state')[0].firstChild.data
-                        break
-                    elif xmldom.getElementsByTagName('state')[0].firstChild.data == 'error':
-                        response = str(xmldom.toxml())
-                        break
-                else:
+                xmltodictresponse = xmltodict.parse(response.read())
+                if xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesResponse']['returnval']['propSet']['val'] == 'running':
                     time.sleep(1)
                     time_s = time_s - 1
+                elif xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesResponse']['returnval']['propSet']['val']['state'] == 'success':
+                    response = xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesResponse']['returnval']['propSet']['val']['state']
+                    break
+                elif xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesResponse']['returnval']['propSet']['val']['state'] == 'error':
+                    response = str(xmltodictresponse)
+                    break
             else:
                 break
         return response
@@ -623,9 +625,8 @@ class esxiFreeScraper(object):
 
                 ### Disk cloning - clone all disks from source
                 response, cookies = self.soap_client.send_req('<RetrievePropertiesEx><_this type="PropertyCollector">ha-property-collector</_this><specSet><propSet><type>VirtualMachine</type><all>false</all><pathSet>layout</pathSet></propSet><objectSet><obj type="VirtualMachine">' + str(template_moid) + '</obj><skip>false</skip></objectSet></specSet><options/></RetrievePropertiesEx>')
-                xmldom = xml.dom.minidom.parseString(response.read())
-                srcDiskFiles = [data.firstChild.data for data in xmldom.getElementsByTagName("diskFile")]
-
+                xmltodictresponse = xmltodict.parse(response.read(), force_list='disk')
+                srcDiskFiles = [disk.get('diskFile') for disk in xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesExResponse']['returnval']['objects']['propSet']['val']['disk']]
                 for srcDiskFile in srcDiskFiles:
                     srcDiskFileInfo = re.search('^\[(?P<datastore>.*?)\] *(?P<fulldiskpath>.*\/(?P<filepath>(?P<fileroot>.*?)(?:--(?P<diskname_suffix>.*?))?\.vmdk))$', srcDiskFile)
                     diskTypeKey = next((key for key, val in template_vmxDict.items() if val == srcDiskFileInfo.group('filepath')), None)
@@ -774,22 +775,22 @@ class esxiFreeScraper(object):
         if annotation:
             # Update the config (annotation) in the running VM
             response, cookies = self.soap_client.send_req('<ReconfigVM_Task><_this type="VirtualMachine">' + str(self.moid) + '</_this><spec><annotation>' + annotation + '</annotation></spec></ReconfigVM_Task>')
-            waitresp = self.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data)
+            waitresp = self.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['ReconfigVM_TaskResponse']['returnval']['#text'])
             if waitresp != 'success':
                 return ("Failed to ReconfigVM_Task: %s" % waitresp)
 
-            # Now update the disk (should not be necessary, but for some reason, sometimes the ReconfigVM_Task does not flush config to disk).
+            # Now update the vmxFile on disk (should not be necessary, but for some reason, sometimes the ReconfigVM_Task does not flush config to disk).
             vmxDict.update({"annotation": annotation})
 
         if disks:
             curDisks = [{"filename": vmxDict[scsiDisk], "volname": re.sub(r".*--([\w\d]+)\.vmdk", r"\1", vmxDict[scsiDisk])} for scsiDisk in sorted(vmxDict) if re.match(r"scsi0:\d\.filename", scsiDisk)]
             curDisksCount = len(curDisks)
             newDisks = [newDisk for newDisk in disks if ('boot' not in newDisk or newDisk['boot'] == False)]
-            for newDiskCount,newDisk in enumerate(newDisks):
+            for newDiskCount, newDisk in enumerate(newDisks):
                 scsiDiskIdx = newDiskCount + curDisksCount
                 disk_filename = self.name + "--" + newDisk['volname'] + ".vmdk"
 
-                #Don't clone already existing disks
+                # Don't clone already-existing disks
                 try:
                     (stdin, stdout, stderr) = self.esxiCnx.exec_command("stat " + os.path.dirname(vmxPath) + "/" + disk_filename)
                 except IOError as e:
@@ -809,7 +810,7 @@ class esxiFreeScraper(object):
                         (stdin, stdout, stderr) = self.esxiCnx.exec_command("vmkfstools -c " + str(newDisk['size_gb']) + "G -d " + newDisk['type'] + " " + os.path.dirname(vmxPath) + "/" + disk_filename)
 
                     # if this is a new disk, not a restatement of an existing disk:
-                    if len(curDisks) >= newDiskCount+2 and curDisks[newDiskCount+1]['volname'] == newDisk['volname']:
+                    if len(curDisks) >= newDiskCount + 2 and curDisks[newDiskCount + 1]['volname'] == newDisk['volname']:
                         pass
                     else:
                         vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".devicetype": "scsi-hardDisk"})
@@ -909,22 +910,36 @@ def main():
                 "cloudinit_userdata": [],
                 "customvalues": [],
                 "datastore": "4tb-evo860-ssd",
+                "disks": [],
                 # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
-                "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
+                # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
                 "force": False,
                 "guest_id": "ubuntu-64",
                 "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
                 "hostname": "192.168.1.3",
                 "moid": None,
-                "name": "testdisks-dev-sys-a0-1601205102",
+                "name": "dougal-test-dev-sys-a0-new",
                 "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
                 "password": sys.argv[2],
                 "state": "present",
-                "template": "gold-ubuntu2004-20200912150257",
+                "template": "dougal-test-dev-sys-a0-1617553110",
                 "username": "svc",
                 "wait": True,
                 "wait_timeout": 180
             }
+
+            # ## Poweroff VM
+            # params = {
+            #     # "annotation": "{'Name': 'dougal-test-dev-sysdisks2-a0-1617548508', 'hosttype': 'sysdisks2', 'env': 'dev', 'cluster_name': 'dougal-test-dev', 'owner': 'dougal', 'cluster_suffix': '1617548508', 'lifecycle_state': 'retiring', 'maintenance_mode': 'false'}",
+            #     "disks": None,
+            #     "hostname": "192.168.1.3",
+            #     "name": "dougal-test-dev-sysdisks2-a0-1617548508",
+            #     "moid": None,
+            #     "password": sys.argv[2],
+            #     "state": "poweredoff",
+            #     "username": "svc",
+            #     "wait_timeout": 180
+            # }
 
             ## Delete VM
             # params = {
@@ -984,7 +999,7 @@ def main():
             (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
             if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
                 response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
-                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOnVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                     module.fail_json(msg="Failed to PowerOnVM_Task")
                 module.exit_json(changed=True, meta={"msg": "Powered-on " + iScraper.name + ": " + str(iScraper.moid)})
             else:
@@ -997,7 +1012,7 @@ def main():
             (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
             if re.search('Powered on', stdout.read().decode('UTF-8')) is not None:
                 response, cookies = iScraper.soap_client.send_req('<PowerOffVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOffVM_Task>')
-                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOffVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                     module.fail_json(msg="Failed to PowerOffVM_Task")
                 module.exit_json(changed=True, meta={"msg": "Powered-off " + iScraper.name + ": " + str(iScraper.moid)})
             else:
@@ -1009,10 +1024,10 @@ def main():
         if iScraper.moid:
             # Turn off (ignoring failures), then destroy
             response, cookies = iScraper.soap_client.send_req('<PowerOffVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOffVM_Task>')
-            iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout']))
+            iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOffVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout']))
 
             response, cookies = iScraper.soap_client.send_req('<Destroy_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></Destroy_Task>')
-            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+            if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['Destroy_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                 module.fail_json(msg="Failed to Destroy_Task")
             module.exit_json(changed=True, meta={"msg": "Deleted " + iScraper.name + ": " + str(iScraper.moid)})
         else:
@@ -1023,12 +1038,10 @@ def main():
             (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
             if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
                 response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
-                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+                if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOffVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                     module.fail_json(msg="Failed to PowerOnVM_Task")
             else:
                 response, cookies = iScraper.soap_client.send_req('<RebootGuest><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></RebootGuest>')
-                if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
-                    module.fail_json(msg="Failed to RebootGuest")
             module.exit_json(changed=True, meta={"msg": "Rebooted " + iScraper.name + ": " + str(iScraper.moid)})
         else:
             module.fail_json(msg="VM doesn't exist.")
@@ -1039,18 +1052,26 @@ def main():
         if iScraper.moid and module.params['force']:
             # Turn off (ignoring failures), then destroy
             response, cookies = iScraper.soap_client.send_req('<PowerOffVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOffVM_Task>')
-            iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout']))
+            if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOffVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
+                module.fail_json(msg="Failed to PowerOffVM_Task (prior to Destroy_Task")
 
             response, cookies = iScraper.soap_client.send_req('<Destroy_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></Destroy_Task>')
-            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+            if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['Destroy_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                 module.fail_json(msg="Failed to Destroy_Task")
             iScraper.moid = None
 
         # If the VM doesn't exist, create it.
         if iScraper.moid is None:
-            createVmResult = iScraper.create_vm(module.params['template'], module.params['annotation'], module.params['datastore'], module.params['hardware'], module.params['guest_id'], module.params['disks'], module.params['cdrom'], module.params['customvalues'], module.params['networks'], module.params['cloudinit_userdata'])
-            if createVmResult != None:
-                module.fail_json(msg="Failed to create_vm: %s" % createVmResult)
+            # If we're cloning, ensure template VM is powered off.
+            if module.params['template'] is not None:
+                iScraperTemplate = esxiFreeScraper(hostname=module.params['hostname'], username=module.params['username'], password=module.params['password'], name=module.params['template'], moid=None)
+                (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraperTemplate.moid))
+                if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
+                    createVmResult = iScraper.create_vm(module.params['template'], module.params['annotation'], module.params['datastore'], module.params['hardware'], module.params['guest_id'], module.params['disks'], module.params['cdrom'], module.params['customvalues'], module.params['networks'], module.params['cloudinit_userdata'])
+                    if createVmResult != None:
+                        module.fail_json(msg="Failed to create_vm: %s" % createVmResult)
+                else:
+                    module.fail_json(msg="Template VM must be powered off before cloning")
 
         else:
             updateVmResult = iScraper.update_vm(annotation=module.params['annotation'], disks=module.params['disks'])
@@ -1060,7 +1081,7 @@ def main():
         (stdin, stdout, stderr) = iScraper.esxiCnx.exec_command("vim-cmd vmsvc/power.getstate " + str(iScraper.moid))
         if re.search('Powered off', stdout.read().decode('UTF-8')) is not None:
             response, cookies = iScraper.soap_client.send_req('<PowerOnVM_Task><_this type="VirtualMachine">' + str(iScraper.moid) + '</_this></PowerOnVM_Task>')
-            if iScraper.soap_client.wait_for_task(xml.dom.minidom.parseString(response.read()).getElementsByTagName('returnval')[0].firstChild.data, int(module.params['wait_timeout'])) != 'success':
+            if iScraper.soap_client.wait_for_task(xmltodict.parse(response.read())['soapenv:Envelope']['soapenv:Body']['PowerOnVM_TaskResponse']['returnval']['#text'], int(module.params['wait_timeout'])) != 'success':
                 module.fail_json(msg="Failed to PowerOnVM_Task")
 
         isChanged = True

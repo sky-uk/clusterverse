@@ -1,32 +1,17 @@
 ---
 
-- name: _get_diskinfo_gcp | Get existing GCE instance info (per AZ)
-  gcp_compute_instance_info:
-    zone: "{{cluster_vars.region}}-{{item}}"
-    filters:
-      - "labels.cluster_name = {{cluster_name}}"
-    project: "{{cluster_vars[buildenv].vpc_project_id}}"
-    auth_kind: "serviceaccount"
-    service_account_file: "{{gcp_credentials_file}}"
-    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"
-  register: r__gcp_compute_instance_info
-
-- name: _get_diskinfo_gcp | r__gcp_compute_instance_info.results
-  debug: msg={{r__gcp_compute_instance_info.results}}
-
-- name: _get_diskinfo_gcp | augment/update cluster_hosts_target auto_volumes with source disk info
+- name: _add_src_diskinfo_to_cluster_hosts_target/gcp | augment/update cluster_hosts_target auto_volumes with source disk info
   set_fact:
     cluster_hosts_target: |
       {%- for cht_host in cluster_hosts_target -%}
         {%- for cht_autovol in cht_host.auto_volumes -%}
-          {%- for gcp_compute_instance_result in r__gcp_compute_instance_info.results | json_query('[].resources[?labels.lifecycle_state != "current"][]') -%}
-            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == gcp_compute_instance_result.name | regex_replace('-(?!.*-).*') -%}
-              {%- for gcp_compute_instance_diskinfo in gcp_compute_instance_result.disks -%}
-                {%- if cht_autovol.initialize_params.disk_name | regex_replace('(.*)-.*(--.*)', '\\1\\2') == gcp_compute_instance_diskinfo.source | basename | regex_replace('(.*)-.*(--.*)', '\\1\\2') -%}
-                  {%- set _ = cht_autovol.update({'device_name': gcp_compute_instance_diskinfo.source | basename}) -%}
-                  {%- set _ = cht_autovol.update({'src': {'hostname': gcp_compute_instance_result.name, 'device_name': cht_autovol.device_name, 'source_url': gcp_compute_instance_diskinfo.source }}) -%}
-                  {%- set _ = cht_autovol.update({'initialize_params': {'disk_name': cht_autovol.device_name, 'disk_size_gb': gcp_compute_instance_diskinfo.diskSizeGb}}) -%}
+          {%- for chs_host in cluster_hosts_state | json_query('[?tagslabels.lifecycle_state != "current"]') -%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.name | regex_replace('-(?!.*-).*') -%}
+              {%- for chs_host_diskinfo in chs_host.disk_info_cloud -%}
+                {%- if cht_autovol.initialize_params.disk_name | regex_replace('(.*)-.*(--.*)', '\\1\\2') == chs_host_diskinfo.source | basename | regex_replace('(.*)-.*(--.*)', '\\1\\2') -%}
+                  {%- set _ = cht_autovol.update({'device_name': chs_host_diskinfo.source | basename}) -%}
+                  {%- set _ = cht_autovol.update({'src': {'hostname': chs_host.name, 'device_name': cht_autovol.device_name, 'source_url': chs_host_diskinfo.source }}) -%}
+                  {%- set _ = cht_autovol.update({'initialize_params': {'disk_name': cht_autovol.device_name, 'disk_size_gb': chs_host_diskinfo.diskSizeGb}}) -%}
                 {%- endif -%}
               {%- endfor -%}
             {%- endif -%}
@@ -35,5 +20,5 @@
       {%- endfor -%}
       {{cluster_hosts_target}}
 
-- name: _get_diskinfo_gcp | cluster_hosts_target
+- name: _add_src_diskinfo_to_cluster_hosts_target/gcp | cluster_hosts_target
   debug: msg={{cluster_hosts_target}}
