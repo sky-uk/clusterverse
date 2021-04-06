@@ -1,0 +1,13 @@
+---
+
+_ubuntu2004image: "gold-ubuntu2004l-20210324080648"
+_centos7image: "gold-ubuntu2004l-20210324080648"
+
+cluster_vars:
+  image: "{{_ubuntu2004image}}"
+  esxi_ip: "192.168.1.3"
+  username: "svc"
+  password: !vault |
+    $ANSIBLE_VAULT;1.1;AES256
+    7669080460651349243347331538721104778691266429457726036813912140404310
+  datastore: "4tb-evo860-ssd"

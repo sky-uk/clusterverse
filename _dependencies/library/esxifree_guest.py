@@ -59,7 +59,7 @@ options:
       then the specified virtual machine is powered off.'
     - 'If C(state) is set to C(shutdownguest) and virtual machine exists, then the virtual machine is shutdown.'
     - 'If C(state) is set to C(rebootguest) and virtual machine exists, then the virtual machine is rebooted.'
-    choices: [ present, absent, poweredon, poweredoff, shutdownguest, rebootguest ]
+    choices: [ present, absent, poweredon, poweredoff, shutdownguest, rebootguest, unchanged ]
     default: present
   name:
     description:
@@ -526,12 +526,12 @@ class esxiFreeScraper(object):
             self.name = name
 
     def get_vm(self, name=None, moid=None):
-        (stdin, stdout, stderr) = self.esxiCnx.exec_command("vim-cmd vmsvc/getallvms")
-        allVms = stdout.readlines()
+        response, cookies = self.soap_client.send_req('<RetrievePropertiesEx><_this type="PropertyCollector">ha-property-collector</_this><specSet><propSet><type>VirtualMachine</type><all>false</all><pathSet>name</pathSet></propSet><objectSet><obj type="Folder">ha-folder-vm</obj><selectSet xsi:type="TraversalSpec"><name>traverseChild</name><type>Folder</type><path>childEntity</path> <selectSet><name>traverseChild</name></selectSet><selectSet xsi:type="TraversalSpec"><type>Datacenter</type><path>vmFolder</path><selectSet><name>traverseChild</name></selectSet> </selectSet> </selectSet> </objectSet></specSet><options type="RetrieveOptions"></options></RetrievePropertiesEx>')
+        xmltodictresponse = xmltodict.parse(response.read())
+        allVms = [{'moid': a['obj']['#text'], 'name': a['propSet']['val']['#text']} for a in xmltodictresponse['soapenv:Envelope']['soapenv:Body']['RetrievePropertiesExResponse']['returnval']['objects']]
         for vm in allVms:
-            vm_params = re.search('^(?P<vmid>\d+)\s+(?P<vmname>.*?)\s+(?P<datastore>\[.*?\])\s+(?P<vmxpath>.*?)\s+(?P<guest>.*?)\s+(?P<ver>.*?)(:\s+(?P<annotation>.*))?$', vm)
-            if vm_params and vm_params.group('vmname') and vm_params.group('vmid') and ((name and name == vm_params.group('vmname')) or (moid and moid == vm_params.group('vmid'))):
-                return vm_params.group('vmname'), vm_params.group('vmid')
+            if ((name and name == vm['name']) or (moid and moid == vm['moid'])):
+                return vm['name'], vm['moid']
         return None, None
 
     def get_vmx(self, moid):
@@ -902,44 +902,45 @@ def main():
             #     "wait_timeout": 180,
             # }
 
-            ## Clone VM
-            params = {
-                "annotation": None,
-                # "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
-                "cdrom": {"type": "client"},
-                "cloudinit_userdata": [],
-                "customvalues": [],
-                "datastore": "4tb-evo860-ssd",
-                "disks": [],
-                # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
-                # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
-                "force": False,
-                "guest_id": "ubuntu-64",
-                "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
-                "hostname": "192.168.1.3",
-                "moid": None,
-                "name": "dougal-test-dev-sys-a0-new",
-                "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
-                "password": sys.argv[2],
-                "state": "present",
-                "template": "dougal-test-dev-sys-a0-1617553110",
-                "username": "svc",
-                "wait": True,
-                "wait_timeout": 180
-            }
-
-            # ## Poweroff VM
+            # ## Clone VM
             # params = {
-            #     # "annotation": "{'Name': 'dougal-test-dev-sysdisks2-a0-1617548508', 'hosttype': 'sysdisks2', 'env': 'dev', 'cluster_name': 'dougal-test-dev', 'owner': 'dougal', 'cluster_suffix': '1617548508', 'lifecycle_state': 'retiring', 'maintenance_mode': 'false'}",
-            #     "disks": None,
+            #     "annotation": None,
+            #     # "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
+            #     "cdrom": {"type": "client"},
+            #     "cloudinit_userdata": [],
+            #     "customvalues": [],
+            #     "datastore": "4tb-evo860-ssd",
+            #     "disks": [],
+            #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
+            #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
+            #     "force": False,
+            #     "guest_id": "ubuntu-64",
+            #     "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
             #     "hostname": "192.168.1.3",
-            #     "name": "dougal-test-dev-sysdisks2-a0-1617548508",
             #     "moid": None,
+            #     "name": "dougal-test-dev-sys-a0-new",
+            #     "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
             #     "password": sys.argv[2],
-            #     "state": "poweredoff",
+            #     "state": "present",
+            #     "template": "dougal-test-dev-sys-a0-1617553110",
             #     "username": "svc",
+            #     "wait": True,
             #     "wait_timeout": 180
             # }
+
+            # ## Update VM
+            params = {
+                # "annotation": "{'Name': 'dougal-test-dev-sysdisks2-a0-1617548508', 'hosttype': 'sysdisks2', 'env': 'dev', 'cluster_name': 'dougal-test-dev', 'owner': 'dougal', 'cluster_suffix': '1617548508', 'lifecycle_state': 'retiring', 'maintenance_mode': 'false'}",
+                "annotation": None,
+                "disks": None,
+                "hostname": "192.168.1.3",
+                "name": "cvtest-16-dd9032f65aef7-dev-sys-b0-1617726990",
+                "moid": None,
+                "password": sys.argv[2],
+                "state": "unchanged",
+                "username": "svc",
+                "wait_timeout": 180
+            }
 
             ## Delete VM
             # params = {

@@ -9,9 +9,9 @@
         password: "{{ cluster_vars.password }}"
         name: "{{item.name}}"
         state: absent
+      with_items: "{{hosts_to_clean}}"
       register: esxi_instances
       run_once: true
-      with_items: "{{hosts_to_clean}}"
       async: 7200
       poll: 0
 

@@ -29,6 +29,11 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_ty
 ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
 ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
+### ESXi (free):
+```
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=esxifree -e region=homelab --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=esxifree -e region=homelab --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+```
 ### Azure:
 ```
 ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py
