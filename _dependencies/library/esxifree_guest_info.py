@@ -44,13 +44,13 @@ options:
     type: str
   name:
     description:
-    - Name of the virtual machine to work with (optional).
+    - Name of the virtual machine to retrieve (optional).
     - Virtual machine names in ESXi are unique
     - This parameter is case sensitive.
     type: str
   moid:
     description:
-    - Managed Object ID of the virtual machine to manage
+    - Managed Object ID of the virtual machine (optional).
     type: str
 '''
 EXAMPLES = r'''
@@ -81,6 +81,7 @@ instance:
 import json
 import re
 import sys
+import time
 import xmltodict
 
 # For the soap client
@@ -96,10 +97,19 @@ except ImportError:
     from httplib import HTTPResponse
 import ssl
 
+
 try:
     from ansible.module_utils.basic import AnsibleModule
 except:
-    pass
+    # For testing without Ansible (e.g on Windows)
+    class cDummyAnsibleModule():
+        def __init__(self):
+            self.params={}
+        def exit_json(self, changed, **kwargs):
+            print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
+        def fail_json(self, msg):
+            print("Failed: " + msg)
+            exit(1)
 
 
 # Executes soap requests on the remote host.
@@ -122,10 +132,20 @@ class vmw_soap_client(object):
                 headers={"Content-Type": "text/xml", "SOAPAction": "urn:vim25/6.7.3", "Accept": "*/*", "Cookie": "vmware_client=VMware; vmware_soap_session=" + str(self.vmware_soap_session_cookie)})
 
         opener = build_opener(HTTPSHandler(context=ssl._create_unverified_context()), HTTPCookieProcessor(cj))
-        try:
-            response = opener.open(req, timeout=30)
-        except HTTPError as err:
-            response = str(err)
+        num_send_attempts = 3
+        for send_attempt in range(num_send_attempts):
+            try:
+                response = opener.open(req, timeout=30)
+            except HTTPError as err:
+                response = str(err)
+            except:
+                if send_attempt < num_send_attempts - 1:
+                    time.sleep(1)
+                    continue
+                else:
+                    raise
+            break
+
         cookies = {i.name: i for i in list(cj)}
         return (response[0] if isinstance(response, list) else response, cookies)  # If the cookiejar contained anything, we get a list of two responses
 
@@ -226,23 +246,15 @@ def main():
         module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
     else:
         # For testing without Ansible (e.g on Windows)
-        class cDummyAnsibleModule():
-            params = {
-                "hostname": "192.168.1.3",
-                "username": "svc",
-                "password": sys.argv[2],
-                "name": None,  # "parsnip-prod-sys-a0-1616868999",
-                "moid": None  # 350
-            }
-
-            def exit_json(self, changed, **kwargs):
-                print(changed, json.dumps(kwargs, sort_keys=True, indent=2, separators=(',', ': ')))
-
-            def fail_json(self, msg):
-                print("Failed: " + msg)
-                exit(1)
-
         module = cDummyAnsibleModule()
+        ## Update VM
+        module.params = {
+            "hostname": "192.168.1.3",
+            "username": "svc",
+            "password": sys.argv[2],
+            "name": None,  # "parsnip-prod-sys-a0-1616868999",
+            "moid": None  # 350
+        }
 
     iScraper = esxiFreeScraper(hostname=module.params['hostname'], username=module.params['username'], password=module.params['password'])
 

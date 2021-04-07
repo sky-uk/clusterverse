@@ -16,8 +16,8 @@ DOCUMENTATION = r'''
 module: esxifree_guest
 short_description: Manages virtual machines in ESXi without a dependency on the vSphere/ vCenter API.
 description: >
-   This module can be used to create new virtual machines from templates or other virtual machines,
-   manage power state of virtual machine such as power on, power off, suspend, shutdown, reboot, restart etc.,
+   This module can be used to create new virtual machines from scratch or from templates or other virtual machines (i.e. clone them),
+   delete, or manage the power state of virtual machine such as power on, power off, suspend, shutdown, reboot, restart etc.,
 version_added: '2.7'
 author:
 - Dougal Seeley (ansible@dougalseeley.com)
@@ -59,6 +59,7 @@ options:
       then the specified virtual machine is powered off.'
     - 'If C(state) is set to C(shutdownguest) and virtual machine exists, then the virtual machine is shutdown.'
     - 'If C(state) is set to C(rebootguest) and virtual machine exists, then the virtual machine is rebooted.'
+    - 'If C(state) is set to C(unchanged) the state of the VM will not change (if it's on/off, it will stay so).  Used for updating annotations.'
     choices: [ present, absent, poweredon, poweredoff, shutdownguest, rebootguest, unchanged ]
     default: present
   name:
@@ -374,8 +375,15 @@ else:
 try:
     from ansible.module_utils.basic import AnsibleModule
 except:
-    pass
-
+    # For testing without Ansible (e.g on Windows)
+    class cDummyAnsibleModule():
+        def __init__(self):
+            self.params={}
+        def exit_json(self, changed, **kwargs):
+            print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
+        def fail_json(self, msg):
+            print("Failed: " + msg)
+            exit(1)
 
 # Executes soap requests on the remote host.
 class vmw_soap_client(object):
@@ -397,10 +405,20 @@ class vmw_soap_client(object):
                 headers={"Content-Type": "text/xml", "SOAPAction": "urn:vim25/6.7.3", "Accept": "*/*", "Cookie": "vmware_client=VMware; vmware_soap_session=" + str(self.vmware_soap_session_cookie)})
 
         opener = build_opener(HTTPSHandler(context=ssl._create_unverified_context()), HTTPCookieProcessor(cj))
-        try:
-            response = opener.open(req, timeout=30)
-        except HTTPError as err:
-            response = str(err)
+        num_send_attempts = 3
+        for send_attempt in range(num_send_attempts):
+            try:
+                response = opener.open(req, timeout=30)
+            except HTTPError as err:
+                response = str(err)
+            except:
+                if send_attempt < num_send_attempts - 1:
+                    time.sleep(1)
+                    continue
+                else:
+                    raise
+            break
+
         cookies = {i.name: i for i in list(cj)}
         return (response[0] if isinstance(response, list) else response, cookies)  # If the cookiejar contained anything, we get a list of two responses
 
@@ -878,88 +896,79 @@ def main():
         module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, required_one_of=[['name', 'moid']])
     else:
         # For testing without Ansible (e.g on Windows)
-        class cDummyAnsibleModule():
-            ## Create blank VM
-            # params = {
-            #     "hostname": "192.168.1.3",
-            #     "username": "svc",
-            #     "password": None,
-            #     "name": "test-asdf",
-            #     "moid": None,
-            #     "template": None,
-            #     "state": "present",
-            #     "force": False,
-            #     "datastore": "4tb-evo860-ssd",
-            #     "annotation": "{'Name': 'test-asdf'}",
-            #     "guest_id": "ubuntu-64",
-            #     "hardware": {"version": "15", "num_cpus": "2", "memory_mb": "2048"},
-            #     "cloudinit_userdata": [],
-            #     "disks": [{"boot": True, "size_gb": 16, "type": "thin"}, {"size_gb": 5, "type": "thin"}, {"size_gb": 2, "type": "thin"}],
-            #     "cdrom": {"type": "iso", "iso_path": "/vmfs/volumes/4tb-evo860-ssd/ISOs/ubuntu-18.04.2-server-amd64.iso"},
-            #     "networks": [{"networkName": "VM Network", "virtualDev": "vmxnet3"}],
-            #     "customvalues": [],
-            #     "wait": True,
-            #     "wait_timeout": 180,
-            # }
-
-            # ## Clone VM
-            # params = {
-            #     "annotation": None,
-            #     # "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
-            #     "cdrom": {"type": "client"},
-            #     "cloudinit_userdata": [],
-            #     "customvalues": [],
-            #     "datastore": "4tb-evo860-ssd",
-            #     "disks": [],
-            #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
-            #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
-            #     "force": False,
-            #     "guest_id": "ubuntu-64",
-            #     "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
-            #     "hostname": "192.168.1.3",
-            #     "moid": None,
-            #     "name": "dougal-test-dev-sys-a0-new",
-            #     "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
-            #     "password": sys.argv[2],
-            #     "state": "present",
-            #     "template": "dougal-test-dev-sys-a0-1617553110",
-            #     "username": "svc",
-            #     "wait": True,
-            #     "wait_timeout": 180
-            # }
-
-            # ## Update VM
-            params = {
-                # "annotation": "{'Name': 'dougal-test-dev-sysdisks2-a0-1617548508', 'hosttype': 'sysdisks2', 'env': 'dev', 'cluster_name': 'dougal-test-dev', 'owner': 'dougal', 'cluster_suffix': '1617548508', 'lifecycle_state': 'retiring', 'maintenance_mode': 'false'}",
-                "annotation": None,
-                "disks": None,
-                "hostname": "192.168.1.3",
-                "name": "cvtest-16-dd9032f65aef7-dev-sys-b0-1617726990",
-                "moid": None,
-                "password": sys.argv[2],
-                "state": "unchanged",
-                "username": "svc",
-                "wait_timeout": 180
-            }
-
-            ## Delete VM
-            # params = {
-            #     "hostname": "192.168.1.3",
-            #     "username": "svc",
-            #     "password": None,
-            #     "name": "test-asdf",
-            #     "moid": None,
-            #     "state": "absent"
-            # }
-
-            def exit_json(self, changed, **kwargs):
-                print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
-
-            def fail_json(self, msg):
-                print("Failed: " + msg)
-                exit(1)
-
         module = cDummyAnsibleModule()
+        ## Update VM
+        module.params = {
+            "hostname": "192.168.1.3",
+            "username": "svc",
+            "password": sys.argv[2],
+            # "annotation": "{'Name': 'dougal-test-dev-sysdisks2-a0-1617548508', 'hosttype': 'sysdisks2', 'env': 'dev', 'cluster_name': 'dougal-test-dev', 'owner': 'dougal', 'cluster_suffix': '1617548508', 'lifecycle_state': 'retiring', 'maintenance_mode': 'false'}",
+            "annotation": None,
+            "disks": None,
+            "name": "cvtest-16-dd9032f65aef7-dev-sys-b0-1617726990",
+            "moid": None,
+            "state": "unchanged",
+            "wait_timeout": 180
+        }
+
+        # ## Delete VM
+        # module.params = {
+        #     "hostname": "192.168.1.3",
+        #     "username": "svc",
+        #     "password": sys.argv[2],
+        #     "name": "test-asdf",
+        #     "moid": None,
+        #     "state": "absent"
+        # }
+        #
+        # ## Clone VM
+        # module.params = {
+        #     "hostname": "192.168.1.3",
+        #     "username": "svc",
+        #     "password": sys.argv[2],
+        #     "annotation": None,
+        #     # "annotation": "{'lifecycle_state': 'current', 'Name': 'test-prod-sys-a0-1589979249', 'cluster_suffix': '1589979249', 'hosttype': 'sys', 'cluster_name': 'test-prod', 'env': 'prod', 'owner': 'dougal'}",
+        #     "cdrom": {"type": "client"},
+        #     "cloudinit_userdata": [],
+        #     "customvalues": [],
+        #     "datastore": "4tb-evo860-ssd",
+        #     "disks": [],
+        #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
+        #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
+        #     "force": False,
+        #     "guest_id": "ubuntu-64",
+        #     "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
+        #     "moid": None,
+        #     "name": "dougal-test-dev-sys-a0-new",
+        #     "networks": [{"cloudinit_netplan": {"ethernets": {"eth0": {"dhcp4": True}}}, "networkName": "VM Network", "virtualDev": "vmxnet3"}],
+        #     "state": "present",
+        #     "template": "dougal-test-dev-sys-a0-1617553110",
+        #     "wait": True,
+        #     "wait_timeout": 180
+        # }
+        #
+        # ## Create blank VM
+        # module.params = {
+        #     "hostname": "192.168.1.3",
+        #     "username": "svc",
+        #     "password": sys.argv[2],
+        #     "name": "test-asdf",
+        #     "annotation": "{'Name': 'test-asdf'}",
+        #     "datastore": "4tb-evo860-ssd",
+        #     "force": False,
+        #     "moid": None,
+        #     "template": None,
+        #     "state": "present",
+        #     "guest_id": "ubuntu-64",
+        #     "hardware": {"version": "15", "num_cpus": "2", "memory_mb": "2048"},
+        #     "cloudinit_userdata": [],
+        #     "disks": [{"boot": True, "size_gb": 16, "type": "thin"}, {"size_gb": 5, "type": "thin"}, {"size_gb": 2, "type": "thin"}],
+        #     "cdrom": {"type": "iso", "iso_path": "/vmfs/volumes/4tb-evo860-ssd/ISOs/ubuntu-18.04.2-server-amd64.iso"},
+        #     "networks": [{"networkName": "VM Network", "virtualDev": "vmxnet3"}],
+        #     "customvalues": [],
+        #     "wait": True,
+        #     "wait_timeout": 180,
+        # }
 
     iScraper = esxiFreeScraper(hostname=module.params['hostname'],
                                username=module.params['username'],
