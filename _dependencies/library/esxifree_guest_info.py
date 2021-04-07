@@ -155,10 +155,8 @@ class esxiFreeScraper(object):
 
     def _getObjSafe(self, inDict, *keys):
         for key in keys:
-            try:
-                inDict = inDict[key]
-            except KeyError:
-                return None
+            try: inDict = inDict[key]
+            except KeyError: return None
         return inDict
 
     def parse_vm(self, vmObj):
@@ -171,7 +169,7 @@ class esxiFreeScraper(object):
         newObj.update({"advanced_settings": {advObj['key']: advObj['value'].get('#text') for advObj in configObj['extraConfig']}})
         newObj.update({"annotation": configObj['annotation']})
         newObj.update({"consolidationNeeded": runtimeObj['consolidationNeeded']})
-        newObj.update({"guest_tools_status": guestObj['toolsRunningStatus']})
+        newObj.update({"guest_tools_status": guestObj['toolsRunningStatus'] if 'toolsRunningStatus' in guestObj else None})
         newObj.update({"guest_tools_version": guestObj['toolsVersion'] if 'toolsVersion' in guestObj else None})
         newObj.update({"hw_cores_per_socket": configObj['hardware']['numCoresPerSocket']})
         newObj.update({"hw_datastores": [configObj['datastoreUrl']['name']]})
