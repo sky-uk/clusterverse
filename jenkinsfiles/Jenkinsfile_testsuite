@@ -119,7 +119,7 @@ class cStageBuild {
   }
 }
 
-// A pipeline 'stage' template for clusterverse-ops boilerplace
+// A pipeline 'stage' template for clusterverse-ops boilerplate
 def stage_cvops(String stageLabel, cStageBuild stageBuild, Closure stageExpressions) {
   stage(stageLabel) {
     if (stageBuild.result == 'SUCCESS') {

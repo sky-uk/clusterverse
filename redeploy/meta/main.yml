@@ -1,5 +1,5 @@
 ---
 
 dependencies:
-  - role: '_dependencies'
+  - role: 'dynamic_inventory'
   - role: 'cluster_hosts'

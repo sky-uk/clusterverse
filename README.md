@@ -188,9 +188,8 @@ The role is designed to run in two modes:
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
       + This is a very basic rolling redeployment of the cluster.  
-      + Canary **is not** supported.
       + _Supports redploying to bigger, but not smaller clusters_
-      + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is no rollback in case of failure.**
+      + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is _no rollback_ in case of failure.**
       + For each node in the cluster:
         + Run `predeleterole`
         + Delete/ terminate the node (note, this is _irreversible_).

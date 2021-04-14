@@ -5,7 +5,7 @@ This is an Ansible module (or python script) that is able to map AWS, GCP and Az
 ### Common
 + `lsblk` is run for options: NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE,HCTL (all of which are supported from CentOS7+ and Ubuntu1804+).
 + _NAME_ is always the OS device name, although in some cases symlinked to a `xvd[\d]` name
-    + For convenience, this is copied to a parameter `device_name_os`
+  + For convenience, this is copied to a parameter `device_name_os`
 + A parameter `device_name_cloud` is created that relates to the name the cloud gives to the device when it is created.
 
 ### AWS
