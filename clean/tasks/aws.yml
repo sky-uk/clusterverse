@@ -1,0 +1,36 @@
+---
+
+- name: clean/aws | clean vms
+  block:
+    - name: clean/aws | Remove instances termination protection
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "{{ item.instance_state }}"
+        termination_protection: "no"
+        instance_ids: ["{{ item.instance_id }}"]
+      with_items: "{{ hosts_to_clean | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
+
+    - name: clean/aws | Delete VMs
+      ec2:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{ cluster_vars.region }}"
+        state: "absent"
+        instance_ids: "{{ hosts_to_clean | json_query(\"[].instance_id\") }}"
+        wait: true
+  when: hosts_to_clean | length
+
+
+- name: clean/aws | clean networking (when '-e clean=_all_')
+  block:
+    - name: clean/aws | Delete security group
+      ec2_group:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        name: "{{ cluster_name }}-sg"
+        vpc_id: "{{vpc_id}}"
+        state: absent
+  when: clean is defined and clean == '_all_'

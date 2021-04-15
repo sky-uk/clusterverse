@@ -12,9 +12,9 @@
 - name: Redeploy by hosttype; rollback on fail
   block:
     - name: Change lifecycle_state label from 'current' to 'retiring'
-      import_role:
+      include_role:
         name: clusterverse/redeploy/__common
-        tasks_from: set_lifecycle_state_label.yml
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current']\") }}"
         new_state: "retiring"
@@ -41,18 +41,21 @@
             name: "{{predeleterole}}"
           when: predeleterole is defined and predeleterole != ""
           vars:
-            hosts_to_remove: "{{ hosts_to_stop | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
+            hosts_to_remove: "{{ hosts_to_change | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
 
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
             name: clusterverse/redeploy/__common
-            tasks_from: poweroff_vms.yml
+            tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+          vars:
+            hosts_to_powerchange: "{{ hosts_to_change }}"
+            powerchange_new_state: "stop"
       vars:
-        hosts_to_stop: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))]\") }}"
+        hosts_to_change: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='retiring' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))]\") }}"
       when: (canary=="finish" or canary=="none")
 
     - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy - can't be in the tidy block because the block depends on this info being correct)
-      import_role:
+      include_role:
         name: clusterverse/cluster_hosts
       when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
 
@@ -71,14 +74,14 @@
   block:
     - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
 
-    - import_role:
+    - include_role:
         name: clusterverse/clean
-        tasks_from: clean_dns.yml
+        tasks_from: dns.yml
       when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
 
-    - import_role:
+    - include_role:
         name: clusterverse/clean
-        tasks_from: clean_vms.yml
+        tasks_from: "{{cluster_vars.type}}.yml"
       when: (hosts_to_clean | length)
 
     - debug:

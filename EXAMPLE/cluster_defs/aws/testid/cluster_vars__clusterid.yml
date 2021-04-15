@@ -18,7 +18,6 @@ beats_config:
 cluster_vars:
   dns_nameserver_zone: &dns_nameserver_zone ""                   # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{cloud_type}}-{{region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
-  dns_server: ""                                                 # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   instance_profile_name: ""
   custom_tagslabels:
     inv_resident_id: "myresident"

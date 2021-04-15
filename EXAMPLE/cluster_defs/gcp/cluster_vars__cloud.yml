@@ -1,7 +1,7 @@
 ---
 
 cluster_vars:
-  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210112"                     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210315"                     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #  image: "projects/ubuntu-os-cloud/global/images/centos-7-v20201216
   dns_cloud_internal_domain: "c.{{ (_gcp_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_server: "clouddns"                                                                          # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.

@@ -1,0 +1,32 @@
+---
+
+- name: "powerchange_vms/azure | hosts_to_powerchange (to {{powerchange_new_state}})"
+  debug: msg="{{hosts_to_powerchange}}"
+
+- name: "powerchange_vms/azure | {{powerchange_new_state}} VM(s) and set maintenance_mode=true (if stopping)"
+  block:
+    - name: "powerchange_vms/azure | {{powerchange_new_state}} VMs asynchronously and set maintenance_mode=true (if stopping)"
+      azure.azcollection.azure_rm_virtualmachine:
+        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+        secret: "{{cluster_vars[buildenv].azure_secret}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        append_tags: yes
+        name: "{{ item.name }}"
+        tags: "{% if powerchange_new_state == 'stop' %}{'maintenance_mode': 'true'}{% else %}{{omit}}{% endif %}"
+        started: "{% if powerchange_new_state == 'stop' %}no{% else %}yes{% endif %}"
+        zones: ["{{ (item.regionzone.split('-'))[1] }}"]
+      register: r__azure_rm_virtualmachine
+      with_items: "{{ hosts_to_powerchange }}"
+      async: 7200
+      poll: 0
+
+    - name: "powerchange_vms/azure | Wait for VM(s) to {{powerchange_new_state}}"
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: async_jobs
+      until: async_jobs.finished
+      retries: 300
+      with_items: "{{r__azure_rm_virtualmachine.results}}"
+  when: hosts_to_powerchange | length

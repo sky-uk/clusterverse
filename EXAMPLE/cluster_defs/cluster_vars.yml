@@ -8,9 +8,10 @@ redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addne
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
 
 skip_dynamic_inventory_sshwait: true
+test_touch_disks: true
 
-app_name: "{{lookup('pipe', 'whoami')}}-test"   # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.  Provided is a default to ensure no accidental overwriting.
-app_class: "test"                               # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
+app_name: "{{lookup('pipe', 'whoami') | lower}}-test"   # The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name.  Provided is a default to ensure no accidental overwriting.
+app_class: "test"                                       # The class of application (e.g. 'database', 'webserver'); becomes part of the fqdn
 
 beats_config:
   filebeat:

@@ -1,0 +1,14 @@
+---
+
+- name: get_cluster_hosts_target/gcp | Update cluster_hosts_target auto_volumes with device_name and initialize_params
+  set_fact:
+    cluster_hosts_target: |-
+      {%- for host in cluster_hosts_target -%}
+        {%- for vol in host.auto_volumes -%}
+          {%- if 'device_name' not in vol -%}
+            {%- set _dummy = vol.update({'device_name': host.hostname + '--' + vol.mountpoint | basename }) -%}
+            {%- set _dummy = vol.update({'initialize_params': {'disk_name': vol.device_name, 'disk_size_gb': vol.volume_size}}) -%}
+          {%- endif -%}
+        {%- endfor %}
+      {%- endfor %}
+      {{ cluster_hosts_target }}

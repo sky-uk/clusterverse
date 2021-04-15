@@ -1,0 +1,29 @@
+---
+
+# Use this because the gce_labels command does not replace existing labels.  https://github.com/ansible/ansible/pull/59891
+- name: remove_maintenance_mode/gcp | Set maintenance_mode=false asynchronously
+  gcp_compute_instance:
+    name: "{{item.name}}"
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    zone: "{{ item.regionzone | regex_replace('^.*/(.*)$', '\\1') }}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+    status: "{{item.instance_state}}"
+    labels: "{{ item.tagslabels | combine({'maintenance_mode': 'false'}) }}"
+  register: r__gcp_compute_instance
+  with_items: "{{ cluster_hosts_state }}"
+  delegate_to: localhost
+  run_once: true
+  async: 7200
+  poll: 0
+
+- name: remove_maintenance_mode/gcp | Wait for maintenance_mode labelling to finish
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: async_jobs
+  until: async_jobs.finished
+  retries: 300
+  with_items: "{{r__gcp_compute_instance.results}}"
+  delegate_to: localhost
+  run_once: true

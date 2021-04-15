@@ -1,0 +1,13 @@
+---
+
+- name: remove_maintenance_mode/aws | Set maintenance_mode to false
+  ec2_tag:
+    aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+    aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    region: "{{cluster_vars.region}}"
+    resource: "{{ item }}"
+    tags:
+      maintenance_mode: "false"
+  delegate_to: localhost
+  run_once: true
+  with_items: "{{ cluster_hosts_state | json_query(\"[].instance_id\") }}"
