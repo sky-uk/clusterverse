@@ -1,5 +1,9 @@
 #!groovy
 
+//@Library('MatrixBuilder')
+//import org.dougalseeley.MatrixBuilder
+
+
 // NOTE: Clusterverse is an independent Ansible role - it cannot run on its own, and needs cluster variables and top-level playbooks of the kind defined in roles/clusterverse/EXAMPLE/ that will import clusterverse
 // This test suite executes (a matrix of) a series of deploy/redeploy/clean steps that are defined in a Jenkinsfile that are located in such a playbook that can actually run clusterverse (e.g. roles/clusterverse/EXAMPLE/jenkinsfiles/Jenkinsfile_ops)
 
@@ -119,7 +123,7 @@ class cStageBuild {
     }
 }
 
-// A pipeline 'stage' template for clusterverse-ops boilerplace
+// A pipeline 'stage' template for clusterverse-ops boilerplate
 def stage_cvops(String stageLabel, cStageBuild stageBuild, Closure stageExpressions) {
     stage(stageLabel) {
         if (stageBuild.result == 'SUCCESS') {
@@ -134,52 +138,53 @@ def stage_cvops(String stageLabel, cStageBuild stageBuild, Closure stageExpressi
     }
 }
 
-/**************************************************************************************/
-// A 'self-test' matrix.  Doesn't actually do anything, just tests the logic of the matrix
-/**************************************************************************************/
-SELFTEST = new MatrixBuilder([
-        jenkinsParams: params,
-        clJenkinsParamsMutate: { jenkinsParams ->
-            jenkinsParams.remove('MYHOSTTYPES_LIST')
-            jenkinsParams.remove('MYHOSTTYPES_TEST')
-            jenkinsParams.remove('MYHOSTTYPES_SERIAL_PARALLEL')
-            jenkinsParams.remove('CLEAN_ON_FAILURE')
-            return jenkinsParams
-        },
-        clMatrixAxesFilter: { axis ->
-            !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
-                    !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
-                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].startsWith('azure/')) &&                                /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
-                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
-                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
-        },
-        clTaskMap: { axisEnvVars ->
-            node {
-                withEnv(axisEnvVars) {
-                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
-                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
-                    }
-                    sh 'printenv | sort'
-                    def stageBuild = new cStageBuild([result: 'SUCCESS'])
-
-                    stage_cvops('deploy', stageBuild, {
-                        echo "deploy"
-                    })
-
-                    stage_cvops('redeploy (1/4 fail)', stageBuild, {
-                        echo "redeploy"
-                        //Test that script can fail individual stages (1 in 4 should fail)
-                        def x = Math.abs(new Random().nextInt() % 4) + 1
-                        if (x == 1) throw new IllegalStateException("Test failed stage")
-                    })
-
-                    stage_cvops('deploy on top', stageBuild, {
-                        echo "deploy on top"
-                    })
-                }
-            }
-        }
-])
+///**************************************************************************************/
+//// A 'self-test' matrix.  Doesn't actually do anything, just tests the logic of the matrix
+///**************************************************************************************/
+////SELFTEST = library('MatrixBuilder').org.dougalseeley.MatrixBuilder.new([
+//SELFTEST = new MatrixBuilder([
+//        jenkinsParams: params,
+//        clJenkinsParamsMutate: { jenkinsParams ->
+//            jenkinsParams.remove('MYHOSTTYPES_LIST')
+//            jenkinsParams.remove('MYHOSTTYPES_TEST')
+//            jenkinsParams.remove('MYHOSTTYPES_SERIAL_PARALLEL')
+//            jenkinsParams.remove('CLEAN_ON_FAILURE')
+//            return jenkinsParams
+//        },
+//        clMatrixAxesFilter: { axis ->
+//            !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
+//                    !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
+//        },
+//        clTaskMap: { axisEnvVars ->
+//            node {
+//                withEnv(axisEnvVars) {
+//                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+//                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+//                    }
+//                    sh 'printenv | sort'
+//                    def stageBuild = new cStageBuild([result: 'SUCCESS'])
+//
+//                    stage_cvops('deploy', stageBuild, {
+//                        echo "deploy"
+//                    })
+//
+//                    stage_cvops('redeploy (1/4 fail)', stageBuild, {
+//                        echo "redeploy"
+//                        //Test that script can fail individual stages (1 in 4 should fail)
+//                        def x = Math.abs(new Random().nextInt() % 4) + 1
+//                        if (x == 1) throw new IllegalStateException("Test failed stage")
+//                    })
+//
+//                    stage_cvops('deploy on top', stageBuild, {
+//                        echo "deploy on top"
+//                    })
+//                }
+//            }
+//        }
+//])
 
 
 /**************************************************************************************/
@@ -197,7 +202,7 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
         clMatrixAxesFilter: { axis ->
             !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
                     !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
-                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].startsWith('azure/')) &&                                /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
         },
@@ -309,11 +314,11 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
             jenkinsParams.remove('CLEAN_ON_FAILURE')
             return jenkinsParams
         },
-        clMatrixAxesFilter: { axis  ->
+        clMatrixAxesFilter: { axis ->
             !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
                     !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_addallnew_rmdisk_rollback') &&                                                                          /* _scheme_addallnew_rmdisk_rollback is not supported with myhostttpes set */
-                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].startsWith('azure/')) &&                                /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
         },
@@ -429,10 +434,7 @@ stage('Check Environment') {
         sh 'printenv | sort'
         println(params.inspect())
         if (params.BUILDENV == '') {
-//            currentBuild.result = 'ABORTED'
-//            error "BUILDENV not defined"
-            unstable("BUILDENV not defined")
-            throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
+            error "BUILDENV not defined"
         }
     }
 }
