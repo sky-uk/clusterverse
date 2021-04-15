@@ -252,6 +252,12 @@ try:
 except:
     pass
 
+# FileNotFoundError does not exist in python2 - it is an IOError
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 try:
     from urllib.request import urlopen
 except ImportError:
@@ -412,9 +418,9 @@ class cAwsMapper(cBlockDevMap):
         response__block_device_mapping = urlopen('http://169.254.169.254/latest/meta-data/block-device-mapping/')
         block_device_mappings = response__block_device_mapping.read().decode().split("\n")
         for block_device_mappings__ephemeral_id in [dev for dev in block_device_mappings if dev.startswith('ephemeral')]:
-            with urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/" + block_device_mappings__ephemeral_id) as response__ephemeral_device:
-                block_device_mappings__ephemeral_mapped = response__ephemeral_device.read().decode()
-                instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
+            response__ephemeral_device = urlopen("http://169.254.169.254/latest/meta-data/block-device-mapping/" + block_device_mappings__ephemeral_id)
+            block_device_mappings__ephemeral_mapped = response__ephemeral_device.read().decode()
+            instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
 
         instance_store_count = 0
         self.device_map = self.get_lsblk()
@@ -473,21 +479,17 @@ def main():
     if not (len(sys.argv) > 1 and sys.argv[1] == "console"):
         module = AnsibleModule(argument_spec={"cloud_type": {"type": "str", "required": True, "choices": ['aws', 'gcp', 'azure', 'lsblk']}}, supports_check_mode=True)
     else:
-        # For testing without Ansible (e.g on Windows)
-        class cDummyAnsibleModule():
-            params = {"cloud_type": "azure"}
-
+        class cDummyAnsibleModule():    # For testing without Ansible (e.g on Windows)
+            def __init__(self):
+                self.params={}
             def exit_json(self, changed, **kwargs):
                 print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
-
-            def warn(self, msg):
-                print("[WARNING]: " + msg)
-
             def fail_json(self, msg):
                 print("Failed: " + msg)
                 exit(1)
 
         module = cDummyAnsibleModule()
+        module.params = {"cloud_type": sys.argv[2]}
 
     if module.params['cloud_type'] == 'aws':
         blockdevmap = cAwsMapper(module=module)
