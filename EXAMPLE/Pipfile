@@ -16,6 +16,7 @@ google-auth = "*"
 google-api-python-client = "*"
 lxml = "*"
 apache-libcloud = "*"
+paramiko = "*"
 
 [dev-packages]
 

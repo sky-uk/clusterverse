@@ -29,6 +29,16 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_ty
 ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
 ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
+### ESXi (free):
+```
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=esxifree -e region=homelab --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=esxifree -e region=homelab --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+```
+### Azure:
+```
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+```
 
 ### Mandatory command-line variables:
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
@@ -69,6 +79,10 @@ ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --v
 ```
 ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+```
+### Azure:
+```
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ```
 
 ### Mandatory command-line variables:

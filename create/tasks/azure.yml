@@ -1,0 +1,194 @@
+---
+
+- name: cluster_hosts_target_denormalised_by_volume
+  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
+
+#- name: create/azure | Create storage account (must be [a-z0-9] and <= 24 chars).  NOT NECESSARY for IaaS block storage
+#  azure.azcollection.azure_rm_storageaccount:
+#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    name: "{{ (cluster_name | regex_replace('[^a-z0-9]', ''))[:24] }}"
+##    name: "{{ cluster_suffix }}"
+##    name: "{{ (item.hostname|hash('md5'))[:24] }}"
+#    account_type: Standard_LRS
+#  register: r__azure_rm_storageaccount
+
+
+#### NOTE:
+# - Normally, to create an Azure VM, we would create a security group (azure_rm_securitygroup) and if needed, a public IP address (azure_rm_publicipaddress), then attach them
+#   to a NIC (azure_rm_networkinterface).  We would pass this NIC to the VM creation plugin (azure_rm_virtualmachine) in the network_interface_names parameter.
+# - Unfortunately, the azure_rm_publicipaddress and azure_rm_networkinterface are not Availability-Zone aware, so when we create the VM (in a specific AZ), the IP is not in
+#   that zone, so the build fails.
+# - The alternative is to build a VM without network_interface_names set.  This causes the VM to be built with default public IP and security groups, so we need to change them
+#   afterwards instead.
+####
+
+#- name: create/azure | Create security groups
+#  azure.azcollection.azure_rm_securitygroup:
+#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    name: "{{ cluster_name }}"
+#    tags:
+#      env: "{{ buildenv }}"
+#    rules: "{{ cluster_vars.rules }}"
+#  register: r__azure_rm_securitygroup
+#  when: cluster_vars.rules | length > 0
+#
+#- name: create/azure | r__azure_rm_securitygroup
+#  debug: msg={{r__azure_rm_securitygroup}}
+
+#- name: create/azure | Create a public ip address
+#  azure.azcollection.azure_rm_publicipaddress:
+#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    name: "{{item.hostname}}"
+#    allocation_method: static
+##    zones: ["{{item.az_name}}"]
+#  register: r__azure_rm_publicipaddress
+#  loop: "{{ cluster_hosts_target }}"
+#
+#- name: create/azure | r__azure_rm_publicipaddress
+#  debug: msg={{r__azure_rm_publicipaddress}}
+
+#- name: Create NIC
+#  azure_rm_networkinterface:
+#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    name: "{{item.hostname}}"
+#    virtual_network: "{{cluster_vars[buildenv].vnet_name}}"
+#    subnet: "{{cluster_vars[buildenv].vpc_subnet_name_prefix}}"
+#    ip_configurations:
+#      - name:  "{{item.hostname}}-config"
+#        public_ip_address_name: "{{item.hostname}}-publicip"
+#        primary: True
+#    security_group: "{{r__azure_rm_securitygroup.state.name}}"
+#  register: r__azure_rm_networkinterface
+#  loop: "{{ cluster_hosts_target }}"
+#
+#- name: create/azure | r__azure_rm_networkinterface
+#  debug: msg={{r__azure_rm_networkinterface}}
+
+
+- name: create/azure | Create VMs asynchronously and wait for completion
+  block:
+    - name: create/azure | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
+      azure.azcollection.azure_rm_manageddisk:
+        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+        secret: "{{cluster_vars[buildenv].azure_secret}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        name: "{{item.auto_volume.src.volume_id | basename}}"
+        managed_by: ''
+      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
+
+    - name: create/azure | Create VMs asynchronously
+      azure.azcollection.azure_rm_virtualmachine:
+        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+        secret: "{{cluster_vars[buildenv].azure_secret}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        admin_username: "{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}"
+        custom_data : "{{cluster_vars.user_data | default(omit)}}"
+        image: "{{cluster_vars.image}}"
+        managed_disk_type: Standard_LRS
+        name: "{{item.hostname}}"
+        os_disk_size_gb: "{{item.os_disk_size_gb | default(omit)}}"
+#        network_interface_names: "{{r__azure_rm_networkinterface.results | json_query(\"[?item.hostname == `\" + item.hostname + \"`].state.name\") }}"
+        open_ports: ["9"]       # tcp/9 is the 'discard' (dev/null) port. It is set because we must put a value in here, otherwise the default tcp/22 is opened to any/any.  azure_rm_securitygroup is set below.
+        public_ip_allocation_method: "{%- if cluster_vars.assign_public_ip == 'yes' -%}Static{%- else -%}Disabled{%- endif -%}"
+        ssh_password_enabled: no
+        ssh_public_keys:
+          - path: "/home/{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}/.ssh/authorized_keys"
+            #The ssh key is either provided on the command line (as 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_file); we can slurp the key from either variable, and then ssh-keygen it into the public key (we have to remove the comment though before we add our own, (hence the regex), because this is what gcp expects).
+            key_data: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_file is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_file|string + '\nSSHFILE') | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- else -%}{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ cliargs.remote_user }}{%- endif -%}"
+#        storage_account: "{{ r__azure_rm_storageaccount.results | json_query(\"[?item.hostname == `\" + item.hostname + \"`].state.name|[0]\") }}"
+        tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
+        vm_size: "{{item.flavor}}"
+        zones: ["{{item.az_name}}"]
+      vars:
+        _tags:
+          Name: "{{item.hostname}}"
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
+          hosttype: "{{item.hosttype}}"
+          cluster_name: "{{cluster_name}}"
+          cluster_suffix: "{{cluster_suffix}}"
+          owner: "{{ lookup('env','USER') | lower }}"
+          maintenance_mode: "true"
+          release: "{{ release_version }}"
+          lifecycle_state: "current"
+      register: r__azure_rm_virtualmachine
+      loop: "{{ cluster_hosts_target }}"
+      async: 7200
+      poll: 0
+
+    - name: create/azure | Wait for instance creation to complete
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: r__async_status__azure_rm_virtualmachine
+      until: r__async_status__azure_rm_virtualmachine.finished
+      delay: 3
+      retries: 300
+      with_items: "{{r__azure_rm_virtualmachine.results}}"
+
+#    - name: create/azure | r__async_status__azure_rm_virtualmachine.results
+#      debug: msg={{r__async_status__azure_rm_virtualmachine.results}}
+
+    - name: create/azure | Update security groups
+      azure.azcollection.azure_rm_securitygroup:
+        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+        secret: "{{cluster_vars[buildenv].azure_secret}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        name: "{{ r__async_status__azure_rm_virtualmachine.results | json_query(\"[?ansible_facts.azure_vm.name== `\" + item.hostname + \"`].ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].name|[0]\") }}"
+        purge_rules: yes
+        rules: "{{ cluster_vars.rules }}"
+      loop: "{{ cluster_hosts_target }}"
+      register: r__azure_rm_securitygroup
+      when: cluster_vars.rules | length > 0
+
+#    - name: create/azure | r__azure_rm_securitygroup
+#      debug: msg={{r__azure_rm_securitygroup}}
+
+
+    - name: create/azure | Create and attach managed disk(s) to VM.  Do NOT ATTEMPT to do this asynchronously - causes issues!
+      azure.azcollection.azure_rm_manageddisk:
+        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+        secret: "{{cluster_vars[buildenv].azure_secret}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        attach_caching: read_only
+        disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
+        lun: "{{item.auto_volume.device_name}}"
+        managed_by: "{{item.hostname}}"
+        name: "{{_tags.name}}"
+        storage_account_type: "{{item.auto_volume.storage_account_type}}"
+        tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
+        zone: "{{item.az_name}}"
+      vars:
+        _tags:
+          name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}"
+          inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+          inv_node_type: "{{item.hosttype}}"
+          owner: "{{ lookup('env','USER') | lower }}"
+          release: "{{ release_version }}"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+      register: r__azure_rm_manageddisk
+
+#    - name: create/azure | r__azure_rm_manageddisk
+#      debug: msg={{r__azure_rm_manageddisk}}

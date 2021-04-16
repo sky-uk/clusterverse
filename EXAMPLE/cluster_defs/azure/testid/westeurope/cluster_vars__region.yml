@@ -1,0 +1,9 @@
+---
+
+_ubuntu2004image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "latest" }
+_ubuntu1804image: { "publisher": "canonical", "offer": "UbuntuServer", "sku": "18_04-lts-gen2", "version": "latest" }
+_centos7image:    { "publisher": "OpenLogic", "offer": "CentOS", "sku": "7_9-gen2", "version": "latest" }
+
+cluster_vars:
+  image: "{{_ubuntu2004image}}"
+

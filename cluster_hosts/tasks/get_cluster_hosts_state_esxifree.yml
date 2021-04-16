@@ -1,0 +1,29 @@
+---
+
+- name: get_cluster_hosts_state/esxifree | Get basic instance info of all vms
+  esxifree_guest_info:
+    username: "{{ cluster_vars.username }}"
+    password: "{{ cluster_vars.password }}"
+    hostname: "{{ cluster_vars.esxi_ip }}"
+  register: r__esxifree_guest_info
+  delegate_to: localhost
+  run_once: true
+
+## esxifree hosts must use the esxi 'annotations' field as json.  They are stored as unconventional text in the vmx file, so must
+## be converted into inline-json within the facts.  If the annotation field is not convertible to json, then we don't consider this VM part of the cluster.
+- name: get_cluster_hosts_state/esxifree | update r__esxifree_guest_info result with json-parsed annotations
+  set_fact:
+    r__esxifree_guest_info: |
+      {% set res = {'virtual_machines': []} -%}
+        {%- for result in r__esxifree_guest_info.virtual_machines -%}
+          {%- set loadloose_res = result.annotation | json_loads_loose -%}
+          {%- if loadloose_res | type_debug == 'dict' or loadloose_res | type_debug == 'list' -%}
+            {%- set _ = result.update({'annotation': loadloose_res}) -%}
+            {%- set _ = res.virtual_machines.append(result) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {{ res }}
+
+- name: get_cluster_hosts_state/esxifree | Set cluster_hosts_state
+  set_fact:
+    cluster_hosts_state: "{{ r__esxifree_guest_info.virtual_machines | json_query(\"[?annotation.cluster_name==`\" + cluster_name + \"`].{name: hw_name, regionzone: None, tagslabels: annotation, instance_id: moid, instance_state: hw_power_status, ipv4: {private: ipv4, public: null}, disk_info_cloud: guest_disk_info }\") }}"

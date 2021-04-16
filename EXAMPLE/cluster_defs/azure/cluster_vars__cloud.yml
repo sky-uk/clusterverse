@@ -1,0 +1,20 @@
+---
+
+redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only']     # TODO: support _scheme_rmvm_keepdisk_rollback
+
+cluster_vars:
+  dns_cloud_internal_domain: "ACCOUNTNAME_CHANGEME.onmicrosoft.com"        # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_server: ""                    # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
+  assign_public_ip: "yes"
+  inventory_ip: "public"            # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'yes'
+  user_data: |-
+    #cloud-config
+    system_info:
+      default_user:
+        name: ansible
+  rules:
+    - name: "SSHExternal"
+      priority: "100"
+      protocol: "Tcp"
+      destination_port_range: ["22"]
+      source_address_prefix: "{{_ssh_whitelist}}"

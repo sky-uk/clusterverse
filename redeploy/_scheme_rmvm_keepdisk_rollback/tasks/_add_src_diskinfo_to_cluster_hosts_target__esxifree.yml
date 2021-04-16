@@ -1,0 +1,26 @@
+---
+
+- name: _add_src_diskinfo_to_cluster_hosts_target/esxifree | cluster_hosts_state
+  debug: msg={{cluster_hosts_state}}
+
+- assert: { that: "cluster_hosts_state | json_query(\"[].disk_info_cloud.*[] | [?backing_datastore!='\" + cluster_vars.datastore + \"']\") | length == 0", msg: "Move is only possible if disks are on the same datastore." }
+  when: _scheme_rmvm_keepdisk_rollback__copy_or_move == "move"
+
+- name: _add_src_diskinfo_to_cluster_hosts_target/esxifree | augment cluster_hosts_target auto_volumes with source disk info
+  set_fact:
+    cluster_hosts_target: |
+      {%- for cht_host in cluster_hosts_target -%}
+        {%- for cht_autovol in cht_host.auto_volumes -%}
+          {%- for chs_vm in cluster_hosts_state | selectattr('tagslabels.lifecycle_state', '!=', 'current')-%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_vm.name | regex_replace('-(?!.*-).*') -%}
+              {%- for chs_host_diskinfo in chs_vm.disk_info_cloud | to_json | from_json | json_query('[?unit_number!=`0` && backing_type==\'FlatVer2\' && contains(backing_filename, \'--' + cht_autovol.volname + '.vmdk\')]') -%}
+                {%- set _ = cht_autovol.update({'volume_size': (chs_host_diskinfo.capacity_in_bytes/1073741824)|int, 'src': {'backing_filename': chs_host_diskinfo.backing_filename, 'copy_or_move': _scheme_rmvm_keepdisk_rollback__copy_or_move }}) -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{cluster_hosts_target}}
+
+- name: _add_src_diskinfo_to_cluster_hosts_target/esxifree | cluster_hosts_target
+  debug: msg={{cluster_hosts_target}}

@@ -35,6 +35,21 @@
 
     - name: clean/dns/route53 | Delete DNS entries
       block:
+#        - name: clean/dns/route53 | Get Zone
+#          route53_zone:
+#            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+#            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+#            zone: "{{cluster_vars.dns_nameserver_zone}}"
+#          register: r__route53_zone
+#
+#        - name: clean/dns/route53 | Get A records
+#          route53_info:
+#            query: record_sets
+#            hosted_zone_id: "{{ r__route53_zone.zone_id }}"
+#            start_record_name: "{{item.name}}.{{cluster_vars.dns_user_domain}}"
+#          register: r__route53_info
+#          with_items: "{{ hosts_to_clean }}"
+
         - name: clean/dns/route53 | Get A records
           route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
@@ -46,6 +61,8 @@
             private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
           register: r__route53_a
           with_items: "{{ hosts_to_clean }}"
+
+        - debug: msg={{r__route53_a}}
 
         - name: clean/dns/route53 | Delete A records
           route53:
