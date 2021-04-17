@@ -35,76 +35,79 @@
 
     - name: clean/dns/route53 | Delete DNS entries
       block:
-#        - name: clean/dns/route53 | Get Zone
-#          route53_zone:
-#            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-#            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-#            zone: "{{cluster_vars.dns_nameserver_zone}}"
-#          register: r__route53_zone
-#
-#        - name: clean/dns/route53 | Get A records
-#          route53_info:
-#            query: record_sets
-#            hosted_zone_id: "{{ r__route53_zone.zone_id }}"
-#            start_record_name: "{{item.name}}.{{cluster_vars.dns_user_domain}}"
-#          register: r__route53_info
-#          with_items: "{{ hosts_to_clean }}"
-
-        - name: clean/dns/route53 | Get A records
-          route53:
+        - name: clean/dns/route53 | Get Zone
+          route53_zone:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-            state: "get"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{item.name}}.{{cluster_vars.dns_user_domain}}"
-            type: "A"
-            private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
-          register: r__route53_a
-          with_items: "{{ hosts_to_clean }}"
+          register: r__route53_zone
 
-        - debug: msg={{r__route53_a}}
+        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
+        # Note: cannot run route53_info asynchronously as it makes too many concurrent requests and blows the AWS Route53 API limit.
+        - name: clean/dns/route53 | Get A records
+          route53_info:
+            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            type: "A"
+            max_items: 1
+            query: record_sets
+            hosted_zone_id: "{{ r__route53_zone.zone_id }}"
+            start_record_name: "{{item.name}}.{{cluster_vars.dns_user_domain}}"
+          register: r__route53_info
+          until: r__route53_info is success
+          retries: 10
+          with_items: "{{ hosts_to_clean }}"
 
         - name: clean/dns/route53 | Delete A records
           route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "absent"
-            zone: "{{ item.set.zone }}"
-            record: "{{ item.set.record }}"
-            type: "{{ item.set.type }}"
-            ttl: "{{ item.set.ttl }}"
-            value: ["{{ item.set.value }}"]
+            zone: "{{ cluster_vars.dns_nameserver_zone }}"
+            record: "{{ item.Name }}"
+            type: "{{ item.Type }}"
+            ttl: "{{ item.TTL }}"
+            value: "{{ item.ResourceRecords | json_query(\"[].Value\") }}"
             private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
-          with_items: "{{ r__route53_a.results }}"
-          when: item.set.value is defined
+          with_items: "{{ records_to_clean }}"
+          vars:
+            _hostnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_user_domain + '.') }}"
+            records_to_clean: "{{ r__route53_info.results | json_query(\"[].ResourceRecordSets[?Type=='A' && contains(\"+ _hostnames_to_clean | string +\", Name)][]\") | unique }}"
 
+        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
+        # Note: cannot run route53_info asynchronously as it makes too many concurrent requests and blows the AWS Route53 API limit.
         - name: clean/dns/route53 | Get CNAME records
-          route53:
+          route53_info:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
-            state: "get"
-            zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
             type: "CNAME"
-            private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
-          register: r__route53_cname
+            max_items: 1
+            query: record_sets
+            hosted_zone_id: "{{ r__route53_zone.zone_id }}"
+            start_record_name: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
+          register: r__route53_info
           with_items: "{{ hosts_to_clean }}"
+          until: r__route53_info is success
+          retries: 10
 
         - name: clean/dns/route53 | Delete CNAME records
           route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "absent"
-            zone: "{{ item.1.set.zone }}"
-            record: "{{ item.1.set.record }}"
-            type: "{{ item.1.set.type }}"
-            ttl: "{{ item.1.set.ttl }}"
-            value: ["{{ item.1.set.value }}"]
+            zone: "{{ cluster_vars.dns_nameserver_zone }}"
+            record: "{{ item.1.Name }}"
+            type: "{{ item.1.Type }}"
+            ttl: "{{ item.1.TTL }}"
+            value: "{{ item.1.ResourceRecords | json_query(\"[].Value\") }}"
             private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
+          vars:
+            _cnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_user_domain + '.') }}"   #Remove the last '-.*' (cluster_suffix)
+            records_to_clean: "{{ r__route53_info.results | json_query(\"[].ResourceRecordSets[?Type=='CNAME' && contains(\"+ _cnames_to_clean | string +\", Name)][]\") | unique }}"
           with_nested:
             - "{{ hosts_to_clean }}"
-            - "{{ r__route53_cname.results }}"
-          when: (item.1.set.value is defined)  and  ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
+            - "{{ records_to_clean }}"
+          when: ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.Name | regex_replace('^(.*?)\\..*$', '\\1')))  and  ((item.0.name == item.1.ResourceRecords[0].Value | regex_replace('^(.*?)\\..*$', '\\1')))
       when: cluster_vars.dns_server == "route53"
 
     - name: clean/dns/clouddns | Delete DNS entries

@@ -30,7 +30,7 @@
 
 - name: Preflight check
   block:
-    - assert: { that: "ansible_version.full is version_compare('2.10', '>=') and ansible_version.full is version_compare('2.10.6', '<=')", fail_msg: "2.10.6 >= Ansible >= 2.10 required." }  #2.10.7 has issue with AWS DNS: https://github.com/ansible-collections/community.aws/issues/523
+    - assert: { that: "ansible_version.full is version_compare('2.10', '>=')", fail_msg: "Ansible > 2.10 required for Azure support." }
     - assert: { that: "app_name is defined and app_name != ''", fail_msg: "Please define app_name" }
     - assert: { that: "app_class is defined and app_class != ''", fail_msg: "Please define app_class" }
     - assert: { that: "cluster_vars is defined", fail_msg: "Please define cluster_vars" }
