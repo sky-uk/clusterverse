@@ -71,7 +71,7 @@
             private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
           with_items: "{{ records_to_clean }}"
           vars:
-            _hostnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_user_domain + '.') }}"
+            _hostnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_user_domain + '.') | list }}"
             records_to_clean: "{{ r__route53_info.results | json_query(\"[].ResourceRecordSets[?Type=='A' && contains(\"+ _hostnames_to_clean | string +\", Name)][]\") | unique }}"
 
         # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
@@ -102,7 +102,7 @@
             value: "{{ item.1.ResourceRecords | json_query(\"[].Value\") }}"
             private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
           vars:
-            _cnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_user_domain + '.') }}"   #Remove the last '-.*' (cluster_suffix)
+            _cnames_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_user_domain + '.') | list }}"   #Remove the last '-.*' (cluster_suffix)
             records_to_clean: "{{ r__route53_info.results | json_query(\"[].ResourceRecordSets[?Type=='CNAME' && contains(\"+ _cnames_to_clean | string +\", Name)][]\") | unique }}"
           with_nested:
             - "{{ hosts_to_clean }}"
