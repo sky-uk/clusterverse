@@ -735,7 +735,7 @@ class esxiFreeScraper(object):
 
         # Add cloud-init metadata (hostname & network)
         cloudinit_metadata = {"local-hostname": self.name}
-        if cloudinit_nets['ethernets'].keys():
+        if 'ethernets' in cloudinit_nets and cloudinit_nets['ethernets'].keys():
             # Force guest to use the MAC address as the DHCP identifier, in case the machine-id is not reset for each clone
             for cloudeth in cloudinit_nets['ethernets'].keys():
                 cloudinit_nets['ethernets'][cloudeth].update({"dhcp-identifier": "mac"})

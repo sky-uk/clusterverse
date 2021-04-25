@@ -20,7 +20,7 @@
       lifecycle_state: "current"
     cloudinit_userdata: "{{ cluster_vars.cloudinit_userdata | default([]) }}"
     disks: "{{ item.auto_volumes | json_query(\"[].{size_gb: volume_size, type: provisioning_type, volname: volname, src: src }\") | default([]) }}"
-    networks: "{{ cluster_vars[buildenv].networks | default([]) }}"
+    networks: "{{ item.networks | default([]) }}"
     wait: true
   register: esxi_instances
   run_once: true

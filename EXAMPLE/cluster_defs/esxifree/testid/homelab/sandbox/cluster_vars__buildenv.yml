@@ -13,10 +13,6 @@ cluster_vars:
 #        ssh_priv_key: !vault |
 #          $ANSIBLE_VAULT;1.2;AES256;sandbox
 #          7669080460651349243347331538721104778691266429457726036813912140404310
-    networks:
-      - networkName: "VM Network"
-        virtualDev: vmxnet3
-        cloudinit_netplan: { ethernets: { eth0: { dhcp4: true } } }
 #    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')
 
     hosttype_vars:
@@ -24,7 +20,8 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        networks: [ &sys_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
+        vms_by_az: { a: 2, b: 1, c: 0 }
 
       sysdisks2:
         auto_volumes:
@@ -32,6 +29,41 @@ cluster_vars:
           - { mountpoint: "/media/mysvc2", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        networks: [ &sysdisks2_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
+        vms_by_az:
+          a:
+            - networks: [ { <<: *sysdisks2_NET1 } ]
+            - networks: [ { <<: *sysdisks2_NET1 } ]
+          b:
+            - networks: [ { <<: *sysdisks2_NET1 } ]
+            - networks: [ { <<: *sysdisks2_NET1 } ]
+
+      systestnets:
+        auto_volumes: [ ]
+        flavor: { num_cpus: "2", memory_mb: "2048" }
+        version: "{{sys_version | default('')}}"
+        networks: [ &systestnets_NET1 { networkName: "VM Network", virtualDev: vmxnet3 },  &systestnets_NET2 { networkName: "untagged", virtualDev: vmxnet3 } ]
+        vms_by_az:
+          a:
+            - networks:
+                - <<: *systestnets_NET1
+                  macAddress: "00:0c:29:2d:cd:7d"
+                  cloudinit_netplan:
+                    ethernets: { eth0: { dhcp4: true } }
+                - <<: *systestnets_NET2
+                  macAddress: "00:0c:29:2d:cd:7e"
+                  cloudinit_netplan:
+                    ethernets: { eth0: { dhcp4: true } }
+            - networks:
+                - <<: *systestnets_NET1
+                  macAddress: "00:0c:29:2d:cd:7f"
+                  cloudinit_netplan:
+                    ethernets: { eth0: { dhcp4: false, addresses: ["192.168.1.32/25"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
+                    vlans: {vlan25: {id: 25, link: eth0, addresses: ["192.168.1.197/26"]}}
+          b:
+            - networks:
+                - <<: *systestnets_NET1
+                  cloudinit_netplan:
+                    ethernets: { eth0: { dhcp4: true } }
 
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

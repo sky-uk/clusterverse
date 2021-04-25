@@ -173,6 +173,7 @@ class esxiFreeScraper(object):
 
         return (virtual_machines)
 
+    # Return the parameter of an object but only if present, else return None.
     def _getObjSafe(self, inDict, *keys):
         for key in keys:
             try: inDict = inDict[key]
@@ -214,10 +215,10 @@ class esxiFreeScraper(object):
                 "backing_diskmode": virtualDiskObj['backing']['diskMode'],
                 "backing_eagerlyscrub": self._getObjSafe(virtualDiskObj, 'backing', 'eagerlyScrub'),
                 "backing_filename": virtualDiskObj['backing']['fileName'],
-                "backing_thinprovisioned": virtualDiskObj['backing']['thinProvisioned'],
+                "backing_thinprovisioned": self._getObjSafe(virtualDiskObj, 'backing', 'thinProvisioned'),
                 "backing_type": re.sub(r'^VirtualDisk(.*?)BackingInfo$', r'\1', virtualDiskObj['backing']['@xsi:type']),
                 "backing_uuid": self._getObjSafe(virtualDiskObj, 'backing', 'uuid'),
-                "backing_writethrough": virtualDiskObj['backing']['writeThrough'],
+                "backing_writethrough": self._getObjSafe(virtualDiskObj, 'backing', 'writeThrough'),
                 "capacity_in_bytes": int(virtualDiskObj['capacityInBytes']),
                 "capacity_in_kb": int(virtualDiskObj['capacityInKB']),
                 "controller_key": virtualDiskObj['controllerKey'],

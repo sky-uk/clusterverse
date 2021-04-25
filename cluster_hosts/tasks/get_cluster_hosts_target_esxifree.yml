@@ -1,11 +1,37 @@
 ---
 
-- name: get_cluster_hosts_target/esxifree | Update cluster_hosts_target with volname (derived from the mountpoint)
+- name: get_cluster_hosts_target/esxifree | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
   set_fact:
-    cluster_hosts_target: |
-      {%- for host in cluster_hosts_target -%}
-        {%- for hostvol in host.auto_volumes -%}
+    cluster_hosts_target: |-
+      {% set res = [] -%}
+      {%- for hosttyped_name, hosttyped in cluster_vars[buildenv].hosttype_vars.items() -%}
+        {%- for hostvol in hosttyped.auto_volumes -%}
           {%- set _dummy = hostvol.update({'volname': hostvol.mountpoint | regex_replace('.*\/(.*)', '\\1')}) -%}
         {%- endfor %}
+        {%- for azname, azval in hosttyped.vms_by_az.items() -%}
+          {%- if azval | type_debug == 'list' -%}
+            {%- for vmaz in azval -%}
+              {%- set _dummy = res.append({
+                'hosttype': hosttyped_name,
+                'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + loop.index0|string + '-' + cluster_suffix|string,
+                'az_name': azname|string,
+                'flavor': hosttyped.flavor,
+                'auto_volumes': hosttyped.auto_volumes,
+                'networks': vmaz.networks,
+                }) -%}
+            {%- endfor %}
+          {%- else -%}
+            {%- for vmazidx in range(0, azval | int) -%}
+              {%- set _dummy = res.append({
+                'hosttype': hosttyped_name,
+                'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + vmazidx|string + '-' + cluster_suffix|string,
+                'az_name': azname|string,
+                'flavor': hosttyped.flavor,
+                'auto_volumes': hosttyped.auto_volumes,
+                'networks': hosttyped.networks,
+                }) -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor %}
       {%- endfor %}
-      {{ cluster_hosts_target }}
+      {{ res }}
