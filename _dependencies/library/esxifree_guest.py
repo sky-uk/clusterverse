@@ -493,6 +493,10 @@ class SSHCmdExec(object):
 
         # print("SSH connection established to " + hostname + " as " + username)
 
+    def __del__(self):
+        if self.remote_conn_client:
+            self.remote_conn_client.close()
+
     def get_sftpClient(self):
         return self.remote_conn_client.open_sftp()
 

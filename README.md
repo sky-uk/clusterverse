@@ -42,6 +42,7 @@ To active the pipenv:
 + Username & password for a privileged user on an ESXi host
 + SSH must be enabled on the host
 + Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.   
++ Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.   
 
 ### Azure
 + Create an Azure account.
