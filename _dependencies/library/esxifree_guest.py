@@ -206,6 +206,12 @@ options:
     type: int
     required: false
     default: 180
+  delete_cloudinit:
+    description:
+    - Delete the cloud-init config after creation.  If you do this, you will need to remove cloud-init from the system, or it will overwrite with defaults on next boot.
+    type: bool
+    required: false
+    default: false
   force:
     description:
     - Delete the existing host if it exists.  Use with extreme care!
@@ -882,6 +888,7 @@ def main():
         "moid": {"type": "str"},
         "template": {"type": "str"},
         "state": {"type": "str", "default": 'present', "choices": ['absent', 'present', 'unchanged', 'rebootguest', 'poweredon', 'poweredoff', 'shutdownguest']},
+        "delete_cloudinit": {"type": "bool", "default": False},
         "force": {"type": "bool", "default": False},
         "datastore": {"type": "str"},
         "annotation": {"type": "str", "default": ""},
@@ -939,6 +946,7 @@ def main():
         #     "disks": [],
         #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test"}],
         #     # "disks": [{"size_gb": 1, "type": "thin", "volname": "test", "src": {"backing_filename": "[4tb-evo860-ssd] testdisks-dev-sys-a0-1601204786/testdisks-dev-sys-a0-1601204786--test.vmdk", "copy_or_move": "move"}}],
+        #     "delete_cloudinit": False,
         #     "force": False,
         #     "guest_id": "ubuntu-64",
         #     "hardware": {"memory_mb": "2048", "num_cpus": "2", "version": "15"},
@@ -959,6 +967,7 @@ def main():
         #     "name": "test-asdf",
         #     "annotation": "{'Name': 'test-asdf'}",
         #     "datastore": "4tb-evo860-ssd",
+        #     "delete_cloudinit": False,
         #     "force": False,
         #     "moid": None,
         #     "template": None,
@@ -1101,7 +1110,8 @@ def main():
         isChanged = True
 
         ## Delete the cloud-init config
-        iScraper.delete_cloudinit()
+        if module.params['delete_cloudinit']:
+            iScraper.delete_cloudinit()
 
         ## Wait for IP address and hostname to be advertised by the VM (via open-vm-tools)
         if "wait" in module.params and module.params['wait']:

@@ -1,5 +1,10 @@
 ---
 
+- name: Run cloud-specific config (if defined)
+  include: "{{ item }}"
+  loop: "{{ query('first_found', params) }}"
+  vars: { params: { files: ["config_{{cluster_vars.type}}.yml"], skip: true } }
+
 - name: Disable unattended-upgrades and apt-daily services & timers. Wait for in-flight updates to finish.
   block:
     - name: Disable unattended-upgrades and apt-daily services & timers

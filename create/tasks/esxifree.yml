@@ -19,6 +19,7 @@
       cluster_suffix: "{{cluster_suffix}}"
       lifecycle_state: "current"
     cloudinit_userdata: "{{ cluster_vars.cloudinit_userdata | default([]) }}"
+    delete_cloudinit:  "{{ cluster_vars.delete_cloudinit | default(omit) }}"
     disks: "{{ item.auto_volumes | json_query(\"[].{size_gb: volume_size, type: provisioning_type, volname: volname, src: src }\") | default([]) }}"
     networks: "{{ item.networks | default([]) }}"
     wait: true
