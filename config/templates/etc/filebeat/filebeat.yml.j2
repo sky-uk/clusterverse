@@ -37,14 +37,6 @@ filebeat.inputs:
 {% endif %}
     #- c:\programdata\elasticsearch\logs\*
 
-{% if filebeat_close_timeout is defined %}
-  # Close timeout closes the harvester after the predefined time.
-  # This is independent if the harvester did finish reading the file or not.
-  # By default this option is disabled.
-  # Note: Potential data loss. Make sure to read and understand the docs for this option.
-  close_timeout: {{ filebeat_close_timeout }}
-{% endif %}
-
   # Exclude lines. A list of regular expressions to match. It drops the lines that are
   # matching any regular expression from the list.
   #exclude_lines: ['^DBG']
@@ -79,6 +71,13 @@ filebeat.inputs:
   # Note: After is the equivalent to previous and before is the equivalent to to next in Logstash
   #multiline.match: after
 
+{% if filebeat_close_timeout is defined %}
+  # Close timeout closes the harvester after the predefined time.
+  # This is independent if the harvester did finish reading the file or not.
+  # By default this option is disabled.
+  # Note: Potential data loss. Make sure to read and understand the docs for this option.
+  close_timeout: {{ filebeat_close_timeout }}
+{% endif %}
 
 #============================= Filebeat modules ===============================
 
