@@ -39,6 +39,8 @@
           route53_zone:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            vpc_id: "{{ vpc_id if cluster_vars.route53_private_zone|bool else omit() }}"                     # If this is a private zone, we need to request the private (VPC/Region-specific) version of the Zone
+            vpc_region: "{{ cluster_vars.region if cluster_vars.route53_private_zone|bool else omit() }}"    # If this is a private zone, we need to request the private (VPC/Region-specific) version of the Zone
             zone: "{{cluster_vars.dns_nameserver_zone}}"
           register: r__route53_zone
 
