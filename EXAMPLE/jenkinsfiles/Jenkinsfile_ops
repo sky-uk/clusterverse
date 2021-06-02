@@ -9,151 +9,174 @@ def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "master"
 
 //This allows us to create our own Docker image for this specific use-case.  Once it is built, it will not be rebuilt, so only adds delay the first time we use it.
 def create_custom_image(image_name, params = "") {
-  // TODO: Create a lock-file and wait on it if it is set (instead of building the same image in parallel then deleting it).
-  def jenkins_username = sh(script: 'whoami', returnStdout: true).trim()
-  def jenkins_uid = sh(script: "id -u  ${jenkins_username}", returnStdout: true).trim()
-  def jenkins_gid = sh(script: "id -g  ${jenkins_username}", returnStdout: true).trim()
+    // Create a lock to prevent building the same image in parallel
+    lock('IMAGEBUILDLOCK__' + env.NODE_NAME) {
+        def jenkins_username = sh(script: 'whoami', returnStdout: true).trim()
+        def jenkins_uid = sh(script: "id -u  ${jenkins_username}", returnStdout: true).trim()
+        def jenkins_gid = sh(script: "id -g  ${jenkins_username}", returnStdout: true).trim()
 
-  def dockerfile = """
+        def dockerfile = """
             FROM ubuntu:20.04
             ARG DEBIAN_FRONTEND=noninteractive
             ENV JENKINS_HOME=${env.JENKINS_HOME}
             ENV HOME=${env.JENKINS_HOME}
             ENV PIPENV_VENV_IN_PROJECT=true
             ENV TZ=Europe/London
-            RUN apt-get update && apt-get install -y ansible git python3-boto python3-boto3 python3-botocore python3-dev python3-distutils python3-dnspython python3-google-auth python3-googleapi python3-libcloud python3-jinja2 python3-jmespath python3-lxml python3-paramiko python3-pyvmomi python3-ruamel.yaml python3-setuptools python3-wheel
+            ### Note: use pip to install pipenv (not apt) to avoid pypa/pipenv#2196 (when using PIPENV_VENV_IN_PROJECT)
+            RUN apt-get update \
+                && apt-get install -y git iproute2 \
+                      python3-boto python3-boto3 python3-botocore python3-dev python3-distutils python3-dnspython python3-google-auth python3-googleapi python3-libcloud python3-jinja2 python3-jmespath python3-netaddr python3-paramiko python3-pip python3-ruamel.yaml python3-setuptools python3-wheel python3-xmltodict \
+                && pip3 install pipenv ansible \
+                && pip3 install -r \$(pip3 show ansible | grep ^Location | sed 's/Location: \\(.*\\)/\\1/')/ansible_collections/azure/azcollection/requirements-azure.txt
             RUN groupadd -g ${jenkins_gid} ${jenkins_username} && useradd -m -u ${jenkins_uid} -g ${jenkins_gid} -s /bin/bash ${jenkins_username}
             """.stripIndent()
 
-  writeFile(file: "Dockerfile", text: dockerfile, encoding: "UTF-8")
-  custom_build = docker.build(image_name, params + " .")
+        writeFile(file: "Dockerfile", text: dockerfile, encoding: "UTF-8")
+        custom_build = docker.build(image_name, params + "--network host .")
 
-  println("Pruning dangling docker images (might have been created due to parallel builds)")
-  sh 'docker image prune -f'
-
-  return (custom_build)
+        return (custom_build)
+    }
 }
 
 
 //This allows us to copy&paste this entire script into a pipeline job in the GUI for faster development time (don't have to commit/push to Git to test every change).
 node {
-  if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
-    println("Get bare clusterverse repo to obtain the version history for the RELEASE gitParameter")
-    git(changelog: false, poll: false, url: DEFAULT_CLUSTERVERSE_URL)
-  }
+    if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
+        println("Get bare clusterverse repo to obtain the version history for the RELEASE gitParameter")
+        git(changelog: false, poll: false, url: DEFAULT_CLUSTERVERSE_URL)
+    }
 }
 
 properties([
-    parameters([
-        string(name: 'APP_NAME', description: "An optional custom app_name to override the default in the playbook"),
-        booleanParam(name: 'APPEND_BUILD_NUMBER', defaultValue: false, description: 'Tick the box to append the Jenkins BUILD_NUMBER to APP_NAME'),
-        choice(name: 'CLOUD_REGION', choices: ['esxifree/dougalab', 'aws/eu-west-1', 'gcp/europe-west1'], description: "Choose a cloud/region"),
-        choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy"),
-        string(name: 'CLUSTER_ID', defaultValue: '', description: "Select a cluster_id to deploy", trim: true),
-        booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),
-        choice(name: 'DEPLOY_TYPE', choices: ['deploy', 'redeploy', 'clean'], description: "Choose the deploy type"),
-        choice(name: 'REDEPLOY_SCHEME', choices: ['', '_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback'], description: "Choose the redeploy schemes"),
-        choice(name: 'CANARY', choices: ['none', 'start', 'finish', 'tidy'], description: "Choose the canary type"),
-        booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', defaultValue: false, description: 'Tick the box to tidy up successful canary (none or finish) redeploys (by default, old machines are left powered off)'),
-        string(name: 'MYHOSTTYPES', description: "comma-separated string, e.g. master,slave - In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types"),
-        gitParameter(name: 'RELEASE', type: 'PT_TAG', useRepository: 'clusterverse', branch: 'master', branchFilter: '.*', defaultValue: 'master', description: 'Choose an existing release version to deploy (or \'master\')', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'DESCENDING_SMART', tagFilter: '*'),
-        string(name: 'CV_GIT_URL', defaultValue: DEFAULT_CLUSTERVERSE_URL, description: "The main clusterverse URL."),
-        string(name: 'CV_GIT_BRANCH', defaultValue: DEFAULT_CLUSTERVERSE_BRANCH, description: "The clusterverse branch to test."),
-        credentials(name: 'CV_GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false),
-        string(name: 'USER_CMDLINE_VARS', defaultValue: '', description: "Any user-defined command-line parameters."),
-    ])
+        parameters([
+                string(name: 'APP_NAME', description: "An optional custom app_name to override the default in the playbook"),
+                booleanParam(name: 'APPEND_BUILD_NUMBER', defaultValue: false, description: 'Tick the box to append the Jenkins BUILD_NUMBER to APP_NAME'),
+                choice(name: 'CLOUD_REGION', choices: ['esxifree/dougalab', 'aws/eu-west-1', 'azure/westeurope', 'gcp/europe-west1'], description: "Choose a cloud/region"),
+                choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy"),
+                string(name: 'CLUSTER_ID', defaultValue: '', description: "Select a cluster_id to deploy", trim: true),
+                booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),
+                choice(name: 'DEPLOY_TYPE', choices: ['deploy', 'redeploy', 'clean'], description: "Choose the deploy type"),
+                choice(name: 'REDEPLOY_SCHEME', choices: ['', '_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback'], description: "Choose the redeploy schemes"),
+                choice(name: 'CANARY', choices: ['none', 'start', 'finish', 'tidy'], description: "Choose the canary type"),
+                booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', defaultValue: false, description: 'Tick the box to tidy up successful canary (none or finish) redeploys (by default, old machines are left powered off)'),
+                string(name: 'MYHOSTTYPES', description: "comma-separated string, e.g. master,slave - In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types"),
+                gitParameter(name: 'RELEASE', type: 'PT_TAG', useRepository: '.*clusterverse.git', branch: 'master', branchFilter: '.*', defaultValue: 'master', description: 'Choose an existing release version to deploy (or \'master\')', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'DESCENDING_SMART', tagFilter: '*'),
+                string(name: 'CV_GIT_URL', defaultValue: DEFAULT_CLUSTERVERSE_URL, description: "The main clusterverse URL."),
+                string(name: 'CV_GIT_BRANCH', defaultValue: DEFAULT_CLUSTERVERSE_BRANCH, description: "The clusterverse branch to test."),
+                credentials(name: 'CV_GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false),
+                string(name: 'USER_CMDLINE_VARS', defaultValue: '', description: "Any user-defined command-line parameters."),
+        ])
 ])
 
 node {
-  sh 'printenv | sort'
-  echo "Params: $params"
+    sh 'printenv | sort'
+    echo "Params: $params"
 
-//  def custom_docker_image
-//  stage('Create Docker image') {
-//    custom_docker_image = create_custom_image("ubuntu_cvtest", "")
-//  }
-
-//  create_custom_image("ubuntu_cvtest", "").inside {
-//  custom_docker_image.inside {
-  docker.image('ubuntu_python').inside {
-    stage('Check Environment') {
-      sh 'printenv | sort'
-      println("common_deploy_vars params:" + params)
-
-      if (params.CLUSTER_ID == '') {
-        unstable("CLUSTER_ID not defined")
-        throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
-      }
-      if (params.APPEND_BUILD_NUMBER == true && params.APP_NAME == "") {
-        error "APP_NAME is required when APPEND_BUILD_NUMBER is set."
-      }
-    }
-    withCredentials([string(credentialsId: "VAULT_PASSWORD_${params.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
-      env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+    def docker_parent_net_str = ""
+    if (sh(script: 'grep -sq "docker\\|lxc" /proc/1/cgroup', returnStatus: true) == 0) {
+        println("Running in docker.  Getting network to pass to docker-in-docker containers...")
+        def docker_parent_net_id = sh(script: 'docker inspect  $(basename $(cat /proc/1/cpuset)) -f "{{ range .NetworkSettings.Networks }}{{println .NetworkID}}{{end}}" | head -n 1', returnStdout: true).trim()
+        docker_parent_net_str = "--network ${docker_parent_net_id}"
+        println("docker_parent_net_str: ${docker_parent_net_str}")
     }
 
-    sh 'ls -la'
-    println("currentBuild.getBuildCauses: " + currentBuild.getBuildCauses())
-    if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0  ||  currentBuild.getBuildCauses('hudson.model.Cause$UpstreamCause').size() > 0) {
-      println("Checking out default scm: " + scm.userRemoteConfigs + " -- " + scm.branches)
-      checkout(scm)
+    if (params.BUILDENV && params.CLUSTER_ID && params.CLOUD_REGION) {
+        /*** Use a docker image that is already on the host ***/
+        //  docker.image('ubuntu_python').inside("${docker_parent_net_str}") {
+
+        /*** Use a docker image from the local directory ***/
+        //  def jenkins_username = sh(script: 'whoami', returnStdout: true).trim()
+        //  def jenkins_uid = sh(script: "id -u  ${jenkins_username}", returnStdout: true).trim()
+        //  def jenkins_gid = sh(script: "id -g  ${jenkins_username}", returnStdout: true).trim()
+        //  docker.build("cvops", "--build-arg JENKINS_USERNAME=${jenkins_username} --build-arg JENKINS_UID=${jenkins_uid} --build-arg JENKINS_GID=${jenkins_gid} ./jenkinsfiles").inside("${docker_parent_net_str}") {
+
+        /*** Create a custom docker image within this Jenkinsfile ***/
+        create_custom_image("ubuntu_cvtest", "").inside("${docker_parent_net_str}") {
+            stage('Setup Environment') {
+                sh 'printenv | sort'
+                println("common_deploy_vars params:" + params)
+
+                if (params.APPEND_BUILD_NUMBER == true && params.APP_NAME == "") {
+                    error "APP_NAME is required when APPEND_BUILD_NUMBER is set."
+                }
+
+                withCredentials([string(credentialsId: "VAULT_PASSWORD_${params.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+                    env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+                }
+
+                sh 'ls -la'
+                println("currentBuild.getBuildCauses: " + currentBuild.getBuildCauses())
+                if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0 || currentBuild.getBuildCauses('hudson.model.Cause$UpstreamCause').size() > 0) {
+                    println("Checking out default scm: " + scm.userRemoteConfigs + " -- " + scm.branches)
+                    checkout(scm)
+                } else {
+                    println("No 'scm' params for clusterverse testsuite repo; using params.")
+                    checkout([$class: 'GitSCM', branches: [[name: "*/${DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: params.CV_GIT_CREDS ? params.CV_GIT_CREDS : '', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
+                }
+
+                sh 'ls -la'
+                String requirementsYamlFile = './requirements.yml'
+                if (params.CV_GIT_URL && params.CV_GIT_BRANCH) {
+                    println("Updating $requirementsYamlFile with source ($params.CV_GIT_URL) and version ($params.CV_GIT_BRANCH) as passed in from upstream.")
+                    sh "cat ${requirementsYamlFile}"
+                    HashMap requirementsYaml = readYaml file: requirementsYamlFile
+                    HashMap clusterverse_role = requirementsYaml.roles.find { it.name == 'clusterverse' }
+                    clusterverse_role.src = params.CV_GIT_URL
+                    clusterverse_role.version = params.CV_GIT_BRANCH
+                    sh "rm $requirementsYamlFile"
+                    writeYaml file: requirementsYamlFile, data: requirementsYaml
+                }
+                sh "cat ${requirementsYamlFile}"
+            }
+
+            stage(params.DEPLOY_TYPE) {
+                String IAC_RELEASE = ""
+                if (params.RELEASE != "master" && params.RELEASE != null) {
+                    GIT_TOKEN = credentials("GITHUB_SVC_USER")
+                    sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@" + DEFAULT_CLUSTERVERSE_URL.replaceFirst("^(http[s]?://)", "") + ".git"
+                    sh "git fetch --tags"
+                    sh "git checkout ${params.RELEASE}"
+                    IAC_RELEASE = ' -e release_version=' + params.RELEASE.replace('.', '_') as String
+                }
+
+                String DNS_FORCE_DISABLE = ""
+                if (params.DNS_FORCE_DISABLE == true && params.DNS_FORCE_DISABLE != null) {
+                    DNS_FORCE_DISABLE = " -e _dns_nameserver_zone=''"
+                }
+
+                String MYHOSTTYPES = ""
+                if (params.MYHOSTTYPES != "" && params.MYHOSTTYPES != null) {
+                    MYHOSTTYPES = ' -e myhosttypes=' + params.MYHOSTTYPES
+                }
+
+                String APP_NAME = ""
+                if (params.APP_NAME != "" && params.APP_NAME != null) {
+                    APP_NAME = " -e app_name=" + params.APP_NAME
+                    if (params.APPEND_BUILD_NUMBER == true) {
+                        APP_NAME = APP_NAME + '-' + env.BUILD_NUMBER
+                    }
+                }
+
+                def (CLOUD_TYPE, REGION) = params.CLOUD_REGION.split('/')
+                if (params.DEPLOY_TYPE == 'deploy') {
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
+                } else if (params.DEPLOY_TYPE == 'redeploy') {
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py redeploy.yml -e canary=${params.CANARY} -e canary_tidy_on_success=${params.CANARY_TIDY_ON_SUCCESS} -e redeploy_scheme=${params.REDEPLOY_SCHEME} -e debug_nested_log_output=true $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
+                } else if (params.DEPLOY_TYPE == 'clean') {
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME $params.USER_CMDLINE_VARS"
+                } else error("DEPLOY_TYPE invalid")
+            }
+        }
     } else {
-      println("No 'scm' params for clusterverse testsuite repo; using params.")
-      checkout([$class: 'GitSCM', branches: [[name: "*/${DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: env.CV_GIT_CREDS ? env.CV_GIT_CREDS : '', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
+        if (!params.BUILDENV) {
+            currentBuild.result = 'ABORTED'
+            error("BUILDENV not defined")
+        } else if (!params.CLUSTER_ID) {
+            currentBuild.result = 'ABORTED'
+            error("CLUSTER_ID not defined")
+        } else if (!params.CLOUD_REGION) {
+            currentBuild.result = 'ABORTED'
+            error("CLOUD_REGION not defined")
+        }
     }
-
-    sh 'ls -la'
-    String requirementsYamlFile = './requirements.yml'
-    if (params.CV_GIT_URL && params.CV_GIT_BRANCH) {
-      println("Updating $requirementsYamlFile with source ($params.CV_GIT_URL) and version ($params.CV_GIT_BRANCH) as passed in from upstream.")
-      sh "cat ${requirementsYamlFile}"
-      HashMap requirementsYaml = readYaml file: requirementsYamlFile
-      HashMap clusterverse_role = requirementsYaml.roles.find { it.name == 'clusterverse' }
-      clusterverse_role.src = params.CV_GIT_URL
-      clusterverse_role.version = params.CV_GIT_BRANCH
-      sh "rm $requirementsYamlFile"
-      writeYaml file: requirementsYamlFile, data: requirementsYaml
-    }
-    sh "cat ${requirementsYamlFile}"
-
-
-    String IAC_RELEASE = ""
-    if (params.RELEASE != "master" && params.RELEASE != null) {
-      GIT_TOKEN = credentials("GITHUB_SVC_USER")
-      sh "git remote set-url origin https://${GIT_TOKEN_USR}:${GIT_TOKEN_PSW}@" + DEFAULT_CLUSTERVERSE_URL.replaceFirst("^(http[s]?://)","") + ".git"
-      sh "git fetch --tags"
-      sh "git checkout ${params.RELEASE}"
-      IAC_RELEASE = ' -e release_version=' + params.RELEASE.replace('.', '_') as String
-    }
-
-    String DNS_FORCE_DISABLE = ""
-    if (params.DNS_FORCE_DISABLE == true && params.DNS_FORCE_DISABLE != null) {
-      DNS_FORCE_DISABLE = " -e _dns_nameserver_zone=''"
-    }
-
-    String MYHOSTTYPES = ""
-    if (params.MYHOSTTYPES != "" && params.MYHOSTTYPES != null) {
-      MYHOSTTYPES = ' -e myhosttypes=' + params.MYHOSTTYPES
-    }
-
-    String APP_NAME = ""
-    if (params.APP_NAME != "" && params.APP_NAME != null) {
-      APP_NAME = " -e app_name=" + params.APP_NAME
-      if (params.APPEND_BUILD_NUMBER == true) {
-        APP_NAME = APP_NAME + '-' + env.BUILD_NUMBER
-      }
-    }
-
-    def (CLOUD_TYPE, REGION) = params.CLOUD_REGION.split('/')
-
-    stage(params.DEPLOY_TYPE) {
-      if (params.DEPLOY_TYPE == 'deploy') {
-          sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
-      } else if (params.DEPLOY_TYPE == 'redeploy') {
-          sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py redeploy.yml -e canary=${params.CANARY} -e canary_tidy_on_success=${params.CANARY_TIDY_ON_SUCCESS} -e redeploy_scheme=${params.REDEPLOY_SCHEME} -e debug_nested_log_output=true $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES $IAC_RELEASE $params.USER_CMDLINE_VARS"
-      } else if (params.DEPLOY_TYPE == 'clean') {
-          sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME $params.USER_CMDLINE_VARS"
-      } else error("DEPLOY_TYPE invalid")
-    }
-  }
 }

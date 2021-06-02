@@ -11,11 +11,11 @@
 //This is the branch name we must pass to Jenkinsfile_ops as the git branch from which it will checkout Clusterverse.  Normally, we would rely on the 'scm' object being available (as it is a pipeline scm job), but the scm object does not propagate to downstream Jenkinsfiles.
 def CV_OPS_GIT_BRANCH = "master"
 if (env.TAG_NAME) {
-    CV_OPS_GIT_BRANCH = 'refs/tags/' + env.TAG_NAME
+    CV_OPS_GIT_BRANCH = env.TAG_NAME
 } else if (env.CHANGE_BRANCH) {
-    CV_OPS_GIT_BRANCH = 'refs/heads/' + env.CHANGE_BRANCH
+    CV_OPS_GIT_BRANCH = env.CHANGE_BRANCH
 } else if (env.BRANCH_NAME) {
-    CV_OPS_GIT_BRANCH = 'refs/heads/' + env.BRANCH_NAME
+    CV_OPS_GIT_BRANCH = env.BRANCH_NAME
 }
 
 // Tolerate non-scm builds
@@ -436,10 +436,14 @@ stage('Check Environment') {
         sh 'printenv | sort'
         println(params.inspect())
         if (params.BUILDENV == '') {
-//            currentBuild.result = 'ABORTED'
-//            error "BUILDENV not defined"
-            unstable("BUILDENV not defined")
-            throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
+            currentBuild.result = 'ABORTED'
+            error("BUILDENV not defined")
+        } else if (params.CLUSTER_ID == '') {
+            currentBuild.result = 'ABORTED'
+            error("CLUSTER_ID not defined")
+        } else if (params.CLOUD_REGION == '') {
+            currentBuild.result = 'ABORTED'
+            error("CLOUD_REGION not defined")
         }
     }
 }

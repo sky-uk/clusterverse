@@ -40,6 +40,8 @@
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
+            vpc_id: "{{ vpc_id if cluster_vars.route53_private_zone|bool else omit }}"                     # If this is a private zone, we need to request the private (VPC/Region-specific) version of the Zone
+            vpc_region: "{{ cluster_vars.region if cluster_vars.route53_private_zone|bool else omit }}"    # If this is a private zone, we need to request the private (VPC/Region-specific) version of the Zone
           register: r__route53_zone
 
         # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
