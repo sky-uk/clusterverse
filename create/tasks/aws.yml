@@ -42,6 +42,7 @@
         spot_price: "{{item.spot.spot_price | default(omit)}}"
         spot_wait_timeout: "{{item.spot.spot_wait_timeout | default(omit)}}"
         spot_launch_group: "{{item.spot.spot_launch_group | default(omit)}}"
+        spot_type: "{{item.spot.spot_type | default(omit)}}"
         instance_initiated_shutdown_behavior: "{{item.spot.instance_initiated_shutdown_behavior | default(omit)}}"
         instance_profile_name: "{{cluster_vars.instance_profile_name | default(omit)}}"
         image: "{{cluster_vars.image}}"
