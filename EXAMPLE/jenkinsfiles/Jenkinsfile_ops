@@ -2,7 +2,7 @@
 
 //These will not be needed if we're running this as a pipeline SCM job, as these are automatically added to the 'scm' variable, but if we instead just cut & paste this file into a pipeline job, they will be used as fallback
 def DEFAULT_CLUSTERVERSE_URL = "https://github.com/dseeley/clusterverse"
-def DEFAULT_CLUSTERVERSE_BRANCH = "dps_esxi"
+def DEFAULT_CLUSTERVERSE_BRANCH = "master"
 
 def DEFAULT_CLUSTERVERSE_TESTSUITE_URL = "https://github.com/dseeley/clusterverse_test"
 def DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH = "master"

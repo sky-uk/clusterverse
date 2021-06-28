@@ -21,7 +21,7 @@ cluster_vars:
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
         networks: [ &sys_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
-        vms_by_az: { a: 2, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 1, c: 0 }
 
       sysdisks2:
         auto_volumes:

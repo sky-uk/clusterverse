@@ -1,7 +1,7 @@
 ---
 
-_ubuntu2004image: "gold-ubuntu2004l-20210415101808"
-_centos7image: "gold-ubuntu2004l-20210415101808"
+_ubuntu2004image: "gold-ubuntu2004l-20210610082838"
+_centos7image: "gold-ubuntu2004l-20210610082838"
 
 cluster_vars:
   image: "{{_ubuntu2004image}}"

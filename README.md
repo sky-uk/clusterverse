@@ -1,6 +1,6 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
 A full-lifecycle, immutable cloud infrastructure cluster management **role**, using Ansible.
-+ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS, GCP, Free ESXi (standalone host only, not vCentre) and Azure
++ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS, GCP, Azure and Free ESXi (standalone host only, not vCentre).
 + **Deploy:**  You define your infrastructure as code (in Ansible yaml), and clusterverse will deploy it 
 + **Scale-up:**  If you change the cluster definitions and rerun the deploy, new nodes will be added.
 + **Redeploy (e.g. up-version):** If you need to up-version, or replace the underlying OS, (i.e. to achieve fully immutable, zero-patching redeploys), the `redeploy.yml` playbook will replace each node in the cluster (via various redeploy schemes), and rollback if any failures occur. 
