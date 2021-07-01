@@ -3,23 +3,24 @@
 // NOTE: Clusterverse is an independent Ansible role - it cannot run on its own, and needs cluster variables and top-level playbooks of the kind defined in roles/clusterverse/EXAMPLE/ that will import clusterverse
 // This test suite executes (a matrix of) a series of deploy/redeploy/clean steps that are defined in a Jenkinsfile that are located in such a playbook that can actually run clusterverse (e.g. roles/clusterverse/EXAMPLE/jenkinsfiles/Jenkinsfile_ops)
 
-//This will not be needed if we're running this as a multibranch pipeline SCM job, as these are automatically added to the 'scm' variable, but if we instead just cut & paste this file into a pipeline job, they will be used as fallback
-def DEFAULT_CLUSTERVERSE_URL = "https://github.com/sky-uk/clusterverse"
-def DEFAULT_CLUSTERVERSE_BRANCH = "master"
 
-//Set the git branch for clusterverse_ops to either the PR branch (env.CHANGE_BRANCH), or the current SCM branch (env.BRANCH_NAME)
-def CV_OPS_GIT_BRANCH = DEFAULT_CLUSTERVERSE_BRANCH
-if (env.CHANGE_BRANCH) {
-  CV_OPS_GIT_BRANCH = env.CHANGE_BRANCH
-}
-else if (env.BRANCH_NAME) {
-  CV_OPS_GIT_BRANCH = env.BRANCH_NAME
+//This is the branch name we must pass to Jenkinsfile_ops as the git branch from which it will checkout Clusterverse.  Normally, we would rely on the 'scm' object being available (as it is a pipeline scm job), but the scm object does not propagate to downstream Jenkinsfiles.
+def CV_OPS_GIT_BRANCH = "master"
+if (env.TAG_NAME) {
+    CV_OPS_GIT_BRANCH = env.TAG_NAME
+} else if (env.CHANGE_BRANCH) {
+    CV_OPS_GIT_BRANCH = env.CHANGE_BRANCH
+} else if (env.BRANCH_NAME) {
+    CV_OPS_GIT_BRANCH = env.BRANCH_NAME
 }
 
-//This allows us to copy&paste this entire script into a pipeline job in the GUI for faster development time (don't have to commit/push to Git to test every change).
-def scmVars = null
-if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0) {
-  scmVars = checkout scm
+// Tolerate non-scm builds
+def CV_OPS_GIT_URL = "https://github.com/sky-uk/clusterverse"
+try {
+    CV_OPS_GIT_URL = scm.getUserRemoteConfigs()[0].getUrl()
+} catch (Exception e) {
+    println("scm not available: " + e.toString())
+    println("we're probably *not* running in a multibranch or pipeline scm job")
 }
 
 
@@ -29,73 +30,74 @@ if (currentBuild.getBuildCauses('hudson.model.Cause$SCMTriggerCause').size() > 0
 // It takes some inspiration from this blog: https://www.jenkins.io/blog/2019/12/02/matrix-building-with-scripted-pipeline/
 /**************************************************************************************/
 class MatrixBuilder {
-  private HashMap jenkinsParamsCopy
-  private HashMap _matrixParams               //This cannot be made into a Closure due to CPS (again).  (https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/)
-  private Closure clJenkinsParamsMutate
-  private Closure clMatrixAxesFilter
-  private Closure clTaskMap
+    private HashMap jenkinsParams
+    private HashMap _matrixParams               //This cannot be made into a Closure due to CPS (again).  (https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/)
+    private Closure clJenkinsParamsMutate       //A closure that mutates the Jenkins params _before_ we calculate the axes.  Useful in case some params are not intended to be part of the axes (and should be removed)
+    private Closure clMatrixAxesFilter          //A closure of invalid axis combinations, which allows us to filter out combinations that are incompatible with each other (e.g. testing internet explorer on linux)
+    private Closure clTaskMap
 
-  // NOTE: No constructor.
-  // When undeclared, constructors are created automatically, creating the instance variables defined above, (where they correspond to the Map that is passed with the instantiation).  You can't do a lot of work in a Jenkins Groovy constructor anyway because of CPS (https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/)
+    // NOTE: No constructor.
+    // When undeclared, constructors are created automatically, creating the instance variables defined above, (where they correspond to the Map that is passed with the instantiation).  You can't do a lot of work in a Jenkins Groovy constructor anyway because of CPS (https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/)
 
-  public Map getTaskMap() {
-    HashMap tasks = [failFast: false]
-    _getMatrixAxes().each() { axis ->
-      List axisEnvVars = axis.collect { key, val -> "${key}=${val}" }
-      axisEnvVars.add("BUILD_HASH=" + generateMD5(hashCode() + axisEnvVars.join(','), 12))      //A unique build hash of the classid (hashcode) and the matrix elements
-      tasks[axisEnvVars.join(', ')] = { this.clTaskMap(axisEnvVars) }
+    public Map getTaskMap() {
+        HashMap tasks = [failFast: false]
+        _getMatrixAxes().each() { axis ->
+            List axisEnvVars = axis.collect { key, val -> "${key}=${val}" }
+            axisEnvVars.add("BUILD_HASH=" + generateMD5(hashCode() + axisEnvVars.join(','), 12))      //A unique build hash of the classid (hashcode) and the matrix elements
+            tasks[axisEnvVars.join(', ')] = { this.clTaskMap(axisEnvVars) }
+        }
+        return (tasks)
     }
-    return (tasks)
-  }
 
-  private List _getMatrixAxes() {
-    this._getMatrixParams()
-    List allCombinations = this._getAxesCombinations()
-    return (this.clMatrixAxesFilter ? allCombinations.findAll(this.clMatrixAxesFilter) : allCombinations)
-  }
-
-  private HashMap _getMatrixParams() {
-    HashMap newMatrixParams = Eval.me(this.jenkinsParamsCopy.inspect())
-    newMatrixParams = this.clJenkinsParamsMutate ? this.clJenkinsParamsMutate(newMatrixParams) : newMatrixParams
-    newMatrixParams = newMatrixParams.each { key, choice -> newMatrixParams.put(key, (choice instanceof String) ? choice.split(',') : choice.toString()) }      //newMatrixParams().each { param -> param.value = (param.value instanceof String) ? param.value.split(',') : param.value }     //NOTE: Doesn't work: https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
-    this._matrixParams = newMatrixParams
-    return (newMatrixParams)
-  }
-
-  @NonCPS
-  private List _getAxesCombinations() {
-    List axes = []
-    this._matrixParams.each { axis, values ->
-      List axisList = []
-      values.each { value ->
-        axisList << [(axis): value]
-      }
-      axes << axisList
+    private List _getMatrixAxes() {
+        this._getMatrixParams()
+        List allCombinations = this._getAxesCombinations()
+        return (this.clMatrixAxesFilter ? allCombinations.findAll(this.clMatrixAxesFilter) : allCombinations)
     }
-    axes.combinations()*.sum()    // calculates the cartesian product
-  }
 
-  static String generateMD5(String s, int len = 31) {
-    java.security.MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()[0..len]
-  }
+    private HashMap _getMatrixParams() {
+        HashMap newMatrixParams = Eval.me(this.jenkinsParams.inspect())
+        newMatrixParams = this.clJenkinsParamsMutate ? this.clJenkinsParamsMutate(newMatrixParams) : newMatrixParams
+        newMatrixParams = newMatrixParams.each { key, choice -> newMatrixParams.put(key, (choice instanceof String) ? choice.split(',') : choice.toString()) }      //newMatrixParams().each { param -> param.value = (param.value instanceof String) ? param.value.split(',') : param.value }     //NOTE: Doesn't work: https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/
+        this._matrixParams = newMatrixParams
+        return (newMatrixParams)
+    }
+
+    @NonCPS
+    private List _getAxesCombinations() {
+        List axes = []
+        this._matrixParams.each { axis, values ->
+            List axisList = []
+            values.each { value ->
+                axisList << [(axis): value]
+            }
+            axes << axisList
+        }
+        axes.combinations()*.sum()    // calculates the cartesian product
+    }
+
+    static String generateMD5(String s, int len = 31) {
+        java.security.MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()[0..len]
+    }
 }
 
 
 properties([
-    //disableConcurrentBuilds(),
-    //pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
-    parameters([
-        extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/us-west-2,aws/eu-central-1,aws/eu-west-1,gcp/us-west2,gcp/europe-west1', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
-        choice(name: 'BUILDENV', choices: ['', 'dev', 'mgmt'], description: "The environment in which to run the tests"),
-        string(name: 'CLUSTER_ID', defaultValue: 'top_peacock', trim: true),
-        [name: 'DNS_FORCE_DISABLE', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: '', randomName: 'choice-parameter-31196915540455', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: ''], script: [classpath: [], sandbox: true, script: 'return [\'false:selected\',\'true\',\'true,false\']']]],
-        extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', visibleItemCount: 5),
-        choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
-        extendedChoice(name: 'MYHOSTTYPES_TEST', type: 'PT_MULTI_SELECT', value: 'nomyhosttypes,myhosttypes', defaultValue: 'nomyhosttypes', descriptionPropertyValue: 'Without myhosttypes, With myhosttypes', description: 'Whether to run tests on pre-configured hosttypes.', visibleItemCount: 2),
-        [name: 'MYHOSTTYPES_LIST', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'These hosttype definitions must exist in cluster_vars for all clusters', randomName: 'choice-parameter-423779762617532', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return ""'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST.split(\',\').contains(\'myhosttypes\')) { return ("<input name=\\"value\\" value=\\"sys,sysdisks2\\" class=\\"setting-input\\" type=\\"text\\">") }']]],
-        [name: 'MYHOSTTYPES_SERIAL_PARALLEL', $class: 'CascadeChoiceParameter', choiceType: 'PT_RADIO', description: 'Run the myhosttype test in serial or parallel', randomName: 'choice-parameter-424489601389882', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return([])'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST==\'nomyhosttypes,myhosttypes\') { return([\'serial:selected\',\'parallel\']) }']]],
-        extendedChoice(name: 'IMAGE_TESTED', type: 'PT_MULTI_SELECT', value: '_ubuntu2004image,_centos7image', defaultValue: '_ubuntu2004image', descriptionPropertyValue: 'Ubuntu 20.04, CentOS 7', description: 'Specify which image(s) to test', visibleItemCount: 3),
-    ])
+        //disableConcurrentBuilds(),
+        //pipelineTriggers([pollSCM(ignorePostCommitHooks: true, scmpoll_spec: '''H/30 8-19 * * 1-5''')]),
+        parameters([
+                extendedChoice(name: 'CLOUD_REGION', type: 'PT_MULTI_SELECT', value: 'aws/us-west-2,aws/eu-central-1,aws/eu-west-1,gcp/us-west2,gcp/europe-west1', description: 'Specify which cloud/region(s) to test', visibleItemCount: 5),
+                choice(name: 'BUILDENV', choices: ['', 'dev', 'mgmt'], description: "The environment in which to run the tests"),
+                string(name: 'CLUSTER_ID', defaultValue: '', trim: true),
+                [name: 'DNS_FORCE_DISABLE', $class: 'ChoiceParameter', choiceType: 'PT_RADIO', description: '', randomName: 'choice-parameter-31196915540455', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: ''], script: [classpath: [], sandbox: true, script: 'return [\'false:selected\',\'true\',\'true,false\']']]],
+                extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', visibleItemCount: 5),
+                choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
+                extendedChoice(name: 'MYHOSTTYPES_TEST', type: 'PT_MULTI_SELECT', value: 'nomyhosttypes,myhosttypes', defaultValue: 'nomyhosttypes', descriptionPropertyValue: 'Without myhosttypes, With myhosttypes', description: 'Whether to run tests on pre-configured hosttypes.', visibleItemCount: 3),
+                [name: 'MYHOSTTYPES_LIST', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'These hosttype definitions must exist in cluster_vars for all clusters', randomName: 'choice-parameter-423779762617532', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return ""'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST.split(\',\').contains(\'myhosttypes\')) { return ("<input name=\\"value\\" value=\\"sys,sysdisks2\\" class=\\"setting-input\\" type=\\"text\\">") }']]],
+                [name: 'MYHOSTTYPES_SERIAL_PARALLEL', $class: 'CascadeChoiceParameter', choiceType: 'PT_RADIO', description: 'Run the myhosttype test in serial or parallel', randomName: 'choice-parameter-424489601389882', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return([])'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST==\'nomyhosttypes,myhosttypes\') { return([\'serial:selected\',\'parallel\']) }']]],
+                extendedChoice(name: 'SCALEUPDOWN', type: 'PT_MULTI_SELECT', value: 'noscale,scaleup,scaledown', defaultValue: 'noscale', description: 'Specify whether to test scaling up and/or down.', visibleItemCount: 3),
+                extendedChoice(name: 'IMAGE_TESTED', type: 'PT_MULTI_SELECT', value: '_ubuntu2004image,_centos7image', defaultValue: '_ubuntu2004image', descriptionPropertyValue: 'Ubuntu 20.04, CentOS 7', description: 'Specify which image(s) to test', visibleItemCount: 3),
+        ])
 ])
 
 println("User-supplied 'params': \n" + params.inspect() + "\n")
@@ -107,155 +109,193 @@ println("User-supplied 'params': \n" + params.inspect() + "\n")
 
 // A class to hold the status of each stage, so we can fail a stage and be able to run the clean at the end if needed
 class cStageBuild {
-  public String result = 'SUCCESS'
-  public HashMap userParams = [:]
+    public String result = 'SUCCESS'
+    public HashMap userParams = [:]
 
-  String getUserParamsString() {
-    String userParamsString = ""
-    this.userParams.each({paramName, paramVal ->
-      userParamsString += " -e ${paramName}=${paramVal}"
-    })
-    return(userParamsString + " -vvvv")
-  }
+    String getUserParamsString() {
+        String userParamsString = ""
+        this.userParams.each({ paramName, paramVal ->
+            userParamsString += " -e ${paramName}=${paramVal}"
+        })
+        return (userParamsString + " -vvvv")
+    }
 }
 
 // A pipeline 'stage' template for clusterverse-ops boilerplate
 def stage_cvops(String stageLabel, cStageBuild stageBuild, Closure stageExpressions) {
-  stage(stageLabel) {
-    if (stageBuild.result == 'SUCCESS') {
-      try {
-        stageExpressions()
-      } catch (Exception err) {
-        currentBuild.result = 'FAILURE'
-        stageBuild.result = 'FAILURE'
-        unstable('Stage failed!  Error was: ' + err)       // OR:  'error "Stage failure"' or 'throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.FAILURE)', but both of these fail all future stages, preventing us calling the clean.
-      }
+    stage(stageLabel) {
+        if (stageBuild.result == 'SUCCESS') {
+            try {
+                stageExpressions()
+            } catch (Exception err) {
+                currentBuild.result = 'FAILURE'
+                stageBuild.result = 'FAILURE'
+                unstable('Stage failed!  Error was: ' + err)       // OR:  'error "Stage failure"' or 'throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.FAILURE)', but both of these fail all future stages, preventing us calling the clean.
+            }
+        }
     }
-  }
 }
 
-/**************************************************************************************/
-// A 'self-test' matrix.  Doesn't actually do anything, just tests the logic of the matrix
-/**************************************************************************************/
-SELFTEST = new MatrixBuilder([
-    jenkinsParamsCopy: params,
-    clJenkinsParamsMutate: { jenkinsParamsCopy ->
-      jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
-      jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
-      return jenkinsParamsCopy
-    },
-    clMatrixAxesFilter: { axis ->
-      !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
-      !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab')
-    },
-    clTaskMap: { axisEnvVars ->
-      node {
-        withEnv(axisEnvVars) {
-          withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
-            env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
-          }
-          sh 'printenv | sort'
-          def stageBuild = new cStageBuild([result: 'SUCCESS'])
-
-          stage_cvops('deploy', stageBuild, {
-            echo "deploy"
-          })
-
-          stage_cvops('redeploy (1/4 fail)', stageBuild, {
-            echo "redeploy"
-            //Test that script can fail individual stages (1 in 4 should fail)
-            def x = Math.abs(new Random().nextInt() % 4) + 1
-            if (x == 1) throw new IllegalStateException("Test failed stage")
-          })
-
-          stage_cvops('deploy on top', stageBuild, {
-            echo "deploy on top"
-          })
-        }
-      }
-    }
-])
+///**************************************************************************************/
+//// A 'self-test' matrix.  Doesn't actually do anything, just tests the logic of the matrix
+///**************************************************************************************/
+////SELFTEST = library('MatrixBuilder').org.dougalseeley.MatrixBuilder.new([
+//SELFTEST = new MatrixBuilder([
+//        jenkinsParams: params,
+//        clJenkinsParamsMutate: { jenkinsParams ->
+//            jenkinsParams.remove('MYHOSTTYPES_LIST')
+//            jenkinsParams.remove('MYHOSTTYPES_TEST')
+//            jenkinsParams.remove('MYHOSTTYPES_SERIAL_PARALLEL')
+//            jenkinsParams.remove('CLEAN_ON_FAILURE')
+//            return jenkinsParams
+//        },
+//        clMatrixAxesFilter: { axis ->
+//            !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
+//                    !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
+//                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
+//        },
+//        clTaskMap: { axisEnvVars ->
+//            node {
+//                withEnv(axisEnvVars) {
+//                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+//                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+//                    }
+//                    sh 'printenv | sort'
+//                    def stageBuild = new cStageBuild([result: 'SUCCESS'])
+//
+//                    stage_cvops('deploy', stageBuild, {
+//                        echo "deploy"
+//                    })
+//
+//                    stage_cvops('redeploy (1/4 fail)', stageBuild, {
+//                        echo "redeploy"
+//                        //Test that script can fail individual stages (1 in 4 should fail)
+//                        def x = Math.abs(new Random().nextInt() % 4) + 1
+//                        if (x == 1) throw new IllegalStateException("Test failed stage")
+//                    })
+//
+//                    stage_cvops('deploy on top', stageBuild, {
+//                        echo "deploy on top"
+//                    })
+//                }
+//            }
+//        }
+//])
 
 
 /**************************************************************************************/
 // Runs tests *without* setting myhosttypes.  This is a relatively straightforward application of the matrix algorithm.
 /**************************************************************************************/
 CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
-    jenkinsParamsCopy: params,
-    clJenkinsParamsMutate: { jenkinsParamsCopy ->
-      jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
-      jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
-      return jenkinsParamsCopy
-    },
-    clMatrixAxesFilter: { axis ->
-      !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
-      !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab')
-    },
-    clTaskMap: { axisEnvVars ->
-      node {
-        withEnv(axisEnvVars) {
-          withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
-            env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
-          }
-          sh 'printenv | sort'
-          def stageBuild = new cStageBuild([result: 'SUCCESS'])
+        jenkinsParams: params,
+        clJenkinsParamsMutate: { jenkinsParams ->
+            jenkinsParams.remove('MYHOSTTYPES_LIST')
+            jenkinsParams.remove('MYHOSTTYPES_TEST')
+            jenkinsParams.remove('MYHOSTTYPES_SERIAL_PARALLEL')
+            jenkinsParams.remove('CLEAN_ON_FAILURE')
+            return jenkinsParams
+        },
+        clMatrixAxesFilter: { axis ->
+            !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
+                    !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
+        },
+        clTaskMap: { axisEnvVars ->
+            node {
+                withEnv(axisEnvVars) {
+                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+                    }
+                    sh 'printenv | sort'
+                    def stageBuild = new cStageBuild([result: 'SUCCESS'])
+                    HashMap cluster_vars_override = [:]
 
-          if (env.IMAGE_TESTED) {
-            stageBuild.userParams.put("cluster_vars_override", "\\\'{\\\"image\\\":\\\"{{${env.IMAGE_TESTED}}}\\\"}\\\'")       //NOTE: NO SPACES are allowed in this!!
-          }
+                    if (env.IMAGE_TESTED) {
+                        cluster_vars_override += [image: "{{${env.IMAGE_TESTED}}}"]
+                        stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")   //NOTE: NO SPACES are allowed in this!!
+                    }
 
+                    stageBuild.userParams.put("skip_release_version_check", "true")
+                    stageBuild.userParams.put("release_version", "1_0_0")
+                    stage_cvops('deploy', stageBuild, {
+                        build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                    })
 
-          stageBuild.userParams.put("skip_release_version_check", "true")
-          stageBuild.userParams.put("release_version", "1_0_0")
-          stage_cvops('deploy', stageBuild, {
-            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-          })
+                    // Update the clustervars with new scaled cluster size
+                    if (env.SCALEUPDOWN == 'scaleup') {
+                        cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 1, c: 1]]]]]     // AZ 'c' is not set normally
+                    } else if (env.SCALEUPDOWN == 'scaledown') {
+                        cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 0, c: 0]]]]]     // AZ 'b' is set normally
+                    }
 
-          if (env.REDEPLOY_SCHEME) {
-            stageBuild.userParams.put("release_version", "2_0_0")
-            stage_cvops('redeploy canary=start', stageBuild, {
-              build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-            })
+                    if (cluster_vars_override.size()) {
+                        stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")   //NOTE: NO SPACES are allowed in this!!
+                    }
 
-            stage_cvops('redeploy canary=finish', stageBuild, {
-              build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-            })
+                    if (env.REDEPLOY_SCHEME) {
+                        stageBuild.userParams.put("release_version", "2_0_0")
+                        stage_cvops('redeploy canary=start', stageBuild, {
+                            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                        })
 
-            stage_cvops('redeploy canary=tidy', stageBuild, {
-              build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-            })
+                        stage_cvops('redeploy canary=finish', stageBuild, {
+                            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                        })
 
-            stageBuild.userParams.put("release_version", "3_0_0")
-            stage_cvops('redeploy canary=none (tidy_on_success)', stageBuild, {
-              build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-            })
-          } else {
-            stage_cvops('Redeploy not requested', stageBuild, {
-              echo "Redeploy testing not requested"
-            })
-          }
+                        stage_cvops('redeploy canary=tidy', stageBuild, {
+                            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                        })
 
-          stage_cvops('deploy on top', stageBuild, {
-            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-          })
+                        //Need to redeploy original cluster (without scaling), to test that scaling works with next redeploy test (canary=none)
+                        if (env.SCALEUPDOWN == 'scaleup' || env.SCALEUPDOWN == 'scaledown') {
+                            cluster_vars_override.remove("${env.BUILDENV}")
+                            stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")
+                            stageBuild.userParams.put("release_version", "2_5_0")
+                            stage_cvops('deploy clean original (unscaled) for next test', stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString() + " -e clean=_all_")]
+                            })
 
-          if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
-            stage('clean') {
-              if (stageBuild.result != 'SUCCESS') {
-                echo "Stage failure: Running clean-up on cluster..."
-              }
-              catchError {
-                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-              }
+                            //Re-add the scaleup/down cmdline for next redeploy test (canary=none)
+                            if (env.SCALEUPDOWN == 'scaleup') {
+                                cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 1, c: 1]]]]]     // AZ 'c' is not set normally
+                            } else if (env.SCALEUPDOWN == 'scaledown') {
+                                cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 0, c: 0]]]]]     // AZ 'b' is set normally
+                            }
+                            stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")
+                        }
+
+                        // Run the canary=none redeploy
+                        stageBuild.userParams.put("release_version", "3_0_0")
+                        stage_cvops('redeploy canary=none (tidy_on_success)', stageBuild, {
+                            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                        })
+                    } else {
+                        stage_cvops('Redeploy not requested', stageBuild, {
+                            echo "Redeploy testing not requested"
+                        })
+                    }
+
+                    stage_cvops('deploy on top', stageBuild, {
+                        build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                    })
+
+                    if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+                        stage('clean') {
+                            if (stageBuild.result != 'SUCCESS') {
+                                echo "Stage failure: Running clean-up on cluster..."
+                            }
+                            catchError {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                            }
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
 ])
 
 
@@ -264,87 +304,121 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
 // The logic of doing this is different to the matrix without myhosttypes, hence a separate matrix.
 /**************************************************************************************/
 CVTEST_MYHOSTTYPES = new MatrixBuilder([
-    jenkinsParamsCopy: params,
-    clJenkinsParamsMutate: { jenkinsParamsCopy ->
-      jenkinsParamsCopy.remove('MYHOSTTYPES_LIST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_TEST')
-      jenkinsParamsCopy.remove('MYHOSTTYPES_SERIAL_PARALLEL')
-      jenkinsParamsCopy.remove('CLEAN_ON_FAILURE')
-      return jenkinsParamsCopy
-    },
-    clMatrixAxesFilter: { axis ->
-      !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
-      !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&
-      !(axis['REDEPLOY_SCHEME'] == '_scheme_addallnew_rmdisk_rollback')
-    },
-    clTaskMap: { axisEnvVars ->
-      node {
-        withEnv(axisEnvVars) {
-          withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
-            env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
-          }
-          sh 'printenv | sort'
-          def stageBuild = new cStageBuild([result: 'SUCCESS'])
+        jenkinsParams: params,
+        clJenkinsParamsMutate: { jenkinsParams ->
+            jenkinsParams.remove('MYHOSTTYPES_LIST')
+            jenkinsParams.remove('MYHOSTTYPES_TEST')
+            jenkinsParams.remove('MYHOSTTYPES_SERIAL_PARALLEL')
+            jenkinsParams.remove('CLEAN_ON_FAILURE')
+            return jenkinsParams
+        },
+        clMatrixAxesFilter: { axis ->
+            !(params.DNS_TEST == 'both' && axis['DNS_FORCE_DISABLE'] == 'true' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                 /* DNS is not supported in dougalab */
+                    !(axis['IMAGE_TESTED'] != '_ubuntu2004image' && axis['CLOUD_REGION'] == 'esxifree/dougalab') &&                                               /* Only _ubuntu2004image is supported in dougalab */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_addallnew_rmdisk_rollback') &&                                                                          /* _scheme_addallnew_rmdisk_rollback is not supported with myhostttpes set */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && axis['CLOUD_REGION'].split('/')[0] == 'azure') &&                            /* _scheme_rmvm_keepdisk_rollback not supported in Azure */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_rmdisk_only' && axis['SCALEUPDOWN'] == 'scaledown') &&                                             /* _scheme_rmvm_rmdisk_only only supports scaling up */
+                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
+        },
+        clTaskMap: { axisEnvVars ->
+            node {
+                withEnv(axisEnvVars) {
+                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
+                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
+                    }
+                    sh 'printenv | sort'
+                    def stageBuild = new cStageBuild([result: 'SUCCESS'])
+                    HashMap cluster_vars_override = [:]
 
-          if (env.IMAGE_TESTED) {
-            stageBuild.userParams.put("cluster_vars_override", "\\\'{\\\"image\\\":\\\"{{${env.IMAGE_TESTED}}}\\\"}\\\'")       //NOTE: NO SPACES are allowed in this!!
-          }
+                    if (env.IMAGE_TESTED) {
+                        cluster_vars_override += [image: "{{${env.IMAGE_TESTED}}}"]
+                        stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")   //NOTE: NO SPACES are allowed in this!!
+                    }
 
-          if (env.REDEPLOY_SCHEME) {
-            if (params.MYHOSTTYPES_LIST == '') {
-              currentBuild.result = 'FAILURE'
-              stageBuild.result = 'FAILURE'
-              unstable('Stage failed!  Error was: ' + err)       // OR:  'error "Stage failure"' or 'throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.FAILURE)', but both of these fail all future stages, preventing us calling the clean.
-            }
+                    if (env.REDEPLOY_SCHEME) {
+                        if (params.MYHOSTTYPES_LIST == '') {
+                            currentBuild.result = 'FAILURE'
+                            stageBuild.result = 'FAILURE'
+                            unstable('Stage failed!  Error was: ' + err)       // OR:  'error "Stage failure"' or 'throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.FAILURE)', but both of these fail all future stages, preventing us calling the clean.
+                        }
 
-            stageBuild.userParams.put("skip_release_version_check", "true")
-            stageBuild.userParams.put("release_version", "1_0_0")
-            stage_cvops('deploy', stageBuild, {
-              build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-            })
+                        stageBuild.userParams.put("skip_release_version_check", "true")
+                        stageBuild.userParams.put("release_version", "1_0_0")
+                        stage_cvops('deploy', stageBuild, {
+                            build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                        })
 
-            // Run the split redeploy over all hosttypes
-            stageBuild.userParams.put("release_version", "2_0_0")
-            params.MYHOSTTYPES_LIST.split(',').each({ my_host_type ->
-              stage_cvops("redeploy canary=start ($my_host_type)", stageBuild, {
-                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-              })
+                        // Update the clustervars with new scaled cluster size
+                        if (env.SCALEUPDOWN == 'scaleup') {
+                            cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 1, c: 1]]]]]     // AZ 'c' is not set normally
+                        } else if (env.SCALEUPDOWN == 'scaledown') {
+                            cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 0, c: 0]]]]]     // AZ 'b' is set normally
+                        }
 
-              stage_cvops("redeploy canary=finish ($my_host_type)", stageBuild, {
-                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-              })
+                        if (cluster_vars_override.size()) {
+                            stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")   //NOTE: NO SPACES are allowed in this!!
+                        }
 
-              stage_cvops("redeploy canary=tidy ($my_host_type)", stageBuild, {
-                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-              })
-            })
+                        // Run the split redeploy over all hosttypes
+                        stageBuild.userParams.put("release_version", "2_0_0")
+                        params.MYHOSTTYPES_LIST.split(',').each({ my_host_type ->
+                            stage_cvops("redeploy canary=start ($my_host_type)", stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'start'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                            })
 
-            // Run the mono-redeploy over all hosttypes
-            stageBuild.userParams.put("release_version", "3_0_0")
-            params.MYHOSTTYPES_LIST.split(',').each({ my_host_type ->
-              stage_cvops("redeploy canary=none ($my_host_type) (tidy_on_success)", stageBuild, {
-                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-              })
-            })
+                            stage_cvops("redeploy canary=finish ($my_host_type)", stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'finish'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                            })
 
-            if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
-              stage('clean') {
-                if (stageBuild.result != 'SUCCESS') {
-                  echo "Stage failure: Running clean-up on cluster..."
+                            stage_cvops("redeploy canary=tidy ($my_host_type)", stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'tidy'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: false), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                            })
+                        })
+
+                        //Need to redeploy original cluster (without scaling), to test that scaling works with next redeploy test (canary=none)
+                        if (env.SCALEUPDOWN == 'scaleup' || env.SCALEUPDOWN == 'scaledown') {
+                            cluster_vars_override.remove("${env.BUILDENV}")
+                            stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")
+                            stageBuild.userParams.put("release_version", "2_5_0")
+                            stage_cvops('deploy clean original (unscaled) for next test', stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'deploy'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString() + " -e clean=_all_")]
+                            })
+
+                            //Re-add the scaleup/down cmdline for next redeploy test (canary=none)
+                            if (env.SCALEUPDOWN == 'scaleup') {
+                                cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 1, c: 1]]]]]     // AZ 'c' is not set normally
+                            } else if (env.SCALEUPDOWN == 'scaledown') {
+                                cluster_vars_override += ["${env.BUILDENV}": [hosttype_vars: [sys: [vms_by_az: [b: 0, c: 0]]]]]     // AZ 'b' is set normally
+                            }
+                            stageBuild.userParams.put("cluster_vars_override", "\\\'" + groovy.json.JsonOutput.toJson(cluster_vars_override).replace("\"", "\\\"") + "\\\'")
+                        }
+
+                        // Run the canary=none redeploy over all hosttypes
+                        stageBuild.userParams.put("release_version", "3_0_0")
+                        params.MYHOSTTYPES_LIST.split(',').each({ my_host_type ->
+                            stage_cvops("redeploy canary=none ($my_host_type) (tidy_on_success)", stageBuild, {
+                                build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'redeploy'), string(name: 'REDEPLOY_SCHEME', value: (env.REDEPLOY_SCHEME ? env.REDEPLOY_SCHEME : '')), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: my_host_type), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                            })
+                        })
+
+                        if (stageBuild.result == 'SUCCESS' || params.CLEAN_ON_FAILURE == 'true') {
+                            stage('clean') {
+                                if (stageBuild.result != 'SUCCESS') {
+                                    echo "Stage failure: Running clean-up on cluster..."
+                                }
+                                catchError {
+                                    build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: CV_OPS_GIT_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.getUserParamsString())]
+                                }
+                            }
+                        }
+                    } else {
+                        stage_cvops('Redeploy not requested', stageBuild, {
+                            echo "Redeploy testing not requested"
+                        })
+                    }
                 }
-                catchError {
-                  build job: 'clusterverse/clusterverse-ops', parameters: [string(name: 'APP_NAME', value: "cvtest-${env.BUILD_NUMBER}-${env.BUILD_HASH}"), string(name: 'CLOUD_REGION', value: env.CLOUD_REGION), string(name: 'BUILDENV', value: env.BUILDENV), string(name: 'CLUSTER_ID', value: env.CLUSTER_ID), booleanParam(name: 'DNS_FORCE_DISABLE', value: env.DNS_FORCE_DISABLE), string(name: 'DEPLOY_TYPE', value: 'clean'), string(name: 'REDEPLOY_SCHEME', value: ''), string(name: 'CANARY', value: 'none'), booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', value: true), string(name: 'MYHOSTTYPES', value: ''), string(name: 'CV_GIT_URL', value: scmVars ? scmVars.getUserRemoteConfigs()[0].getUrl() : DEFAULT_CLUSTERVERSE_URL), string(name: 'CV_GIT_BRANCH', value: CV_OPS_GIT_BRANCH), string(name: 'USER_CMDLINE_VARS', value: stageBuild.userParamsString())]
-                }
-              }
             }
-          } else {
-            stage_cvops('Redeploy not requested', stageBuild, {
-              echo "Redeploy testing not requested"
-            })
-          }
         }
-      }
-    }
 ])
 
 
@@ -354,60 +428,64 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
 
 // A check stage - no actual work
 stage('Check Environment') {
-  node {
-    sh 'printenv | sort'
-    println(params.inspect())
-    if (params.BUILDENV == '') {
-//      currentBuild.result = 'ABORTED'
-//      error "BUILDENV not defined"
-      unstable("BUILDENV not defined")
-      throw new org.jenkinsci.plugins.workflow.steps.FlowInterruptedException(hudson.model.Result.ABORTED)
+    node {
+        sh 'printenv | sort'
+        println(params.inspect())
+        if (params.BUILDENV == '') {
+            currentBuild.result = 'ABORTED'
+            error("BUILDENV not defined")
+        } else if (params.CLUSTER_ID == '') {
+            currentBuild.result = 'ABORTED'
+            error("CLUSTER_ID not defined")
+        } else if (params.CLOUD_REGION == '') {
+            currentBuild.result = 'ABORTED'
+            error("CLOUD_REGION not defined")
+        }
     }
-  }
 }
 
 // A map to be loaded with matrices (of stages)
 HashMap matrixBuilds = [:]
 
-// A 'self-test' matrix.  Only outputs debug.
+//// A 'self-test' matrix.  Only outputs debug.
 //matrixBuilds["SELFTEST1 Matrix builds"] = {
-//  stage("SELFTEST Matrix builds") {
-//    echo("Matrix 'params' used to build Matrix axes: \n" + SELFTEST._getMatrixParams().inspect() + "\n")
-//    echo("Matrix axes: \n" + SELFTEST._getMatrixAxes().inspect() + "\n")
-//    parallel(SELFTEST.getTaskMap())
-//  }
+//    stage("SELFTEST Matrix builds") {
+//        echo("Matrix 'params' used to build Matrix axes: \n" + SELFTEST._getMatrixParams().inspect() + "\n")
+//        echo("Matrix axes: \n" + SELFTEST._getMatrixAxes().inspect() + "\n")
+//        parallel(SELFTEST.getTaskMap())
+//    }
 //}
 
 
 // A matrix of tests that test pipelines *without* myhosttypes configured
 if (params.MYHOSTTYPES_TEST.split(',').contains('nomyhosttypes')) {
-  matrixBuilds["NOMYHOSTTYPES Matrix builds"] = {
-    stage("NOMYHOSTTYPES Matrix builds") {
-      echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixParams().inspect() + "\n")
-      echo("Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixAxes().inspect() + "\n")
-      parallel(CVTEST_NOMYHOSTTYPES.getTaskMap())
+    matrixBuilds["NOMYHOSTTYPES Matrix builds"] = {
+        stage("NOMYHOSTTYPES Matrix builds") {
+            echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixParams().inspect() + "\n")
+            echo("Matrix axes: \n" + CVTEST_NOMYHOSTTYPES._getMatrixAxes().inspect() + "\n")
+            parallel(CVTEST_NOMYHOSTTYPES.getTaskMap())
+        }
     }
-  }
 }
 
 // A matrix of tests that test pipelines *with* myhosttypes configured
 if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
-  matrixBuilds["MYHOSTTYPES Matrix builds"] = {
-    stage("MYHOSTTYPES Matrix builds") {
-      echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_MYHOSTTYPES._getMatrixParams().inspect() + "\n")
-      echo("Matrix axes: \n" + CVTEST_MYHOSTTYPES._getMatrixAxes().inspect() + "\n")
-      parallel(CVTEST_MYHOSTTYPES.getTaskMap())
+    matrixBuilds["MYHOSTTYPES Matrix builds"] = {
+        stage("MYHOSTTYPES Matrix builds") {
+            echo("Matrix 'params' used to build Matrix axes: \n" + CVTEST_MYHOSTTYPES._getMatrixParams().inspect() + "\n")
+            echo("Matrix axes: \n" + CVTEST_MYHOSTTYPES._getMatrixAxes().inspect() + "\n")
+            parallel(CVTEST_MYHOSTTYPES.getTaskMap())
+        }
     }
-  }
 }
 
 // Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run serially.
 if (params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
-  stage("All matrices") {
-    parallel(matrixBuilds)
-  }
+    stage("All matrices") {
+        parallel(matrixBuilds)
+    }
 } else {
-  matrixBuilds.each { matrix ->
-    matrix.value.call()
-  }
+    matrixBuilds.each { matrix ->
+        matrix.value.call()
+    }
 }
