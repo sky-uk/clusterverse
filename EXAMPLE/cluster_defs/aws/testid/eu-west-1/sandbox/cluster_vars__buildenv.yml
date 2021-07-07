@@ -77,7 +77,7 @@ cluster_vars:
         auto_volumes:
           - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
           - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE" }
+        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: i3en.2xlarge
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
@@ -96,7 +96,7 @@ cluster_vars:
           - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
           - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
           - { device_name: "/dev/sdd", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "+100%FREE" }
+        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: d2.xlarge
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
