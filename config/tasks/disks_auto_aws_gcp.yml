@@ -82,7 +82,7 @@
               debug: msg={{testdevicedescriptor}}
 
             - name: disks_auto_aws_gcp | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
-              assert: { that: "testdevicedescriptor | json_query(\"[?length(files) > `1`]\") | length == 0", fail_msg: "ERROR - only a single file should exist per storage device.  In error [{{testdevicedescriptor | json_query(\"[?length(files) > `1`]\")}}]" }
+              assert: { that: "testdevicedescriptor | json_query(\"[?length(files) > `1`]\") | length == 0", fail_msg: "ERROR - Exactly one file should exist per storage device.  In error [{{testdevicedescriptor | json_query(\"[?length(files) > `1`]\")}}]" }
           vars:
             testdevicedescriptor: "{{ r__find_test | json_query(\"results[].{hostname: '\" + inventory_hostname + \"', device_name: item.device_name, mountpoint: item.mountpoint, files: files[].path}\") }}"
       when: test_touch_disks is defined and test_touch_disks|bool
@@ -94,8 +94,8 @@
 # The following block mounts all attached volumes that have a single, common mountpoint, by creating a logical volume
 - name: disks_auto_aws_gcp/lvm | Mount block devices in a single LVM mountpoint through LV/VG
   block:
-    - name: disks_auto_aws_gcp/lvm | hosttype_vars
-      debug: msg={{ hosttype_vars }}
+    - name: disks_auto_aws_gcp/lvm | raid_vols
+      debug: msg={{ raid_vols }}
 
     - name: disks_auto_aws_gcp/lvm | Install logical volume management tooling. (yum - RedHat/CentOS)
       become: true
@@ -106,6 +106,7 @@
 
     - name: disks_auto_aws_gcp/lvm | Get the device information (pre-filesystem create)
       blockdevmap:
+        cloud_type: "{{cluster_vars.type}}"
       become: yes
       register: r__blockdevmap
 
@@ -115,31 +116,31 @@
     - name: disks_auto_aws_gcp/lvm | Create a volume group from all block devices
       become: yes
       lvg:
-        vg:  "{{ hosttype_vars.lvmparams.vg_name }}"
+        vg:  "{{ lvmparams.vg_name }}"
         pvs: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud && contains('\" + auto_vol_device_names + \"', device_name_cloud)].device_name_os\") | join(',')}}"
       vars:
-        auto_vol_device_names: "{{hosttype_vars.auto_volumes | map(attribute='device_name') | sort  | join(',')}}"
+        auto_vol_device_names: "{{raid_vols | map(attribute='device_name') | sort  | join(',')}}"
 
     - name: disks_auto_aws_gcp/lvm | Create a logical volume from volume group
       become: yes
       lvol:
-        vg: "{{ hosttype_vars.lvmparams.vg_name }}"
-        lv: "{{ hosttype_vars.lvmparams.lv_name }}"
-        size: "{{ hosttype_vars.lvmparams.lv_size }}"
+        vg: "{{ lvmparams.vg_name }}"
+        lv: "{{ lvmparams.lv_name }}"
+        size: "{{ lvmparams.lv_size }}"
 
     - name: disks_auto_aws_gcp/lvm | Create filesystem(s) on attached volume(s)
       become: yes
       filesystem:
-        fstype: "{{ hosttype_vars.auto_volumes[0].fstype }}"
-        dev: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
+        fstype: "{{ raid_vols[0].fstype }}"
+        dev: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
         force: no
 
     - name: disks_auto_aws_gcp/lvm | Mount created filesytem(s) persistently
       become: yes
       mount:
-        path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}"
-        src: "/dev/{{ hosttype_vars.lvmparams.vg_name }}/{{ hosttype_vars.lvmparams.lv_name }}"
-        fstype: "{{ hosttype_vars.auto_volumes[0].fstype }}"
+        path: "{{ raid_vols[0].mountpoint }}"
+        src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
+        fstype: "{{ raid_vols[0].fstype }}"
         state: mounted
         opts: _netdev
 
@@ -148,26 +149,23 @@
         - name: "disks_auto_aws_gcp/lvm | Touch a file with the mountpoint for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error."
           become: yes
           file:
-            path: "{{ hosttype_vars.auto_volumes[0].mountpoint }}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ hosttype_vars.auto_volumes[0].mountpoint | regex_replace('\\/', '_') }}"
+            path: "{{ raid_vols[0].mountpoint }}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ raid_vols[0].mountpoint | regex_replace('\\/', '_') }}"
             state: touch
 
         - name: disks_auto_aws_gcp/lvm | Find all .clusterversetest__ files in mounted disks
           find:
-            paths: "{{ hosttype_vars.auto_volumes[0].mountpoint }}"
+            paths: "{{ raid_vols[0].mountpoint }}"
             hidden: yes
             patterns: ".clusterversetest__*"
           register: r__find_test
 
-        - name: disks_auto_aws_gcp/lvm | Check that there is only one .clusterversetest__ file per device in mounted disks.
-          block:
-            - name: disks_auto_aws_gcp/lvm | testdevicedescriptor
-              debug: msg={{testdevicedescriptor}}
+        - debug: msg={{r__find_test}}
 
-            - name: disks_auto_aws_gcp/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
-              assert: { that: "testdevicedescriptor | json_query(\"[?length(files) > `1`]\") | length == 0", fail_msg: "ERROR - only a single file should exist per storage device.  In error [{{testdevicedescriptor | json_query(\"[?length(files) > `1`]\")}}]" }
-          vars:
-            testdevicedescriptor: "{{ r__find_test | json_query(\"results[].{hostname: '\" + inventory_hostname + \"', device_name: item.device_name, mountpoint: item.mountpoint, files: files[].path}\") }}"
+        - name: disks_auto_aws_gcp/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
+          assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }
       when: test_touch_disks is defined and test_touch_disks|bool
-  when: ('lvmparams' in hosttype_vars) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | unique | count == 1) and (hosttype_vars.auto_volumes | map(attribute='mountpoint') | list | count >= 2) and (hosttype_vars.auto_volumes | map(attribute='fstype') | list | unique | count == 1)
+  when: (lvmparams is defined and lvmparams != '')  and  (raid_vols | map(attribute='mountpoint') | list | unique | count == 1) and (raid_vols | map(attribute='mountpoint') | list | count >= 2) and (raid_vols | map(attribute='fstype') | list | unique | count == 1)
   vars:
-    hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"']\") }}"
+    _hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
+    raid_vols: "{{ _hosttype_vars.auto_volumes  | selectattr('mountpoint', '!=', '/')}}"
+    lvmparams: "{{ cluster_vars[buildenv].hosttype_vars[_hosttype_vars.hosttype].lvmparams | default('') }}"
