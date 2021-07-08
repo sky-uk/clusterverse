@@ -349,23 +349,29 @@ class nvme_identify_controller(Structure):
 class cBlockDevMap(object):
     def __init__(self, module, **kwds):
         self.module = module
-        self.device_map = []
+        self.device_map = self.get_lsblk()
 
     def get_lsblk(self):
         # Get all existing block volumes by key=value, then parse this into a dictionary (which excludes non disk and partition block types, e.g. ram, loop).  Cannot use the --json output as it not supported on older versions of lsblk (e.g. CentOS 7)
-        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE,HCTL', '-P', '-b']).decode().rstrip().split('\n')
+        lsblk_devices = subprocess.check_output(['lsblk', '-o', 'NAME,TYPE,UUID,FSTYPE,MOUNTPOINT,MODEL,SERIAL,SIZE,HCTL', '-p', '-P', '-b']).decode().rstrip().split('\n')
         os_device_names = [dict((map(lambda x: x.strip("\"").rstrip(), sub.split("="))) for sub in dev.split('\" ') if '=' in sub) for dev in lsblk_devices]
         os_device_names = [dev for dev in os_device_names if dev['TYPE'] in ['disk', 'part', 'lvm']]
+
+        # We call lsblk with '-p', which returns the OS path in the 'NAME' field.  We'll change that .
+        for dev in os_device_names:
+            dev.update({'device_name_os': dev['NAME']})
+            dev.update({'NAME': dev['NAME'].split('/')[-1]})
+
+        # Sort by NAME
         os_device_names.sort(key=lambda k: k['NAME'])
 
         # Get the partition table type.  Useful to know in case we are checking whether this block device is partition-less.  Cannot use the PTTYPE option to lsblk above, as it is not supported in earlier versions of lsblk (e.g. CentOS7)
         for os_device in os_device_names:
-            udevadm_output_lines = subprocess.check_output(['udevadm', 'info', '--query=property', '--name', os_device['NAME']]).decode().rstrip().split('\n')
-            udevadm_output = dict(s.split('=',1) for s in udevadm_output_lines)
+            os_device.update({"parttable_type": ""})
+            udevadm_output_lines = subprocess.check_output(['udevadm', 'info', '--query=property', '--name', os_device['device_name_os']]).decode().rstrip().split('\n')
+            udevadm_output = dict(s.split('=', 1) for s in udevadm_output_lines)
             if 'ID_PART_TABLE_TYPE' in udevadm_output:
                 os_device.update({"parttable_type": udevadm_output['ID_PART_TABLE_TYPE']})
-            else:
-                os_device.update({"parttable_type": ""})
         return os_device_names
 
 
@@ -373,16 +379,10 @@ class cLsblkMapper(cBlockDevMap):
     def __init__(self, **kwds):
         super(cLsblkMapper, self).__init__(**kwds)
 
-        self.device_map = self.get_lsblk()
-        for os_device in self.device_map:
-            os_device.update({"device_name_os": "/dev/" + os_device['NAME'], "device_name_cloud": ""})
-
 
 class cAzureMapper(cBlockDevMap):
     def __init__(self, **kwds):
         super(cAzureMapper, self).__init__(**kwds)
-
-        self.device_map = self.get_lsblk()
 
         # The Azure root and resource disks are symlinked at install time (by cloud-init) to /dev/disk/cloud/azure_[root|resource]. (They are NOT at predictable /dev/sd[a|b] locations)
         # Other managed 'azure_datadisk' disks are mapped by udev (/etc/udev/rules.d/66-azure-storage.rules) when attached.
@@ -390,8 +390,7 @@ class cAzureMapper(cBlockDevMap):
         devresourcedisk = os.path.basename(os.path.realpath('/dev/disk/cloud/azure_resource'))
 
         for os_device in self.device_map:
-            os_device.update({"device_name_os": "/dev/" + os_device['NAME']})
-            if os_device['NAME'] not in [devrootdisk,devresourcedisk]:
+            if os_device['NAME'] not in [devrootdisk, devresourcedisk]:
                 lun = os_device['HCTL'].split(':')[-1] if len(os_device['HCTL']) else ""
                 os_device.update({"device_name_cloud": lun})
             else:
@@ -402,15 +401,11 @@ class cGCPMapper(cBlockDevMap):
     def __init__(self, **kwds):
         super(cGCPMapper, self).__init__(**kwds)
 
-        self.device_map = self.get_lsblk()
-
-        for os_device in self.device_map:
-            os_device.update({"device_name_os": "/dev/" + os_device['NAME'], "device_name_cloud": os_device['SERIAL']})
-
 
 class cAwsMapper(cBlockDevMap):
     def __init__(self, **kwds):
         super(cAwsMapper, self).__init__(**kwds)
+
         # Instance stores (AKA ephemeral volumes) do not appear to have a defined endpoint that maps between the /dev/sd[b-e] defined in the instance creation map, and the OS /dev/nvme[0-26]n1 device.
         # For this scenario, we can only return the instance stores in the order that they are defined.  Because instance stores do not survive a poweroff and cannot be detached and reattached, the order doesn't matter as much.
         instance_store_map = []
@@ -423,28 +418,26 @@ class cAwsMapper(cBlockDevMap):
             instance_store_map.append({'ephemeral_id': block_device_mappings__ephemeral_id, 'ephemeral_map': block_device_mappings__ephemeral_mapped})
 
         instance_store_count = 0
-        self.device_map = self.get_lsblk()
         for os_device in self.device_map:
-            os_device_path = "/dev/" + os_device['NAME']
             if os_device['NAME'].startswith("nvme"):
                 try:
-                    dev = cAwsMapper.ebs_nvme_device(os_device_path)
+                    dev = cAwsMapper.ebs_nvme_device(os_device['device_name_os'])
                 except FileNotFoundError as e:
-                    self.module.fail_json(msg=os_device_path + ": FileNotFoundError" + str(e))
+                    self.module.fail_json(msg=os_device['device_name_os'] + ": FileNotFoundError" + str(e))
                 except TypeError as e:
                     if instance_store_count < len(instance_store_map):
-                        os_device.update({"device_name_os": os_device_path, "device_name_cloud": '/dev/' + instance_store_map[instance_store_count]['ephemeral_map'], "volume_id": instance_store_map[instance_store_count]['ephemeral_id']})
+                        os_device.update({"device_name_os": os_device['device_name_os'], "device_name_cloud": '/dev/' + instance_store_map[instance_store_count]['ephemeral_map'], "volume_id": instance_store_map[instance_store_count]['ephemeral_id']})
                         instance_store_count += 1
                     else:
-                        self.module.warn(u"%s is not an EBS device and there is no instance store mapping." % os_device_path)
+                        self.module.warn(u"%s is not an EBS device and there is no instance store mapping." % os_device['device_name_os'])
                 except OSError as e:
-                    self.module.warn(u"%s is not an nvme device." % os_device_path)
+                    self.module.warn(u"%s is not an nvme device." % os_device['device_name_os'])
                 else:
-                    os_device.update({"device_name_os": os_device_path, "device_name_cloud": '/dev/' + dev.get_block_device(stripped=True).rstrip(), "volume_id": dev.get_volume_id()})
+                    os_device.update({"device_name_os": os_device['device_name_os'], "device_name_cloud": '/dev/' + dev.get_block_device(stripped=True).rstrip(), "volume_id": dev.get_volume_id()})
             elif os_device['NAME'].startswith("xvd"):
-                os_device.update({"device_name_os": os_device_path, "device_name_cloud": '/dev/' + re.sub(r'xvd(.*)', r'sd\1', os_device['NAME'])})
+                os_device.update({"device_name_os": os_device['device_name_os'], "device_name_cloud": '/dev/' + re.sub(r'xvd(.*)', r'sd\1', os_device['NAME'])})
             else:
-                os_device.update({"device_name_os": os_device_path, "device_name_cloud": ""})
+                os_device.update({"device_name_os": os_device['device_name_os'], "device_name_cloud": ""})
 
     class ebs_nvme_device():
         def __init__(self, device):
@@ -479,11 +472,13 @@ def main():
     if not (len(sys.argv) > 1 and sys.argv[1] == "console"):
         module = AnsibleModule(argument_spec={"cloud_type": {"type": "str", "required": True, "choices": ['aws', 'gcp', 'azure', 'lsblk']}}, supports_check_mode=True)
     else:
-        class cDummyAnsibleModule():    # For testing without Ansible (e.g on Windows)
+        class cDummyAnsibleModule():  # For testing without Ansible (e.g on Windows)
             def __init__(self):
-                self.params={}
+                self.params = {}
+
             def exit_json(self, changed, **kwargs):
                 print(changed, json.dumps(kwargs, sort_keys=True, indent=4, separators=(',', ': ')))
+
             def fail_json(self, msg):
                 print("Failed: " + msg)
                 exit(1)
