@@ -47,7 +47,7 @@ class MatrixBuilder {
         HashMap tasks = [failFast: false]
         _getMatrixAxes().each() { axis ->
             List axisEnvVars = axis.collect { key, val -> "${key}=${val}" }
-            axisEnvVars.add("BUILD_HASH=" + generateMD5(hashCode() + axisEnvVars.join(','), 12))      //A unique build hash of the classid (hashcode) and the matrix elements
+            axisEnvVars.add("BUILD_HASH=" + generateMD5(hashCode() + axisEnvVars.join(','), 8))      //A unique build hash of the classid (hashcode) and the matrix elements
             tasks[axisEnvVars.join(', ')] = { this.clTaskMap(axisEnvVars) }
         }
         return (tasks)
@@ -80,8 +80,8 @@ class MatrixBuilder {
         axes.combinations()*.sum()    // calculates the cartesian product
     }
 
-    static String generateMD5(String s, int len = 31) {
-        java.security.MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()[0..len]
+    static String generateMD5(String s, int len = 30) {
+        java.security.MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()[0..(len-1)]
     }
 }
 
@@ -97,10 +97,10 @@ properties([
                 extendedChoice(name: 'REDEPLOY_SCHEME', type: 'PT_CHECKBOX', value: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', defaultValue: '_scheme_addallnew_rmdisk_rollback,_scheme_addnewvm_rmdisk_rollback,_scheme_rmvm_rmdisk_only,_scheme_rmvm_keepdisk_rollback', description: 'Specify which redeploy scheme(s) to test', visibleItemCount: 5),
                 choice(name: 'CLEAN_ON_FAILURE', choices: [true, false], description: "Run a clusterverse clean in the event of a failure."),
                 extendedChoice(name: 'MYHOSTTYPES_TEST', type: 'PT_MULTI_SELECT', value: 'nomyhosttypes,myhosttypes', defaultValue: 'nomyhosttypes', descriptionPropertyValue: 'Without myhosttypes, With myhosttypes', description: 'Whether to run tests on pre-configured hosttypes.', visibleItemCount: 3),
-                [name: 'MYHOSTTYPES_LIST', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'These hosttype definitions must exist in cluster_vars for all clusters', randomName: 'choice-parameter-423779762617532', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return ""'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST.split(\',\').contains(\'myhosttypes\')) { return ("<input name=\\"value\\" value=\\"sys,sysdisks2\\" class=\\"setting-input\\" type=\\"text\\">") }']]],
+                [name: 'MYHOSTTYPES_LIST', $class: 'DynamicReferenceParameter', choiceType: 'ET_FORMATTED_HTML', description: 'These hosttype definitions must exist in cluster_vars for all clusters', randomName: 'choice-parameter-423779762617532', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return ""'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST.split(\',\').contains(\'myhosttypes\')) { return ("<input name=\\"value\\" value=\\"sys,sysdisks2,sysdiskslvm\\" class=\\"setting-input\\" type=\\"text\\">") }']]],
                 [name: 'MYHOSTTYPES_SERIAL_PARALLEL', $class: 'CascadeChoiceParameter', choiceType: 'PT_RADIO', description: 'Run the myhosttype test in serial or parallel', randomName: 'choice-parameter-424489601389882', referencedParameters: 'MYHOSTTYPES_TEST', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: true, script: 'return([])'], script: [classpath: [], sandbox: true, script: 'if (MYHOSTTYPES_TEST==\'nomyhosttypes,myhosttypes\') { return([\'serial:selected\',\'parallel\']) }']]],
                 extendedChoice(name: 'SCALEUPDOWN', type: 'PT_MULTI_SELECT', value: 'noscale,scaleup,scaledown', defaultValue: 'noscale', description: 'Specify whether to test scaling up and/or down.', visibleItemCount: 3),
-                extendedChoice(name: 'IMAGE_TESTED', type: 'PT_MULTI_SELECT', value: '_ubuntu2004image,_centos7image', defaultValue: '_ubuntu2004image', descriptionPropertyValue: 'Ubuntu 20.04, CentOS 7', description: 'Specify which image(s) to test', visibleItemCount: 3),
+                extendedChoice(name: 'IMAGE_TESTED', type: 'PT_MULTI_SELECT', value: '_ubuntu2004image,_centos7image,_alma8image', defaultValue: '_ubuntu2004image', descriptionPropertyValue: 'Ubuntu 20.04, CentOS 7, AlmaLinux 8', description: 'Specify which image(s) to test', visibleItemCount: 3),
         ])
 ])
 

@@ -1,8 +1,10 @@
 ---
 
+#_ubuntu2004image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "20.04.202107200" }
 _ubuntu2004image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "latest" }
 _ubuntu1804image: { "publisher": "canonical", "offer": "UbuntuServer", "sku": "18_04-lts-gen2", "version": "latest" }
-_centos7image:    { "publisher": "OpenLogic", "offer": "CentOS", "sku": "7_9-gen2", "version": "latest" }
+_centos7image: { "publisher": "OpenLogic", "offer": "CentOS", "sku": "7_9-gen2", "version": "latest" }
+_alma8image: { "publisher": "cognosys", "offer": "alma-linux-8", "sku": "alma-linux-8", "version": "latest" }   ## NOTE: NOT-FREE
 
 cluster_vars:
   image: "{{_ubuntu2004image}}"

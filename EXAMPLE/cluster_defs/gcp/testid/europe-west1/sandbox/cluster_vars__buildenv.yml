@@ -40,12 +40,13 @@ cluster_vars:
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { d: 1, b: 1, c: 0 }
 
-      sysdisks3:
+      sysdiskslvm:
         auto_volumes:
           - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
-          - { auto_delete: true, interface: "SCSI", volume_size: 3, mountpoint: "/media/mysvc2", fstype: "ext4" }
-          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc3", fstype: "ext4" }
+          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
+        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: "e2-micro"
+        rootvol_size: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { d: 1, b: 1, c: 0 }
 

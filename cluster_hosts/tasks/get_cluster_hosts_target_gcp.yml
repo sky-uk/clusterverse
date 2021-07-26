@@ -6,8 +6,11 @@
       {%- for host in cluster_hosts_target -%}
         {%- for vol in host.auto_volumes -%}
           {%- if 'device_name' not in vol -%}
-            {%- set _dummy = vol.update({'device_name': host.hostname + '--' + vol.mountpoint | basename }) -%}
-            {%- set _dummy = vol.update({'initialize_params': {'disk_name': vol.device_name, 'disk_size_gb': vol.volume_size}}) -%}
+            {%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[host.hosttype] -%}
+              {%- set lvm_device_index = '-d' + loop.index|string -%}
+            {%- endif -%}
+            {%- set _dummy = vol.update({'device_name': host.hostname + '--' + vol.mountpoint | basename + lvm_device_index|default('') }) -%}
+            {%- set _dummy = vol.update({'initialize_params': {'disk_name': vol.device_name, 'disk_size_gb': vol.volume_size }}) -%}
           {%- endif -%}
         {%- endfor %}
       {%- endfor %}

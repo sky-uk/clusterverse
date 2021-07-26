@@ -1,5 +1,8 @@
 ---
 
+_ubuntu2004image: "ami-03caf24deed650e2c"                # eu-west-1 20.04, amd64, hvm-ssd, 20210621.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+_centos7image: "ami-01f35c358a86763b2"                   # eu-west-1 CentOS 7 by Banzai Cloud
+_alma8image: "ami-05d7345cebf7a784f"                     # eu-west-1 Official AlmaLinux 8.x OS image
+
 cluster_vars:
-  image: "ami-03caf24deed650e2c"      # eu-west-1 20.04 amd64 hvm-ssd 20210621.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#  image: "ami-0b850cf02cc00fdc8"      # eu-west-1, CentOS7
+  image: "{{_ubuntu2004image}}"

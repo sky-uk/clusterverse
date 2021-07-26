@@ -56,6 +56,7 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_ty
 + `-e metricbeat_install=false` - Does not install metricbeat
 + `-e wait_for_dns=false` - Does not wait for DNS resolution
 + `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
++ `-e delete_gcp_network_on_clean=true` - Delete GCP network and subnetwork when run with `-e clean=_all_`
 + `-e debug_nested_log_output=true` - Show the log output from nested calls to embedded Ansible playbooks (i.e. when redeploying)
 + `-e cluster_vars_override='{"sandbox":{"hosttype_vars":{"sys":{"vms_by_az":{"b":1,"c":1,"d":0}}}}}'` - Ability to override cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 

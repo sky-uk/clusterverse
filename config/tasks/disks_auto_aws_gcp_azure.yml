@@ -164,8 +164,8 @@
         - name: disks_auto_aws_gcp_azure/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
           assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }
       when: test_touch_disks is defined and test_touch_disks|bool
-  when: (lvmparams is defined and lvmparams != '')  and  (raid_vols | map(attribute='mountpoint') | list | unique | count == 1) and (raid_vols | map(attribute='mountpoint') | list | count >= 2) and (raid_vols | map(attribute='fstype') | list | unique | count == 1)
+  when: (lvmparams is defined and lvmparams != {})  and  (raid_vols | map(attribute='mountpoint') | list | unique | count == 1) and (raid_vols | map(attribute='mountpoint') | list | count >= 2) and (raid_vols | map(attribute='fstype') | list | unique | count == 1)
   vars:
     _hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
-    raid_vols: "{{ _hosttype_vars.auto_volumes  | selectattr('mountpoint', '!=', '/')}}"
-    lvmparams: "{{ cluster_vars[buildenv].hosttype_vars[_hosttype_vars.hosttype].lvmparams | default('') }}"
+    raid_vols: "{{ (_hosttype_vars.auto_volumes | selectattr('mountpoint', '!=', '/') | default([])) if _hosttype_vars.auto_volumes is defined else [] }}"
+    lvmparams: "{{ (cluster_vars[buildenv].hosttype_vars[_hosttype_vars.hosttype].lvmparams | default({})) if _hosttype_vars.hosttype is defined else {} }}"
