@@ -61,10 +61,10 @@
 
     - name: disks_auto_aws_gcp_azure | Check that we haven't mounted disks in the wrong place.  Especially useful for redeploys when we're moving disks.
       block:
-        - name: "disks_auto_aws_gcp_azure | Touch a file with the mountpoint and device name for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error."
+        - name: "disks_auto_aws_gcp_azure | Touch a file with the mountpoint and device name for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error.  Note: don't add device_name for GCP, because we can't rename the disks when redeploying and keeping disks (_scheme_rmvm_keepdisk_rollback)"
           become: yes
           file:
-            path: "{{item.mountpoint}}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ item.mountpoint | regex_replace('\\/', '_') }}__{{ item.device_name | regex_replace('\/', '_') }}"
+            path: "{{item.mountpoint}}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ item.mountpoint | regex_replace('\\/', '_') }}{%- if cluster_vars.type != 'gcp'-%}__{{ item.device_name | regex_replace('\/', '_') }}{%- endif -%}"
             state: touch
           loop: "{{auto_vols}}"
 
@@ -110,60 +110,66 @@
       become: yes
       register: r__blockdevmap
 
-    - name: disks_auto_aws_gcp_azure/lvm | r__blockdevmap (pre-filesystem create)
+    - name: disks_auto_aws_gcp_azure/lvm | r__blockdevmap (pre raid create)
       debug: msg={{r__blockdevmap}}
 
-    - name: disks_auto_aws_gcp_azure/lvm | Create a volume group from all block devices
-      become: yes
-      lvg:
-        vg:  "{{ lvmparams.vg_name }}"
-        pvs: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud && contains('\" + auto_vol_device_names + \"', device_name_cloud)].device_name_os\") | join(',')}}"
-      vars:
-        auto_vol_device_names: "{{raid_vols | map(attribute='device_name') | sort  | join(',')}}"
+    - block:
+        - name: disks_auto_aws_gcp_azure/lvm | raid_vols_devices
+          debug: msg={{ raid_vols_devices }}
 
-    - name: disks_auto_aws_gcp_azure/lvm | Create a logical volume from volume group
-      become: yes
-      lvol:
-        vg: "{{ lvmparams.vg_name }}"
-        lv: "{{ lvmparams.lv_name }}"
-        size: "{{ lvmparams.lv_size }}"
-
-    - name: disks_auto_aws_gcp_azure/lvm | Create filesystem(s) on attached volume(s)
-      become: yes
-      filesystem:
-        fstype: "{{ raid_vols[0].fstype }}"
-        dev: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
-        force: no
-
-    - name: disks_auto_aws_gcp_azure/lvm | Mount created filesytem(s) persistently
-      become: yes
-      mount:
-        path: "{{ raid_vols[0].mountpoint }}"
-        src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
-        fstype: "{{ raid_vols[0].fstype }}"
-        state: mounted
-        opts: _netdev
-
-    - name: disks_auto_aws_gcp_azure/lvm | Check that we haven't mounted disks in the wrong place.  Especially useful for redeploys when we're moving disks.
-      block:
-        - name: "disks_auto_aws_gcp_azure/lvm | Touch a file with the mountpoint for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error."
+        - name: disks_auto_aws_gcp_azure/lvm | Create a volume group from all block devices
           become: yes
-          file:
-            path: "{{ raid_vols[0].mountpoint }}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ raid_vols[0].mountpoint | regex_replace('\\/', '_') }}"
-            state: touch
+          lvg:
+            vg:  "{{ lvmparams.vg_name }}"
+            pvs: "{{ raid_vols_devices | map(attribute='device_name_os') | sort  | join(',') }}"
+    
+        - name: disks_auto_aws_gcp_azure/lvm | Create a logical volume from volume group
+          become: yes
+          lvol:
+            vg: "{{ lvmparams.vg_name }}"
+            lv: "{{ lvmparams.lv_name }}"
+            size: "{{ lvmparams.lv_size }}"
+    
+        - name: disks_auto_aws_gcp_azure/lvm | Create filesystem(s) on attached volume(s)
+          become: yes
+          filesystem:
+            fstype: "{{ raid_vols[0].fstype }}"
+            dev: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
+            force: no
+    
+        - name: disks_auto_aws_gcp_azure/lvm | Mount created filesytem(s) persistently
+          become: yes
+          mount:
+            path: "{{ raid_vols[0].mountpoint }}"
+            src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
+            fstype: "{{ raid_vols[0].fstype }}"
+            state: mounted
+            opts: _netdev
+    
+        - name: disks_auto_aws_gcp_azure/lvm | Check that we haven't mounted disks in the wrong place.  Especially useful for redeploys when we're moving disks.
+          block:
+            - name: "disks_auto_aws_gcp_azure/lvm | Touch a file with the mountpoint for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error."
+              become: yes
+              file:
+                path: "{{ raid_vols[0].mountpoint }}/.clusterversetest__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ raid_vols[0].mountpoint | regex_replace('\\/', '_') }}"
+                state: touch
+    
+            - name: disks_auto_aws_gcp_azure/lvm | Find all .clusterversetest__ files in mounted disks
+              find:
+                paths: "{{ raid_vols[0].mountpoint }}"
+                hidden: yes
+                patterns: ".clusterversetest__*"
+              register: r__find_test
+    
+            - debug: msg={{r__find_test}}
+    
+            - name: disks_auto_aws_gcp_azure/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
+              assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }
+          when: test_touch_disks is defined and test_touch_disks|bool
+      vars:
+        raid_vols_devices: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud && contains('\" + (raid_vols | map(attribute='device_name') | sort  | join(',')) + \"', device_name_cloud)]\") }}"
+      when: raid_vols_devices | length
 
-        - name: disks_auto_aws_gcp_azure/lvm | Find all .clusterversetest__ files in mounted disks
-          find:
-            paths: "{{ raid_vols[0].mountpoint }}"
-            hidden: yes
-            patterns: ".clusterversetest__*"
-          register: r__find_test
-
-        - debug: msg={{r__find_test}}
-
-        - name: disks_auto_aws_gcp_azure/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
-          assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }
-      when: test_touch_disks is defined and test_touch_disks|bool
   when: (lvmparams is defined and lvmparams != {})  and  (raid_vols | map(attribute='mountpoint') | list | unique | count == 1) and (raid_vols | map(attribute='mountpoint') | list | count >= 2) and (raid_vols | map(attribute='fstype') | list | unique | count == 1)
   vars:
     _hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
