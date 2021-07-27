@@ -79,7 +79,7 @@
         gcp_credentials_file: "gcp__{{ (cluster_vars[buildenv].gcp_service_account_rawtext if cluster_vars[buildenv].gcp_service_account_rawtext|type_debug == 'dict' else cluster_vars[buildenv].gcp_service_account_rawtext | string | from_json).project_id }}.json"
       when: gcp_credentials_file is not defined
 
-    - name: dynamic_inventory | stat the gcp_credentials_file
+    - name: stat the gcp_credentials_file
       stat: path={{gcp_credentials_file}}
       register: r__stat_gcp_credentials_file
 

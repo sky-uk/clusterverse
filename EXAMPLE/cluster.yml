@@ -19,7 +19,7 @@
   tasks: [ {wait_for_connection: "", tags: ["always"] } ]
 
 - name: clusterverse | Configure the cluster
-  hosts: all
+  hosts: all:!not_target_hosts
   tasks: [ { include_role: { name: "clusterverse/config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] } ]
 
 
