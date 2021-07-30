@@ -17,17 +17,17 @@
 - name: dynamic_inventory | Get (network) facts - to determine the local IP/network, to see if we need the bastion below (requires the 'ip' tool (the 'iproute2' package on Ubuntu))
   setup: { gather_subset: ["network"] }
 
-- name: dynamic_inventory | Add hosts to dynamic inventory
+- name: dynamic_inventory | Add hosts to dynamic inventory (add only powered-on hosts)
   add_host:
     name: "{{ item.name }}"
-    groups: "{{ item.tagslabels.hosttype }},{{ cluster_name }},{{ clusterid }}{% if item.regionzone is defined and item.regionzone %},{{ item.regionzone }}{% endif %}"
+    groups: "{{ item.tagslabels.hosttype }},{{ cluster_name }},{{ clusterid }}{% if item.regionzone is defined and item.regionzone %},{{ item.regionzone }}{% endif %}{% if cluster_hosts_target is defined and item.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) %},not_target_hosts{% endif %}"
     ansible_host: "{{ item.ipv4.public if cluster_vars.inventory_ip=='public' else item.ipv4.private }}"
     hosttype: "{{ item.tagslabels.hosttype }}"
     regionzone: "{{ item.regionzone if item.regionzone else omit }}"
     ansible_ssh_common_args: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args if (_bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool))) else (omit) }}"    # Don't use the bastion if we're running in the same subnet (assumes all hosts in subnet can operate as a bastion), or if the user sets '-e force_use_bastion=true'
     ansible_user: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user | default(omit) }}"
     ansible_ssh_private_key_file: "{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file | default(None) | ternary('id_rsa_ansible_ssh_private_key_file', omit) }}"
-  with_items: "{{ cluster_hosts_state | json_query(\"[?contains('RUNNING,running,poweredOn', instance_state)]\") }}"
+  with_items: "{{ cluster_hosts_state | json_query(\"[?contains(['RUNNING','running','poweredOn'], instance_state)]\") }}"
   vars:
     _local_cidr: "{{ (ansible_default_ipv4.network+'/'+ansible_default_ipv4.netmask) | ipaddr('network/prefix') }}"                                 # Get the network the localhost IP is in
     _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"   # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
@@ -39,20 +39,24 @@
   register: stat_inventory_file
   when: inventory_file is defined
 
-- name: dynamic_inventory | Populate inventory file from dynamic inventory
-  copy:
-    content: |
-      {% for groupname in groups.keys() | sort() -%}
-      {% if groupname not in ["all", "ungrouped"] -%}
-      [{{ groupname }}]
-      {% for hostname in groups[groupname] | sort() %}
-      {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'ansible_user' in hostvars[hostname] %}ansible_user='{{ hostvars[hostname].ansible_user }}'{% endif %} {% if 'ansible_ssh_private_key_file' in hostvars[hostname] %}ansible_ssh_private_key_file='{{ hostvars[hostname].ansible_ssh_private_key_file }}'{% endif %} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %} {% if 'ansible_ssh_common_args' in hostvars[hostname] %}ansible_ssh_common_args='{{ hostvars[hostname].ansible_ssh_common_args }}'{% endif %}{{''}}
-      {% endfor %}
+- block:
+    - name: dynamic_inventory | Populate inventory file from dynamic inventory
+      copy:
+        content: |
+          {% for groupname in groups.keys() | sort() -%}
+          {% if groupname not in ["all", "ungrouped"] -%}
+          [{{ groupname }}]
+          {% for hostname in groups[groupname] | sort() %}
+          {{ hostname }} ansible_host={{hostvars[hostname].ansible_host}} hosttype={{ hostvars[hostname].hosttype }} {% if 'ansible_user' in hostvars[hostname] %}ansible_user='{{ hostvars[hostname].ansible_user }}'{% endif %} {% if 'ansible_ssh_private_key_file' in hostvars[hostname] %}ansible_ssh_private_key_file='{{ hostvars[hostname].ansible_ssh_private_key_file }}'{% endif %} {% if 'regionzone' in hostvars[hostname] %}regionzone={{ hostvars[hostname].regionzone }}{% endif %} {% if 'ansible_ssh_common_args' in hostvars[hostname] %}ansible_ssh_common_args='{{ hostvars[hostname].ansible_ssh_common_args }}'{% endif %}{{''}}
+          {% endfor %}
 
-      {% endif %}
-      {% endfor %}
-    dest: "{{new_inventory_file}}"
-    force: yes
+          {% endif %}
+          {% endfor %}
+        dest: "{{new_inventory_file}}"
+        force: yes
+
+    - name: dynamic_inventory | inventory file contents
+      debug: msg="{{ (lookup('file', new_inventory_file)).split('\n') | map('trim') }}"
   vars:
     new_inventory_file: "{{ inventory_file if (((stat_inventory_file.stat is defined and stat_inventory_file.stat.exists) or (stat_inventory_file.skipped is defined and stat_inventory_file.skipped)) and inventory_dir is defined and inventory_dir==playbook_dir) else playbook_dir + '/inventory_' + cluster_name }}"
 

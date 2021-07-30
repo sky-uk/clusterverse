@@ -401,6 +401,9 @@ class cGCPMapper(cBlockDevMap):
     def __init__(self, **kwds):
         super(cGCPMapper, self).__init__(**kwds)
 
+        for os_device in self.device_map:
+            os_device.update({"device_name_cloud": os_device['SERIAL']})
+
 
 class cAwsMapper(cBlockDevMap):
     def __init__(self, **kwds):

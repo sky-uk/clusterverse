@@ -48,11 +48,12 @@ cluster_vars:
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-      sysdisks3:
+      sysdiskslvm:
         auto_volumes:
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdh", mountpoint: "/media/mysvc3", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: t3a.nano
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }

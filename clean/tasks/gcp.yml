@@ -51,12 +51,12 @@
         project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
       with_items: "{{ cluster_vars.firewall_rules }}"
 
-    - name: clean/gcp | Delete the GCP network (if -e create_gcp_network=true)
+    - name: clean/gcp | Delete the GCP network (if -e delete_gcp_network=true)
       gcp_compute_network:
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
         project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         state: absent
-      when: create_gcp_network is defined and create_gcp_network|bool
+      when: delete_gcp_network is defined and delete_gcp_network|bool
   when: clean is defined and clean == '_all_'
