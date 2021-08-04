@@ -430,24 +430,6 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
 /*** The actual pipeline stage definitions ***/
 /*********************************************/
 
-// A check stage - no actual work
-stage('Check Environment') {
-    node {
-        sh 'printenv | sort'
-        println(params.inspect())
-        if (params.BUILDENV == '') {
-            currentBuild.result = 'ABORTED'
-            error("BUILDENV not defined")
-        } else if (params.CLUSTER_ID == '') {
-            currentBuild.result = 'ABORTED'
-            error("CLUSTER_ID not defined")
-        } else if (params.CLOUD_REGION == '') {
-            currentBuild.result = 'ABORTED'
-            error("CLOUD_REGION not defined")
-        }
-    }
-}
-
 // A map to be loaded with matrices (of stages)
 HashMap matrixBuilds = [:]
 
@@ -483,13 +465,33 @@ if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
     }
 }
 
-// Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run serially.
-if (params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
-    stage("All matrices") {
-        parallel(matrixBuilds)
+// Only run if mandatory parameters are set.
+if (params.BUILDENV != '' && params.CLUSTER_ID != '' && params.CLOUD_REGION != '') {
+    // A check stage - no actual work
+    stage('Check Environment') {
+        node {
+            sh 'printenv | sort'
+            println(params.inspect())
+        }
+    }
+
+    // Run the matrices in parallel if the MYHOSTTYPES_SERIAL_PARALLEL parameter is set (makes in mess in Blue Ocean, but is faster).  Else run serially.
+    if (params.MYHOSTTYPES_SERIAL_PARALLEL == 'parallel') {
+        stage("All matrices") {
+            parallel(matrixBuilds)
+        }
+    } else {
+        matrixBuilds.each { matrix ->
+            matrix.value.call()
+        }
     }
 } else {
-    matrixBuilds.each { matrix ->
-        matrix.value.call()
+    currentBuild.result = 'ABORTED'
+    if (params.BUILDENV == '') {
+        println("BUILDENV not defined")
+    } else if (params.CLUSTER_ID == '') {
+        println("CLUSTER_ID not defined")
+    } else if (params.CLOUD_REGION == '') {
+        println("CLOUD_REGION not defined")
     }
 }
