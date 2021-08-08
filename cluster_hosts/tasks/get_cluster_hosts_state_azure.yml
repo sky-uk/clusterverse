@@ -55,7 +55,7 @@
     tenant: "{{cluster_vars[buildenv].azure_tenant}}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     name: "{{ item.networkInterface | basename }}"
-  with_items: "{{ r__azure_rm_resource_info.results | to_json | from_json | json_query(\"[].{name: item.name, regionzone: join('-',[item.location,response[0].zones[0]]), tagslabels: item.tags, instance_id: item.id, instance_state: item.power_state, networkInterface: response[0].properties.networkProfile.networkInterfaces[0].id }\") }}"
+  with_items: "{{ r__azure_rm_resource_info.results | to_json | from_json | json_query(\"[].{name: item.name, regionzone: join('-',[item.location,response[0].zones[0]]), tagslabels: item.tags, instance_id: item.id, instance_state: item.power_state, networkInterface: response[0].properties.networkProfile.networkInterfaces[0].id, cluster_base_image: item.image }\") }}"
   register: r__azure_rm_networkinterface_info
   delegate_to: localhost
   run_once: true
@@ -110,4 +110,4 @@
 
 - name: get_cluster_hosts_state/azure | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{r__async_status__azure_rm_publicipaddress_info.results | json_query(\"[].{name: item.item.item.item.name, regionzone: item.item.item.item.regionzone, tagslabels: item.item.item.item.tagslabels, instance_id: item.item.item.item.instance_id, instance_state: item.item.item.item.instance_state, ipv4: {private: item.item.networkinterfaces[0].ip_configurations[0].private_ip_address, public: publicipaddresses[0].ip_address} }\") }}"
+    cluster_hosts_state: "{{r__async_status__azure_rm_publicipaddress_info.results | json_query(\"[].{name: item.item.item.item.name, regionzone: item.item.item.item.regionzone, tagslabels: item.item.item.item.tagslabels, instance_id: item.item.item.item.instance_id, instance_state: item.item.item.item.instance_state, ipv4: {private: item.item.networkinterfaces[0].ip_configurations[0].private_ip_address, public: publicipaddresses[0].ip_address}, cluster_base_image: item.item.item.item.cluster_base_image }\") }}"

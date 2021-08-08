@@ -844,7 +844,6 @@ class esxiFreeScraper(object):
                         vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".devicetype": "scsi-hardDisk"})
                         vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".present": "TRUE"})
                         vmxDict.update({"scsi0:" + str(scsiDiskIdx) + ".filename": disk_filename})
-                        curDisksCount = curDisksCount + 1
 
         self.put_vmx(vmxDict, vmxPath)
         self.esxiCnx.exec_command("vim-cmd vmsvc/reload " + str(self.moid))

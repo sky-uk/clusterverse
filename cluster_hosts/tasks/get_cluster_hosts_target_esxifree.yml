@@ -6,7 +6,10 @@
       {% set res = [] -%}
       {%- for hosttyped_name, hosttyped in cluster_vars[buildenv].hosttype_vars.items() -%}
         {%- for hostvol in hosttyped.auto_volumes -%}
-          {%- set _dummy = hostvol.update({'volname': hostvol.mountpoint | regex_replace('.*\/(.*)', '\\1')}) -%}
+          {%- if 'lvmparams' in hosttyped -%}
+            {%- set lvm_device_index = '-d' + loop.index|string -%}
+          {%- endif -%}
+          {%- set _dummy = hostvol.update({'volname': hostvol.mountpoint | basename + lvm_device_index|default('')}) -%}
         {%- endfor %}
         {%- for azname, azval in hosttyped.vms_by_az.items() -%}
           {%- if azval | type_debug == 'list' -%}

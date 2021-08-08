@@ -51,7 +51,7 @@ properties([
         parameters([
                 string(name: 'APP_NAME', description: "An optional custom app_name to override the default in the playbook"),
                 booleanParam(name: 'APPEND_BUILD_NUMBER', defaultValue: false, description: 'Tick the box to append the Jenkins BUILD_NUMBER to APP_NAME'),
-                choice(name: 'CLOUD_REGION', choices: ['esxifree/dougalab', 'aws/eu-west-1', 'azure/westeurope', 'gcp/europe-west1'], description: "Choose a cloud/region"),
+                choice(name: 'CLOUD_REGION', choices: ['esxifree/dougalab', 'aws/eu-west-1', 'azure/westeurope', 'gcp/europe-west4'], description: "Choose a cloud/region"),
                 choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy"),
                 string(name: 'CLUSTER_ID', defaultValue: '', description: "Select a cluster_id to deploy", trim: true),
                 booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),

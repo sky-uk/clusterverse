@@ -26,6 +26,7 @@ cluster_vars:
 #    - name: user2
 #      lock_passwd: false
 #      passwd: $6$j212wezy...m2RrkJPb9BZMN1O/
+  delete_cloudinit: True
   custom_tagslabels:
     inv_resident_id: "myresident"
     inv_proposition_id: "myproposition"

@@ -6,7 +6,7 @@
     username: "{{ cluster_vars.username }}"
     password: "{{ cluster_vars.password }}"
     datastore: "{{ cluster_vars.datastore }}"
-    template: "{{ cluster_vars.image }}"
+    template: "{{ cluster_base_image }}"
     name: "{{ item.hostname }}"
     state: present
     hardware: "{{ {'version': cluster_vars.hardware_version} | combine({'num_cpus': item.flavor['num_cpus'], 'memory_mb': item.flavor['memory_mb']}) }}"

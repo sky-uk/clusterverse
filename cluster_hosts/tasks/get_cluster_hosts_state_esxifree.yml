@@ -16,9 +16,9 @@
     r__esxifree_guest_info: |
       {% set res = {'virtual_machines': []} -%}
         {%- for result in r__esxifree_guest_info.virtual_machines -%}
-          {%- set loadloose_res = result.annotation | json_loads_loose -%}
-          {%- if loadloose_res | type_debug == 'dict' or loadloose_res | type_debug == 'list' -%}
-            {%- set _ = result.update({'annotation': loadloose_res}) -%}
+          {%- set annotation_parsed = result.annotation | from_yaml -%}
+          {%- if annotation_parsed | type_debug == 'dict' or annotation_parsed | type_debug == 'list' -%}
+            {%- set _ = result.update({'annotation': annotation_parsed}) -%}
             {%- set _ = res.virtual_machines.append(result) -%}
           {%- endif -%}
         {%- endfor -%}

@@ -3,8 +3,7 @@
 - name: get_cluster_hosts_state/gcp | Get existing instance info (per AZ)
   gcp_compute_instance_info:
     zone: "{{cluster_vars.region}}-{{item}}"
-    filters:
-      - "labels.cluster_name = {{cluster_name}}"
+    filters: [ "labels.cluster_name = {{cluster_name}}" ]
     project: "{{cluster_vars[buildenv].vpc_project_id}}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
@@ -14,13 +13,24 @@
   delegate_to: localhost
   run_once: true
 
+- name: get_cluster_hosts_state/gcp | Get root volume info (for cluster_base_image)
+  gcp_compute_disk_info:
+    zone: "{{item.zone | basename }}"
+    filters: [ "name = {{ item.bootdisk }}" ]
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    auth_kind: "serviceaccount"
+    service_account_file: "{{gcp_credentials_file}}"
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+  register: r__gcp_compute_disk_info
+  with_items: "{{ r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, bootdisk: disks[?boot].deviceName | [0], zone: zone }\") }}"
+  delegate_to: localhost
+  run_once: true
+
 - name: get_cluster_hosts_state/gcp | Set cluster_hosts_state with correct regionzone (remove url)
   set_fact:
     cluster_hosts_state: |
-      {% set res = _cluster_hosts_state__urlregion -%}
+      {% set res = r__gcp_compute_instance_info.results | json_query('[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP}, disk_info_cloud: disks}') -%}
         {%- for cluster_host in res -%}
-           {%- set _ = cluster_host.update({'regionzone': cluster_host.regionzone | regex_replace('^.*/(.*)$', '\\1') }) -%}
+          {%- set _ = cluster_host.update({'regionzone': cluster_host.regionzone | basename, 'cluster_base_image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]') }) -%}
         {%- endfor -%}
       {{ res }}
-  vars:
-    _cluster_hosts_state__urlregion: "{{r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP}, disk_info_cloud: disks }\") }}"

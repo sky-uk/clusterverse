@@ -103,7 +103,7 @@
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         admin_username: "{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}"
         custom_data : "{{cluster_vars.user_data | default(omit)}}"
-        image: "{{cluster_vars.image}}"
+        image: "{{ cluster_base_image }}"
         managed_disk_type: Standard_LRS
         name: "{{item.hostname}}"
         os_disk_size_gb: "{{item.os_disk_size_gb | default(omit)}}"
@@ -164,8 +164,7 @@
 #    - name: create/azure | r__azure_rm_securitygroup
 #      debug: msg={{r__azure_rm_securitygroup}}
 
-
-    - name: create/azure | Create and attach managed disk(s) to VM.  Do NOT ATTEMPT to do this asynchronously - causes issues!
+    - name: "create/azure | Create and attach managed disk(s) to VM.  NOTE: Cannot do this asynchronously as the API fails when attempting to simultaneously attach multiple disks to a VM."
       azure.azcollection.azure_rm_manageddisk:
         client_id: "{{cluster_vars[buildenv].azure_client_id}}"
         secret: "{{cluster_vars[buildenv].azure_secret}}"
@@ -182,7 +181,7 @@
         zone: "{{item.az_name}}"
       vars:
         _tags:
-          name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}"
+          name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.hosttype] -%}-d{{ item.auto_volume.device_name | string }}{%- endif -%}"
           inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
           inv_node_type: "{{item.hosttype}}"
           owner: "{{ lookup('env','USER') | lower }}"
@@ -190,5 +189,62 @@
       loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
       register: r__azure_rm_manageddisk
 
-#    - name: create/azure | r__azure_rm_manageddisk
-#      debug: msg={{r__azure_rm_manageddisk}}
+    - name: create/azure | r__azure_rm_manageddisk
+      debug: msg={{r__azure_rm_manageddisk}}
+
+##### NOTE: An alternative to the above.  An attempt to speed up the synchronous create an attach by splitting into async create and synchronous attach, but it turns out that create is very fast (~1 second per disk), but attach is the blocker (~30s per disk), so no advantage to more complex code.  Left for reference.
+#    - name: create/azure | Create (asynchronously) and attach (synchronously) managed disk(s) to VM.
+#      block:
+#        - name: create/azure | Create the managed disk(s) asynchronously
+#          azure.azcollection.azure_rm_manageddisk:
+#            client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#            secret: "{{cluster_vars[buildenv].azure_secret}}"
+#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#            tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#            attach_caching: read_only
+#            disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
+#            name: "{{_tags.name}}"
+#            storage_account_type: "{{item.auto_volume.storage_account_type}}"
+#            tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
+#            zone: "{{item.az_name}}"
+#          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+#          register: r__azure_rm_manageddisk_create
+#          async: 7200
+#          poll: 0
+#          vars:
+#            _tags:
+#              name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.hosttype] -%}-d{{ item.auto_volume.device_name | string }}{%- endif -%}"
+#              inv_node_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+#              inv_node_type: "{{item.hosttype}}"
+#              owner: "{{ lookup('env','USER') | lower }}"
+#              release: "{{ release_version }}"
+#
+#        - name: create/azure | Wait for disks to create
+#          async_status: { jid: "{{ item.ansible_job_id }}" }
+#          register: r__async_status__r__azure_rm_manageddisk_create
+#          until: r__async_status__r__azure_rm_manageddisk_create.finished
+#          delay: 3
+#          retries: 300
+#          with_items: "{{r__azure_rm_manageddisk_create.results}}"
+#
+#        - name: create/azure | r__async_status__r__azure_rm_manageddisk_create
+#          debug: msg={{r__async_status__r__azure_rm_manageddisk_create}}
+#
+#        - name: "create/azure | Attach managed disk(s) to VM.    Note: Cannot do this at the same time as the asynchronous create, as we cannot simultaneously attach multiple disks to a VM."
+#          azure.azcollection.azure_rm_manageddisk:
+#            client_id: "{{cluster_vars[buildenv].azure_client_id}}"
+#            secret: "{{cluster_vars[buildenv].azure_secret}}"
+#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
+#            tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#            attach_caching: "{{item.invocation.module_args.attach_caching}}"   #This must be the same as was used for the azure_rm_manageddisk/create invocation above, or it will detach and reattach the disk creating new mountpoints during redeploy
+#            name: "{{item.state.name}}"
+#            lun: "{{item.item.item.auto_volume.device_name}}"
+#            managed_by: "{{item.item.item.hostname}}"
+#          loop: "{{ r__async_status__r__azure_rm_manageddisk_create.results }}"
+#          register: r__azure_rm_manageddisk_attach
+#
+#        - name: create/azure | r__azure_rm_manageddisk_attach
+#          debug: msg={{r__azure_rm_manageddisk_attach}}
+
