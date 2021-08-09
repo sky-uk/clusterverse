@@ -29,16 +29,16 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: "e2-micro"
         version: "{{sys_version | default('')}}"
-        vms_by_az: { d: 1, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 1, c: 0 }
 
       sysdisks2:
         auto_volumes:
-          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4", perms: { owner: "root", group: "root", mode: "775" } }
+          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc1", fstype: "ext4", perms: { owner: "root", group: "root", mode: "775" } }
           - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc2", fstype: "ext4" }
         flavor: "e2-micro"
         rootvol_size: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
         version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { d: 1, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 1, c: 0 }
 
       sysdiskslvm:
         auto_volumes:
@@ -48,7 +48,7 @@ cluster_vars:
         flavor: "e2-micro"
         rootvol_size: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
         version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { d: 1, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 1, c: 0 }
 
 _gcp_service_account_rawtext: *gcp_service_account_rawtext
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

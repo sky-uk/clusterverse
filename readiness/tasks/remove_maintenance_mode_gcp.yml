@@ -5,7 +5,7 @@
   gcp_compute_instance:
     name: "{{item.name}}"
     project: "{{cluster_vars[buildenv].vpc_project_id}}"
-    zone: "{{ item.regionzone | regex_replace('^.*/(.*)$', '\\1') }}"
+    zone: "{{ item.regionzone | basename }}"
     auth_kind: "serviceaccount"
     service_account_file: "{{gcp_credentials_file}}"
     deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"

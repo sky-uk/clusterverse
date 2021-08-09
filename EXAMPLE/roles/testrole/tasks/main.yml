@@ -3,5 +3,7 @@
 - name: Debug role path
   debug: msg="{{role_path}}"
 
-- name: Debug hosttype_vars
-  debug: msg="{{cluster_vars[buildenv].hosttype_vars}}"
+- name: Forcibly fail (-e testfail=fail_3)
+  fail:
+    msg: testfail=fail_3
+  when: testfail is defined and testfail == "fail_3"

@@ -103,7 +103,7 @@
         state: present
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
       vars:
-        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_vars.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].rootvol_size | default(omit) }}"}}
+        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{cluster_base_image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].rootvol_size | default(omit) }}"}}
         _autodisks: "{{item.auto_volumes | json_query(\"[].{auto_delete: auto_delete, interface: interface, device_name: device_name, initialize_params: initialize_params, source: {selfLink: src.source_url}}\") }}"
         _labels:
           name: "{{item.hostname}}"

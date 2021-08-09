@@ -9,9 +9,9 @@
 - name: disks_auto_generic | r__blockdevmap
   debug: msg={{ r__blockdevmap }}
 
-- name: disks_auto_generic | Create 'hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
+- name: disks_auto_generic | Create 'disks_auto_generic__hostvols' fact that contains a list of available host devices (lsblk) mapped to the mountpoints defined in cluster_vars.  Allow for multiple disks with same size.
   set_fact:
-    hostvols: |
+    disks_auto_generic__hostvols: |
       {% set res = [] -%}
       {% set tmp_blkvols = r__blockdevmap.device_map | selectattr('TYPE', '==', 'disk') | selectattr('parttable_type', '==', '') | selectattr('MOUNTPOINT', '==', '') | list -%}
       {% set inventory_hostname__no_suffix = inventory_hostname | regex_replace('-(?!.*-).*') -%}
@@ -27,38 +27,95 @@
       {%- endfor -%}
       {{ res }}
 
-- name: disks_auto_generic | hostvols
-  debug: msg={{hostvols}}
+- name: disks_auto_generic | disks_auto_generic__hostvols
+  debug: msg={{disks_auto_generic__hostvols}}
 
-# Create partition-less filesystems.
-- name: disks_auto_generic | Create filesystem(s) on attached volume(s)
-  become: yes
-  filesystem:
-    fstype: "{{ item.fstype }}"
-    dev: "{{ item.device }}"
-    force: no
-  with_items: "{{ hostvols }}"
-  register: created_filesystem
-  retries: 5
-  delay: 1
-  until: created_filesystem is not failed
+- name: disks_auto_generic | Mount block devices as individual disks
+  block:
+    # Create partition-less filesystems.
+    - name: disks_auto_generic | Create filesystem(s) on attached volume(s)
+      become: yes
+      filesystem:
+        fstype: "{{ item.fstype }}"
+        dev: "{{ item.device }}"
+        force: no
+      with_items: "{{ disks_auto_generic__hostvols }}"
+    
+    - name: disks_auto_generic | Mount created filesytem(s) persistently
+      become: yes
+      mount:
+        path: "{{ item.mountpoint }}"
+        src: "{{ item.device }}"
+        fstype: "{{ item.fstype }}"
+        state: mounted
+        opts: _netdev
+      with_items: "{{ disks_auto_generic__hostvols }}"
+    
+    - name: disks_auto_generic | change ownership of mountpoint (if set)
+      become: yes
+      file:
+        path: "{{ item.mountpoint }}"
+        state: directory
+        mode: "{{ item.perms.mode | default(omit)}}"
+        owner: "{{ item.perms.owner | default(omit)}}"
+        group: "{{ item.perms.group | default(omit)}}"
+      with_items: "{{ disks_auto_generic__hostvols }}"
+  when: (disks_auto_generic__hostvols | map(attribute='mountpoint') | list | unique | count == disks_auto_generic__hostvols | map(attribute='mountpoint') | list | count)
 
-- name: disks_auto_generic | Mount created filesytem(s) persistently
-  become: yes
-  mount:
-    path: "{{ item.mountpoint }}"
-    src: "{{ item.device }}"
-    fstype: "{{ item.fstype }}"
-    state: mounted
-    opts: _netdev
-  with_items: "{{ hostvols }}"
+# The following block mounts all attached volumes that have a single, common mountpoint, by creating a logical volume
+- name: disks_auto_generic/lvm | Mount block devices in a single LVM mountpoint through LV/VG
+  block:
+    - name: disks_auto_cloud/lvm | Install logical volume management tooling. (apt - Debian/Ubuntu)
+      become: true
+      apt:
+        update_cache: yes
+        name: "lvm2"
+      when: ansible_os_family == 'Debian'
 
-- name: disks_auto_generic | change ownership of mountpoint (if set)
-  become: yes
-  file:
-    path: "{{ item.mountpoint }}"
-    state: directory
-    mode: "{{ item.perms.mode | default(omit)}}"
-    owner: "{{ item.perms.owner | default(omit)}}"
-    group: "{{ item.perms.group | default(omit)}}"
-  with_items: "{{ hostvols }}"
+    - name: disks_auto_cloud/lvm | Install logical volume management tooling. (yum - RedHat/CentOS)
+      become: true
+      yum:
+        name: "lvm*"
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - block:
+        - name: disks_auto_generic/lvm | raid_vols_devices
+          debug: msg={{ raid_vols_devices }}
+
+        - name: disks_auto_generic/lvm | Create a volume group from all block devices
+          become: yes
+          lvg:
+            vg:  "{{ lvmparams.vg_name }}"
+            pvs: "{{ raid_vols_devices | sort | join(',') }}"
+
+        - name: disks_auto_generic/lvm | Create a logical volume from volume group
+          become: yes
+          lvol:
+            vg: "{{ lvmparams.vg_name }}"
+            lv: "{{ lvmparams.lv_name }}"
+            size: "{{ lvmparams.lv_size }}"
+
+        - name: disks_auto_generic/lvm | Create filesystem(s) on attached volume(s)
+          become: yes
+          filesystem:
+            fstype: "{{ disks_auto_generic__hostvols[0].fstype }}"
+            dev: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
+            force: no
+
+        - name: disks_auto_generic/lvm | Mount created filesytem(s) persistently
+          become: yes
+          mount:
+            path: "{{ disks_auto_generic__hostvols[0].mountpoint }}"
+            src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
+            fstype: "{{ disks_auto_generic__hostvols[0].fstype }}"
+            state: mounted
+            opts: _netdev
+      vars:
+        raid_vols_devices: "{{ disks_auto_generic__hostvols | map(attribute='device') | list }}"
+      when: raid_vols_devices | length
+
+  when: (lvmparams is defined and lvmparams != {})  and  (disks_auto_generic__hostvols | map(attribute='mountpoint') | list | unique | count == 1) and (disks_auto_generic__hostvols | map(attribute='mountpoint') | list | count >= 2) and (disks_auto_generic__hostvols | map(attribute='fstype') | list | unique | count == 1)
+  vars:
+    _hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
+    lvmparams: "{{ (cluster_vars[buildenv].hosttype_vars[_hosttype_vars.hosttype].lvmparams | default({})) if _hosttype_vars.hosttype is defined else {} }}"

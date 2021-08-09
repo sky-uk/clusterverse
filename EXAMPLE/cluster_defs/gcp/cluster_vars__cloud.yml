@@ -1,8 +1,11 @@
 ---
 
-_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210702"
-_centos7image: "projects/centos-cloud/global/images/centos-7-v20210701"
-_alma8image: "projects/almalinux-cloud/global/images/almalinux-8-v20210701"
+_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"      # Latest Ubuntu Focal (20.04.x) image
+_centos7image: "projects/centos-cloud/global/images/centos-7-*"                     # Latest CentOS 7.x image
+_alma8image: "projects/almalinux-cloud/global/images/almalinux-8-*"                 # Latest AlmaLinux 8.x OS image
+#_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210702"
+#_centos7image: "projects/centos-cloud/global/images/centos-7-v20210701"
+#_alma8image: "projects/almalinux-cloud/global/images/almalinux-8-v20210701"
 
 cluster_vars:
   image: "{{_ubuntu2004image}}"
