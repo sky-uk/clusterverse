@@ -101,7 +101,7 @@ node {
         //  docker.build("cvops", "--build-arg JENKINS_USERNAME=${jenkins_username} --build-arg JENKINS_UID=${jenkins_uid} --build-arg JENKINS_GID=${jenkins_gid} ./jenkinsfiles").inside("${docker_parent_net_str} -e JENKINS_HOME=${env.JENKINS_HOME}") {
 
         /*** Create a custom docker image within this Jenkinsfile ***/
-        create_custom_image("ubuntu_cvtest", "").inside("${docker_parent_net_str}") {
+        create_custom_image("ubuntu_cvtest", "").inside("--init ${docker_parent_net_str}") {
             stage('Setup Environment') {
                 sh 'printenv | sort'
                 println("common_deploy_vars params:" + params)
