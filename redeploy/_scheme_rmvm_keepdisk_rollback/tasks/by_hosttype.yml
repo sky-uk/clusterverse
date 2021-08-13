@@ -9,7 +9,7 @@
   when: (canary is defined and canary=="finish")
 
 - name: set hosts_to_redeploy if canary==filter
-  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname')) | selectattr(canary_filter_attr, 'search', canary_filter_value)[]}}
+  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname')) | selectattr(canary_filter_attr, 'search', canary_filter_value) | list}}
   when: (canary is defined and canary=="filter")
 
 - name: set hosts_to_redeploy if canary==none
