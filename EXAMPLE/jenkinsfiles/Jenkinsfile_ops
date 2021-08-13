@@ -73,12 +73,12 @@ node {
     echo "Params: $params"
 
     if (params.BUILDENV && params.CLUSTER_ID && params.CLOUD_REGION) {
-        println("Checkout SCS from SCM...")
+        println("Checkout from SCM...")
         try {
             checkout(scm)
         } catch (Exception e) {
             println("scm not available: " + e.toString())
-            println("we're probably *not* running in a multibranch or pipeline scm job, so we will checkout from the default (${PROJECT_BRANCH_DEFAULT}) branch")
+            println("we're probably *not* running in a multibranch or pipeline scm job, so we will checkout from the default (${DEFAULT_CLUSTERVERSE_TESTSUITE_URL}) branch")
             checkout([$class: 'GitSCM', branches: [[name: "*${DEFAULT_CLUSTERVERSE_TESTSUITE_BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: params.CV_GIT_CREDS ? params.CV_GIT_CREDS : '', url: DEFAULT_CLUSTERVERSE_TESTSUITE_URL]]])
         }
 

@@ -34,6 +34,7 @@
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
         overwrite: true
         wait: yes
+        retry_interval: 10
       become: false
       delegate_to: localhost
       run_once: true
@@ -49,9 +50,9 @@
       until: route53_jobs.finished
       delay: 1
       retries: 300
+      delegate_to: localhost
       run_once: true
       with_items: "{{r__route53.results}}"
-      delegate_to: localhost
   when: cluster_vars.dns_server=="route53"
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
