@@ -42,6 +42,9 @@
       async: 7200
       poll: 0
       register: r__route53
+      until: r__route53 is not failed
+      delay: 1
+      retries: 10
 
     - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
       async_status:
