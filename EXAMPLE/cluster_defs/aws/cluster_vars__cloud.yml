@@ -1,5 +1,8 @@
 ---
 
+## Set this to cause the route53 DNS records to be added sequentially, rather than asynchronously, in parallel.  This is much slower, but is necessary for testing clusterverse because it creates lots of clusters in parallel, which trips the 5 API requests per second limit (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html#limits-api-requests-route-53)
+#route53_dns_add_serially: true
+
 cluster_vars:
   dns_cloud_internal_domain: "{{region}}.compute.internal"        # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_server: "route53"             # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.

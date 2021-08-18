@@ -37,12 +37,12 @@
       become: false
       delegate_to: localhost
       run_once: true
-      with_items: "{{ cluster_hosts_target }}"
-      async: 7200
-      poll: 0
+      loop: "{{ cluster_hosts_target }}"
+      async: "{% if route53_dns_add_serially is not defined or route53_dns_add_serially|bool == false %}7200{% else %}{{omit}}{% endif %}"
+      poll: "{% if route53_dns_add_serially is not defined or route53_dns_add_serially|bool == false %}0{% else %}{{omit}}{% endif %}"
       register: r__route53
 
-    - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
+    - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers (when route53_dns_add_serially (which is used for heavy parallel testing which can trip the 5 API reqs/s limit) is not set)
       async_status:
         jid: "{{ item.ansible_job_id }}"
       register: route53_jobs
@@ -52,6 +52,8 @@
       delegate_to: localhost
       run_once: true
       with_items: "{{r__route53.results}}"
+      when: route53_dns_add_serially is not defined or route53_dns_add_serially|bool == false
+
   when: cluster_vars.dns_server=="route53"
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
