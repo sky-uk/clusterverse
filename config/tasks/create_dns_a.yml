@@ -34,7 +34,6 @@
         private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
         overwrite: true
         wait: yes
-        retry_interval: 10
       become: false
       delegate_to: localhost
       run_once: true
@@ -42,9 +41,6 @@
       async: 7200
       poll: 0
       register: r__route53
-      until: r__route53 is not failed
-      delay: 1
-      retries: 10
 
     - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
       async_status:
