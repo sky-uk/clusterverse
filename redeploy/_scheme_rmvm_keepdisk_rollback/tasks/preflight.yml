@@ -33,9 +33,6 @@
     - assert: { that: "_scheme_rmvm_keepdisk_rollback__copy_or_move is defined and _scheme_rmvm_keepdisk_rollback__copy_or_move in ['copy', 'move']", fail_msg: "ERROR - _scheme_rmvm_keepdisk_rollback__copy_or_move must be defined and set to either 'copy' or 'move'"  }
       when: cluster_vars.type == "esxifree"
 
-    - assert: { that: "canary_filter_key is defined and canary_filter_regex is defined and canary_filter_key != '' and canary_filter_regex != ''", fail_msg: "Please define canary_filter_key and canary_filter_regex when using the filter canary option"  }
-      when: canary == "filter"
-
     - assert: { that: "non_current_hosts | length == 0", fail_msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]" }
       vars: { non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}" }
       # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype))].name\") }}"
