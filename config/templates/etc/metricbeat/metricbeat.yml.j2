@@ -42,6 +42,18 @@ name: "{{ inventory_hostname }}"
 #fields:
 #  env: staging
 
+{% if beats_config.top_tenant is defined and (beats_config.top_tenant | length) %}
+fields_under_root: true
+fields:
+  sky:
+    top_tenant: {{ beats_config.top_tenant }}
+  service:
+    name: {{ beats_config.service_name }}
+  environment:
+    name: {{ beats_config.environment_name }}
+{% endif %} 
+
+
 
 #============================== Dashboards =====================================
 # These settings control loading the sample dashboards to the Kibana index. Loading
@@ -118,15 +130,6 @@ output.logstash:
 
   # Client Certificate Key
   #ssl.key: "/etc/pki/client/cert.key"
-
-{% if beats_config.metricbeat.top_tenant is defined and (beats_config.metricbeat.top_tenant | length) %}
-fields_under_root: true
-fields:
-  sky:
-    top_tenant: {{ beats_config.metricbeat.top_tenant }}
-  service:
-    name: {{ beats_config.metricbeat.service_name }}
-{% endif %} 
 
 #================================ Processors =====================================
 
