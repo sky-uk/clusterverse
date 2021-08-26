@@ -34,6 +34,22 @@
         dest: "/etc/metricbeat/modules.d/system.yml"
       notify: Metricbeat | Restart and enable metricbeat
 
+    - name: Metricbeat | Copy metricbeat AWS module configuration
+      become: yes
+      template:
+        src: etc/metricbeat/metricbeat_aws.yml.j2
+        dest: "/etc/metricbeat/modules.d/aws.yml"
+      notify: Metricbeat | Restart and enable metricbeat
+      when: (beats_config.metricbeat.module_aws is defined)
+
+    - name: Metricbeat | Copy metricbeat Couchbase module configuration
+      become: yes
+      template:
+        src: etc/metricbeat/metricbeat_couchbase.yml.j2
+        dest: "/etc/metricbeat/modules.d/couchbase.yml"
+      notify: Metricbeat | Restart and enable metricbeat
+      when: (beats_config.metricbeat.module_coutchbase is defined)
+
     - name: Metricbeat | Copy metricbeat service
       become: yes
       template:

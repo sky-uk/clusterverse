@@ -1,0 +1,12 @@
+# Module: couchbase
+# Docs: https://www.elastic.co/guide/en/beats/metricbeat/7.x/metricbeat-module-couchbase.html
+
+- module: couchbase
+  metricsets:
+    - bucket
+    - cluster
+    - node
+  period: 10s
+  hosts:  ["{{ beats_config.metricbeat.module_coutchbase.hosts}} "]
+  username: {{ beats_config.metricbeat.module_coutchbase.username }}
+  password: {{ beats_config.metricbeat.module_coutchbase.password }}

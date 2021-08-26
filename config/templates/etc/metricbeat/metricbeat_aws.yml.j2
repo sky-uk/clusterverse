@@ -1,0 +1,19 @@
+# Module: aws
+# Docs: https://www.elastic.co/guide/en/beats/metricbeat/7.10/metricbeat-module-aws.html
+
+- module: aws
+  period: 5m
+  metricsets:
+    - cloudwatch
+  metrics:
+    - namespace: AWS/EC2
+      name: ["CPUUtilization", "DiskWriteOps"]
+      resource_type: ec2:instance
+      #dimensions:
+      #  - name: InstanceId
+      #    value: i-0686946e22cf9494a
+      #statistic: ["Average", "Maximum"]
+- module: aws
+  period: 5m
+  metricsets:
+    - ec2
