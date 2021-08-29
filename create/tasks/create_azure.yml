@@ -103,7 +103,7 @@
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         admin_username: "{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}"
         custom_data : "{{cluster_vars.user_data | default(omit)}}"
-        image: "{{ cluster_base_image }}"
+        image: "{{ item.image }}"
         managed_disk_type: Standard_LRS
         name: "{{item.hostname}}"
         os_disk_size_gb: "{{item.os_disk_size_gb | default(omit)}}"

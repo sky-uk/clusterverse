@@ -19,6 +19,7 @@
                 'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + loop.index0|string + '-' + cluster_suffix|string,
                 'az_name': azname|string,
                 'flavor': hosttyped.flavor,
+                'image': hosttyped.image | default(cluster_vars.image),
                 'auto_volumes': hosttyped.auto_volumes,
                 'networks': vmaz.networks,
                 }) -%}
@@ -30,6 +31,7 @@
                 'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + vmazidx|string + '-' + cluster_suffix|string,
                 'az_name': azname|string,
                 'flavor': hosttyped.flavor,
+                'image': hosttyped.image | default(cluster_vars.image),
                 'auto_volumes': hosttyped.auto_volumes,
                 'networks': hosttyped.networks,
                 }) -%}

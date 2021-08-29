@@ -3,7 +3,8 @@
 _ubuntu2004image: "099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-*"     # Latest official Canonical Ubuntu Focal (20.04.x) image
 _centos7image: "161831738826/centos-7-pke-*"                                    # Latest 'Banzai Cloud' CentOS 7.x image
 _alma8image: "764336703387/AlmaLinux OS 8.*"                                    # Latest official AlmaLinux 8.x OS image
-#_ubuntu2004image: "ami-03caf24deed650e2c"                # eu-west-1 20.04, amd64, hvm-ssd, 20210621.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+
+#_ubuntu2004image: "ami-05db7ab97b239b0ac"                # eu-west-1 20.04 amd64 hvm-ssd 20210820.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #_centos7image: "ami-01f35c358a86763b2"                   # eu-west-1 CentOS 7 by Banzai Cloud
 #_alma8image: "ami-05d7345cebf7a784f"                     # eu-west-1 Official AlmaLinux 8.x OS image
 

@@ -14,4 +14,4 @@
 
 - name: get_cluster_hosts_state/aws | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{r__ec2_instance_info.instances | json_query(\"[].{name: tags.Name, regionzone: placement.availability_zone, tagslabels: tags, instance_id: instance_id, instance_state: state.name, ipv4: {private: private_ip_address, public: public_ip_address}, disk_info_cloud: block_device_mappings, cluster_base_image: image_id }\") }}"
+    cluster_hosts_state: "{{r__ec2_instance_info.instances | json_query(\"[].{name: tags.Name, regionzone: placement.availability_zone, tagslabels: tags, instance_id: instance_id, instance_state: state.name, ipv4: {private: private_ip_address, public: public_ip_address}, disk_info_cloud: block_device_mappings, image: image_id }\") }}"

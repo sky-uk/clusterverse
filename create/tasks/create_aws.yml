@@ -45,7 +45,7 @@
         spot_wait_timeout: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_wait_timeout | default(10800)}}"    #3 hours
         spot_launch_group: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_launch_group | default(omit)}}"
         spot_type: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_type | default('persistent')}}"
-        image: "{{ cluster_base_image }}"
+        image: "{{ item.image }}"
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         assign_public_ip: "{{cluster_vars.assign_public_ip}}"
         group: "{{ cluster_vars.secgroups_existing }} {%- if cluster_vars.secgroup_new | length > 0 -%} + {{ ([r__ec2_group.group_name | default()] | default())}} {%- endif -%}"

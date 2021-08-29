@@ -40,7 +40,7 @@
         dev: "{{ item.device }}"
         force: no
       with_items: "{{ disks_auto_generic__hostvols }}"
-    
+
     - name: disks_auto_generic | Mount created filesytem(s) persistently
       become: yes
       mount:
@@ -50,7 +50,7 @@
         state: mounted
         opts: _netdev
       with_items: "{{ disks_auto_generic__hostvols }}"
-    
+
     - name: disks_auto_generic | change ownership of mountpoint (if set)
       become: yes
       file:
@@ -86,7 +86,7 @@
         - name: disks_auto_generic/lvm | Create a volume group from all block devices
           become: yes
           lvg:
-            vg:  "{{ lvmparams.vg_name }}"
+            vg: "{{ lvmparams.vg_name }}"
             pvs: "{{ raid_vols_devices | sort | join(',') }}"
 
         - name: disks_auto_generic/lvm | Create a logical volume from volume group

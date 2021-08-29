@@ -6,17 +6,17 @@ release_version: ""
 # Default Prometheus node exporter configurations
 prometheus_node_exporter_install: true                    # Whether to install the prometheus node_exporter tool
 prometheus_node_exporter_port: "19100"                    # Port to export metrics to.  The default (9100), conflicts with a Couchbase port, and prevents couchbase working.
-prometheus_node_exporter_version: 0.18.1                  # Version of prometheus node_exporter tool to install
+prometheus_node_exporter_version: 1.2.2                   # Version of prometheus node_exporter tool to install
 prometheus_node_exporter_options: "--collector.systemd "  # Extra options for node_exporter
 prometheus_set_unset_maintenance_mode: true               # Whether a maintenance_mode tag is set on creation, and removed on completion.  This tag is checked for in Prometheus config, and alerting is disabled for such VMs.
 
 # Default Filebeat agent settings - specifics to be provided by app playbooks
 filebeat_install: true
-filebeat_version: 7.5.0
+filebeat_version: 7.12.1          # 7.12.0 first version to support ARM architecture
 
 # Default Metricbeat agent settings - specifics to be provided by app playbooks
 metricbeat_install: true
-metricbeat_version: 7.5.0
+metricbeat_version: 7.12.1
 
 # Default packages configurations
 pkgupdate: ""                                             # "always" or "onCreate".  Leave empty to prevent updating packages.

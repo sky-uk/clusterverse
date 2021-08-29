@@ -3,7 +3,7 @@
 - name: Filebeat | Download and install filebeat from elastic.co
   become: yes
   apt:
-    deb: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-amd64.deb"
+    deb: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}.deb"
   register: apt_jobs
   until: apt_jobs is success
   retries: 5
@@ -12,7 +12,7 @@
 - name: Filebeat | Download and install filebeat from elastic.co
   become: yes
   yum:
-    name: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-x86_64.rpm"
+    name: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ filebeat_version }}-{{ ansible_architecture }}.rpm"
   register: yum_jobs
   until: yum_jobs is success
   retries: 5
@@ -34,6 +34,6 @@
         dest: "/lib/systemd/system/filebeat.service"
       notify: Filebeat | Restart and enable filebeat
 
-    - deprecate_str: {msg: "beats_target_hosts is deprecated.  Please use beats_config.filebeat.output_logstash_hosts in future", version: "6"}
+    - deprecate_str: { msg: "beats_target_hosts is deprecated.  Please use beats_config.filebeat.output_logstash_hosts in future", version: "6" }
       when: (beats_target_hosts is defined and (beats_target_hosts | length))
   when: (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.filebeat.output_logstash_hosts is defined and (beats_config.filebeat.output_logstash_hosts | length))

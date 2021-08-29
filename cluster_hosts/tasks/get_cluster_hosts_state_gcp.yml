@@ -13,7 +13,7 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/gcp | Get root volume info (for cluster_base_image)
+- name: get_cluster_hosts_state/gcp | Get root volume info (for image)
   gcp_compute_disk_info:
     zone: "{{item.zone | basename }}"
     filters: [ "name = {{ item.bootdisk }}" ]
@@ -31,6 +31,6 @@
     cluster_hosts_state: |
       {% set res = r__gcp_compute_instance_info.results | json_query('[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP}, disk_info_cloud: disks}') -%}
         {%- for cluster_host in res -%}
-          {%- set _ = cluster_host.update({'regionzone': cluster_host.regionzone | basename, 'cluster_base_image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]') }) -%}
+          {%- set _ = cluster_host.update({'regionzone': cluster_host.regionzone | basename, 'image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]') }) -%}
         {%- endfor -%}
       {{ res }}

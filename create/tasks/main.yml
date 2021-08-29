@@ -21,36 +21,6 @@
     current_release_versions: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current' && tagslabels.release].tagslabels.release\") | default([]) }}"
 
 
-- name: Manage base cluster image.  Either the same as existing cluster (if existing cluster exists), or the one defined in 'cluster_vars.image' (which may be a filter, not an image).  Perform this here (rather than roles/clusterverse/cluster_hosts/) to allow redeploy to change the version (i.e. after lifecycle_state is set to retiring).
-  block:
-    - name: _cluster_base_images
-      debug: msg="{{_cluster_base_images}}"
-
-    - block:
-        - assert: { that: "_cluster_base_images | unique | length <= 1", fail_msg: "Multiple 'current' _cluster_base_images running ({{_cluster_base_images | join(',')}}) - abort" }
-
-        - name: Set the cluster_base_image to that defined in the current cluster
-          set_fact: { cluster_base_image: "{{ _cluster_base_images[0] | default('') }}" }
-
-        - warn_str: msg="Using base image '{{cluster_base_image}}', which was found in use in the cluster, instead of defined 'cluster_vars.image' ({{cluster_vars.image}}), to avoid differing base images in cluster."
-          when: cluster_vars.image != cluster_base_image
-      when: _cluster_base_images | length
-
-    - block:
-        - name: Set the cluster_base_image to cluster_vars.image when no cluster already exists
-          set_fact: { cluster_base_image: "{{ cluster_vars.image }}" }
-
-        - name: Get cloud-specific base-image definition (if defined).
-          include: "{{ item }}"
-          loop: "{{ query('first_found', params) }}"
-          vars: { params: { files: ["getimg_{{cluster_vars.type}}.yml"], skip: true } }
-      when: _cluster_base_images | length == 0
-
-    - debug: msg="cluster_base_image = {{cluster_base_image}}"
-  vars:
-    _cluster_base_images: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current' && cluster_base_image].cluster_base_image\") | default([]) }}"
-
-
 - name: "Create {{cluster_vars.type}} cluster"
   include_tasks: "create_{{cluster_vars.type}}.yml"
   vars:
