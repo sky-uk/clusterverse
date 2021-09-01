@@ -65,7 +65,7 @@ The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful
 ```
 ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
-ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=filter -e canary_filter_regex='^*-test-sysdisks*$'
+ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=filter -e canary_filter_regex='^.*-test-sysdisks.*$'
 ```
 ### GCP:
 ```
