@@ -8,6 +8,7 @@
       when: canary=="start" or canary=="none"
 
     - assert: { that: "myhosttypes is not defined or myhosttypes == ''", fail_msg: "ERROR - This redeploy scheme does not support myhosttypes." }
+    - assert: { that: "canary != 'filter'", fail_msg: "ERROR - This redeploy scheme does not support the filter canary option." }
 
 
 - name: Redeploy by replacing entire cluster; rollback on fail

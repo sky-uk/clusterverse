@@ -181,7 +181,7 @@ The role is designed to run in two modes:
 #### Redeploy
 + A playbook based on the [redeploy.yml example](https://github.com/sky-uk/clusterverse/tree/master/EXAMPLE/redeploy.yml) will be needed.
 + The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
-+ It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `none` or `tidy`. 
++ It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `filter`, `none` or `tidy`.
 + It contains callback hooks:
   + `mainclusteryml`: This is the name of the deployment playbook.  It is called to deploy nodes for the new cluster, or to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
   + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs. 
@@ -194,6 +194,8 @@ The role is designed to run in two modes:
         + Run `predeleterole`
         + Delete/ terminate the node (note, this is _irreversible_).
         + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
+      + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails at any point:
         + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
@@ -203,6 +205,7 @@ The role is designed to run in two modes:
         + Run `predeleterole` on the previous node
         + Shut down the previous node.
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_addallnew_rmdisk_rollback**
@@ -212,6 +215,7 @@ The role is designed to run in two modes:
       + If `canary=finish` or `canary=none`:
           + `predeleterole` is called with a list of the old VMs.
           + The old VMs are stopped.
+      + If `canary=filter`, an error message will be shown is this scheme does not support it.
       + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_rmvm_keepdisk_rollback**
@@ -225,5 +229,6 @@ The role is designed to run in two modes:
         + Run the main cluster.yml to create a new node
         + Attach disks to new node
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
