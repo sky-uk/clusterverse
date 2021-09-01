@@ -112,4 +112,4 @@
       when: hosts_to_clean | length == 0
   vars:
     hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype)) ]\") }}"
-  when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)
+  when: canary=="tidy" or  ((canary=="none" or canary=="finish" or canary=="filter") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

@@ -8,6 +8,10 @@
   set_fact: hosts_to_del={{(cluster_hosts_dict[hosttype] | sort(attribute='hostname'))[1:]}}
   when: (canary is defined and canary=="finish")
 
+- name: set hosts_to_redeploy if canary==filter
+  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname')) | selectattr('hostname', 'search', canary_filter_regex) | list}}
+  when: (canary is defined and canary=="filter")
+
 - name: set hosts_to_del if canary==none
   set_fact: hosts_to_del={{(cluster_hosts_dict[hosttype] | sort(attribute='hostname'))}}
   when: (canary is defined and canary=="none")

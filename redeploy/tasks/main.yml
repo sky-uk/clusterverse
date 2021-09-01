@@ -3,7 +3,9 @@
 - name: Preflight check - Redeploy
   block:
     - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
-    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'none', 'tidy'])", msg: "Canary must be 'start', 'finish', 'none' or 'tidy'" }
+    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'filter', 'none', 'tidy'])", msg: "Canary must be 'start', 'finish', 'filter', 'none' or 'tidy'" }
+    - assert: { that: "canary_filter_regex is defined and canary_filter_regex != ''", fail_msg: "Please define canary_filter_regex when using the filter canary option" }
+      when: canary == "filter"
     - assert: { that: "redeploy_scheme is defined and redeploy_scheme in redeploy_schemes_supported" }
     - assert: { that: "cluster_hosts_state | length", msg: "Redeploy only possible with an existing cluster." }
 
