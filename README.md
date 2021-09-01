@@ -195,7 +195,7 @@ The role is designed to run in two modes:
         + Delete/ terminate the node (note, this is _irreversible_).
         + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_key=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails at any point:
         + No further VMs will be deleted or rebuilt - the playbook stops. 
   + **_scheme_addnewvm_rmdisk_rollback**
@@ -205,7 +205,7 @@ The role is designed to run in two modes:
         + Run `predeleterole` on the previous node
         + Shut down the previous node.
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_key=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_addallnew_rmdisk_rollback**
@@ -229,6 +229,6 @@ The role is designed to run in two modes:
         + Run the main cluster.yml to create a new node
         + Attach disks to new node
       + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_key=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
