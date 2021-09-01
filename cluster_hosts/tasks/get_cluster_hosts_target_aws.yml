@@ -1,7 +1,7 @@
 ---
 
 # Dynamically look up VPC ID by name from aws
-- name: get_cluster_hosts_target | Looking up VPC facts to extract ID
+- name: get_cluster_hosts_target/aws | Looking up VPC facts to extract ID
   ec2_vpc_net_info:
     region: "{{ cluster_vars.region }}"
     aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
@@ -12,31 +12,36 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_target/aws | Set VPC ID in variable
+- name: get_cluster_hosts_target/aws | Set VPC ID in global variable
   set_fact:
     vpc_id: "{{ r__ec2_vpc_net_info.vpcs[0].id }}"
 
-- name: get_cluster_hosts_target/aws | Look up proxy subnet facts
-  ec2_vpc_subnet_info:
-    region: "{{ cluster_vars.region }}"
-    aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
-    aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
-    filters:
-      vpc-id: "{{ vpc_id }}"
-  register: r__ec2_vpc_subnet_info
-  delegate_to: localhost
-  run_once: true
 
-- name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
-  set_fact:
-    cluster_hosts_target: |
-      {%- for host in cluster_hosts_target -%}
-        {%- set subnet_id = r__ec2_vpc_subnet_info | to_json | from_json | json_query('subnets[?starts_with(tags.Name, \'' + cluster_vars[buildenv].vpc_subnet_name_prefix + host.az_name +'\')].subnet_id|[0]') -%}
-        {%- set _dummy = host.update({'vpc_subnet_id': subnet_id | string}) -%}
-      {%- endfor %}
-      {{ cluster_hosts_target }}
+- name: get_cluster_hosts_target/aws | Add subnet ids to cluster_hosts_target
+  block:
+    - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
+      ec2_vpc_subnet_info:
+        region: "{{ cluster_vars.region }}"
+        aws_access_key: "{{ cluster_vars[buildenv].aws_access_key }}"
+        aws_secret_key: "{{ cluster_vars[buildenv].aws_secret_key }}"
+        filters:
+          vpc-id: "{{ vpc_id }}"
+      register: r__ec2_vpc_subnet_info
+      delegate_to: localhost
+      run_once: true
 
-- block:
+    - name: get_cluster_hosts_target/aws | Update cluster_hosts_target with subnet_ids
+      set_fact:
+        cluster_hosts_target: |
+          {%- for host in cluster_hosts_target -%}
+            {%- set subnet_id = r__ec2_vpc_subnet_info | to_json | from_json | json_query('subnets[?starts_with(tags.Name, \'' + cluster_vars[buildenv].vpc_subnet_name_prefix + host.az_name +'\')].subnet_id|[0]') -%}
+            {%- set _dummy = host.update({'vpc_subnet_id': subnet_id | string}) -%}
+          {%- endfor %}
+          {{ cluster_hosts_target }}
+
+
+- name: get_cluster_hosts_target/aws | Add snapshot info (if found) to cluster_hosts_target
+  block:
     - name: get_cluster_hosts_target/aws | Get snapshots info
       ec2_snapshot_info:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
@@ -76,3 +81,82 @@
   vars:
     _snapshot_tags: "{{ cluster_vars[buildenv].hosttype_vars|json_query('*.auto_volumes[].snapshot_tags')  }}"
   when: _snapshot_tags|length > 0
+
+
+- name: get_cluster_hosts_target/aws | cluster_vars.image can either be an AMI in its own right, or a 'manifest-location' filter to the latest AMI.
+  block:
+    - name: get_cluster_hosts_target/aws | Attempt to evaluate the image as an AMI
+      ec2_ami_info:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        region: "{{cluster_vars.region}}"
+        filters: { image-id: "{{ item__ec2_ami_info__by_imageid.image }}" }
+      register: r__ec2_ami_info__by_imageid
+      loop: "{{ cluster_hosts_target }}"
+      loop_control: { loop_var: item__ec2_ami_info__by_imageid }
+      delegate_to: localhost
+      run_once: true
+
+    - name: get_cluster_hosts_target/aws | Create block variable '_cluster_hosts_targets__no_ami' that is the cluster_hosts_targets whose 'image' defintion is not an AMI; we'll try to evaluate it as a 'manifest-location' filter to the latest AMI instead.
+      block:
+        - name: get_cluster_hosts_target/aws | _cluster_hosts_targets__no_ami
+          debug: msg="{{ _cluster_hosts_targets__no_ami }}"
+          delegate_to: localhost
+          run_once: true
+          
+        - name: get_cluster_hosts_target/aws | Search the instance type info for the flavor of each hosttype's ami (to get architecture, needed for ec2_ami_info)
+          ec2_instance_type_info:
+            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            region: "{{cluster_vars.region}}"
+            instance_types: "{{ _cluster_hosts_targets__no_ami | json_query(\"[].flavor\") | unique }}"
+          register: r__ec2_instance_type_info
+          delegate_to: localhost
+          run_once: true
+
+        - name: get_cluster_hosts_target/aws | Get the AMI per hosttype and filtered on 'manifest-location'
+          ec2_ami_info:
+            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            region: "{{cluster_vars.region}}"
+            filters:
+              manifest-location: "{{ item__ec2_ami_info__by_location.image }}"
+              architecture: "{{ item__ec2_ami_info__by_location.derived_architecture | default('x86_64') }}"
+          loop: "{{ _cluster_hosts_targets__derived_arch }}"
+          loop_control: { loop_var: item__ec2_ami_info__by_location }
+          vars:
+            _cluster_hosts_targets__derived_arch: |-
+              {% set _cluster_hosts_targets__derived_arch = _cluster_hosts_targets__no_ami -%}
+              {%- for host in _cluster_hosts_targets__derived_arch -%}
+                {%- set hosttype_archs_ec2_instance_type_info = r__ec2_instance_type_info.instance_types | json_query('[?instance_type==\'' + host.flavor + '\'].processor_info.supported_architectures[]') -%}
+                {%- if hosttype_archs_ec2_instance_type_info | length == 1 -%}
+                  {%- set _dummy = host.update({'derived_architecture': hosttype_archs_ec2_instance_type_info[0] }) -%}
+                {%- elif hosttype_archs_ec2_instance_type_info | symmetric_difference(['i386','x86_64']) | length == 0 -%}
+                  {%- set _dummy = host.update({'derived_architecture': 'x86_64' }) -%}
+                {%- endif -%}
+              {%- endfor %}
+              {{ _cluster_hosts_targets__derived_arch }}
+          register: r__ec2_ami_info__by_location
+          delegate_to: localhost
+          run_once: true
+
+        - name: get_cluster_hosts_target/aws | Replace image with the latest AMI found at 'manifest-location'
+          set_fact:
+            cluster_hosts_target: |
+              {%- for cht_host in cluster_hosts_target -%}
+                {%- for r__ec2_ami_info_host in r__ec2_ami_info__by_location.results -%}
+                  {%- if r__ec2_ami_info_host[r__ec2_ami_info_host.ansible_loop_var].hostname == cht_host.hostname -%}
+                    {%- set _dummy = cht_host.update({'image': (r__ec2_ami_info_host.images | sort(attribute='creation_date'))[-1].image_id }) -%}
+                  {%- endif %}
+                {%- endfor %}
+              {%- endfor %}
+              {{ cluster_hosts_target }}
+      vars:
+        _cluster_hosts_targets__no_ami: |
+          {% set _cluster_hosts_targets__no_ami = [] -%}
+          {%- for host in r__ec2_ami_info__by_imageid.results -%}
+            {%- if 'images' in host and host.images | length == 0 -%}
+              {%- set _dummy = _cluster_hosts_targets__no_ami.extend([host[host.ansible_loop_var]]) -%}
+            {%- endif -%}
+          {%- endfor %}
+          {{ _cluster_hosts_targets__no_ami }}

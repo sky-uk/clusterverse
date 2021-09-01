@@ -50,8 +50,13 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 
 cluster_vars:
   type: &cloud_type "aws"
-  image: "ami-03caf24deed650e2c"      # eu-west-1 20.04 amd64 hvm-ssd 20210621.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#  image: "ami-0b850cf02cc00fdc8"      # eu-west-1, CentOS7
+  # Either specify absolute image AMIs, or find the latest images based on location name filter.
+  image: "099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-*"     # Latest official Canonical Ubuntu Focal (20.04.x) image
+  #image: "161831738826/centos-7-pke-*"                                 # Latest 'Banzai Cloud' CentOS 7.x image
+  #image: "764336703387/AlmaLinux OS 8.*"                               # Latest official AlmaLinux 8.x OS image
+  #image: "ami-03caf24deed650e2c"                   # eu-west-1 20.04 amd64 hvm-ssd 20210621.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+  #image: "ami-01f35c358a86763b2"                   # eu-west-1 CentOS 7 by Banzai Cloud
+  #image: "ami-05d7345cebf7a784f"                   # eu-west-1 Official AlmaLinux 8.x OS image
   region: &region "eu-west-1"
   dns_cloud_internal_domain: "{{_region}}.compute.internal"       # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone ""                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
