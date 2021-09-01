@@ -75,7 +75,7 @@ ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --v
 
 ### Mandatory command-line variables:
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
-+ `-e canary=['start', 'finish', 'filter', none', 'tidy']` - Specify whether to start, finish or filter a canary deploy, or 'none' deploy
++ `-e canary=['start', 'finish', 'filter', 'none', 'tidy']` - Specify whether to start, finish or filter a canary deploy, or 'none' deploy
 
 ### Extra variables:
 + `-e redeploy_scheme=<subrole_name>` - The scheme corresponds to one defined in `roles/clusterverse/redeploy`
