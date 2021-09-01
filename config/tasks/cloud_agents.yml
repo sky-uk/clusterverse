@@ -30,7 +30,7 @@
         url: "{{ qualys_release_file.location }}"
         dest: "/tmp/{{ cloud_agent.qualys.bin_name }}"
         mode: 0755
-    
+
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
       apt:
@@ -44,7 +44,7 @@
         deb: "/tmp/{{ cloud_agent.qualys.bin_name }}"
         state: present
       when: ansible_os_family == 'Debian'
-    
+
     - name: cloud_agents | Remove existing Qualys cloud agent pkg RedHat
       become: yes
       yum:

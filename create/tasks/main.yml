@@ -1,6 +1,6 @@
 ---
 
-- name: Ensure that the 'release' tag/label is consistent within a cluster.  Perform this here (rather than roles/clusterverse/cluster_hosts/) to allow redeploy to change the version.
+- name: Ensure that the 'release' tag/label is consistent within a cluster.  Perform this here (rather than roles/clusterverse/cluster_hosts/) to allow redeploy to change the version (i.e. after lifecycle_state is set to retiring).
   block:
     - name: current_release_versions
       debug: msg="{{current_release_versions}}"
@@ -22,9 +22,9 @@
 
 
 - name: "Create {{cluster_vars.type}} cluster"
-  include_tasks: "{{cluster_vars.type}}.yml"
+  include_tasks: "create_{{cluster_vars.type}}.yml"
   vars:
-    # auto_volumes are normally a list of volumes per host.  We cannot iterate this within a non-nested ansible loop(with_items), so we denormalise/ flatten it into a new one-dimensional list, of each volume, as well as all the parent host information.
+    # auto_volumes are normally a list of volumes per host (list of list).  We cannot iterate this within a non-nested ansible loop (with_items), so we denormalise/ flatten it into a new one-dimensional list, of each volume, as well as all the parent host information.
     cluster_hosts_target_denormalised_by_volume: |
       {% set res = [] -%}
       {%- for cht_host in cluster_hosts_target -%}

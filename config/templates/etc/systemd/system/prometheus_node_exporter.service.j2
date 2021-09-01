@@ -3,7 +3,7 @@ Description=Prometheus Node Exporter
 
 [Service]
 User=node_exporter
-ExecStart=/opt/node_exporter-{{prometheus_node_exporter_version}}.linux-amd64/node_exporter --web.listen-address=:{{ prometheus_node_exporter_port }} {{prometheus_node_exporter_options}}
+ExecStart=/opt/node_exporter-{{ prometheus_node_exporter_version }}.linux-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}/node_exporter --web.listen-address=:{{ prometheus_node_exporter_port }} {{ prometheus_node_exporter_options }}
 
 [Install]
 WantedBy=default.target

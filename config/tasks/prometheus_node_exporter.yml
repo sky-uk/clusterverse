@@ -2,7 +2,7 @@
 - name: prometheus node_exporter | download release archive from github.com
   become: yes
   unarchive:
-    src: "https://github.com/prometheus/node_exporter/releases/download/v{{prometheus_node_exporter_version}}/node_exporter-{{prometheus_node_exporter_version}}.linux-amd64.tar.gz"
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{prometheus_node_exporter_version}}/node_exporter-{{prometheus_node_exporter_version}}.linux-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}.tar.gz"
     dest: /opt
     remote_src: yes
 

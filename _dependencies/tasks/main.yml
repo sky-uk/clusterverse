@@ -19,12 +19,19 @@
         - deprecate_str: { msg: "Loading variables via group_vars/clusterid is deprecated.  Please use merge_vars via cluster_defs in future" }
       when: merge_dict_vars_list is not defined
 
+    - name: argv
+      debug: msg={{ argv }}
+
+    - name: cluster_vars_override
+      debug: msg={{cluster_vars_override}}
+      when: cluster_vars_override is defined
 
     - name: Combine command-line cluster_vars_override into the loaded cluster_vars
       set_fact:
-        cluster_vars: "{{cluster_vars | combine(_cluster_vars_override_templated, recursive=True)}}"
+        cluster_vars: "{{cluster_vars | combine({item.key: item.value | from_yaml}, recursive=True)}}"      # Do the combine with individually parsed variables, because sometimes, the 'value' field of an individual dict is still a string (e.g. during redeploy, which passes the cluster_vars_override again).
       vars:
-        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line parameters are interpolated as a string, sometimes as a dict - this normalises them as a dict (which the 'combine' filter, above, requires).
+        _cluster_vars_override_templated: "{{cluster_vars_override}}"     #This pre-templating technique is needed because sometimes the command-line is interpolated as a string, sometimes as a dict - this normalises it as a dict (which the 'combine' filter, above, requires), however the nested parameters may *still* be stringified (as above).
+      with_dict: "{{_cluster_vars_override_templated}}"
       when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
 
 
