@@ -13,7 +13,6 @@
     comment: prometheus node_exporter deamon
     shell: /bin/false
     system: yes
-    append: yes
 
 - name: prometheus node_exporter | install systemd service file
   become: yes
