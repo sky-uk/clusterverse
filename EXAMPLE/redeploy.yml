@@ -14,3 +14,11 @@
       vars:
         mainclusteryml: "cluster.yml"
         predeleterole: "testrole/_redeploy"
+        redeploy_extra_vars:
+          redeploy_var_1: "var_1__val"
+          redeploy_var_dict1:
+            k1: "var_dict1_val1"
+            k2: "var_dict1_val2"
+          redeploy_var_list1:
+            - "var_list1__elem1"
+            - "var_list1__elem2"
