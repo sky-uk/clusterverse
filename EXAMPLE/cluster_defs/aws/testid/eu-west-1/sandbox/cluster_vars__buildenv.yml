@@ -32,6 +32,24 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
+      sysarm:
+        auto_volumes: [ ]
+        flavor: t4g.nano
+#        image: "ami-0c28049fa5618bca4"              # eu-west-1 20.04 arm64 hvm-ssd 20210820.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+        version: "{{sys_version | default('')}}"
+        vms_by_az: { a: 1, b: 0, c: 0 }
+
+      sysarmdiskslvm:
+        auto_volumes:
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+        flavor: t4g.nano
+#        image: "ami-0c28049fa5618bca4"              # eu-west-1 20.04 arm64 hvm-ssd 20210820.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+        version: "{{sys_version | default('')}}"
+        vms_by_az: { a: 1, b: 0, c: 0 }
+
       sysspot:
         auto_volumes: [ ]
         flavor: t3a.nano

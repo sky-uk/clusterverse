@@ -5,20 +5,46 @@
   set_fact:
     cluster_hosts_target: |
       {% set res = [] -%}
-      {%- for hostttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
-        {%- for azname in cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az.keys() -%}
-          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hostttype].vms_by_az[azname]|int) -%}
+      {%- for hosttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
+        {%- for azname in cluster_vars[buildenv].hosttype_vars[hosttype].vms_by_az.keys() -%}
+          {%- for azcount in range(0,cluster_vars[buildenv].hosttype_vars[hosttype].vms_by_az[azname]|int) -%}
             {% set _dummy = res.extend([{
-              'hosttype': hostttype,
-              'hostname': cluster_name + '-' + hostttype + '-' + azname|string + azcount|string + '-' + cluster_suffix|string,
+              'hosttype': hosttype,
+              'hostname': cluster_name + '-' + hosttype + '-' + azname|string + azcount|string + '-' + cluster_suffix|string,
               'az_name': azname|string,
-              'flavor': cluster_vars[buildenv].hosttype_vars[hostttype].flavor,
-              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hostttype].auto_volumes
+              'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
+              'image': cluster_vars[buildenv].hosttype_vars[hosttype].image | default(cluster_vars.image),
+              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hosttype].auto_volumes
               }]) -%}
           {%- endfor %}
         {%- endfor %}
       {%- endfor %}
       {{ res }}
+
+
+- name: get_cluster_hosts_target | cluster_hosts_target
+  debug: msg={{cluster_hosts_target}}
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype) with the image used in an existing cluster (when existing cluster)
+  block:
+    - set_fact: { __orig_cluster_hosts_target: "{{ cluster_hosts_target }}" }         ## NOTE: We cannot use a 'vars:' variable at the block-level in place of a 'set_fact:' variable here, because a 'vars:' assignment only does a shallow-copy, (so cluster_hosts_target becomes the same as __orig_cluster_hosts_target), whereas 'set_fact:' does a deep-copy
+
+    - name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype) with the image used in an existing cluster
+      set_fact:
+        cluster_hosts_target: |
+          {%- for host in cluster_hosts_target -%}
+            {%- set _existing_image_per_hosttype = cluster_hosts_state | json_query('[?tagslabels.hosttype==\'' + host.hosttype + '\' && tagslabels.lifecycle_state==\'current\' && image].image') -%}
+            {%- if _existing_image_per_hosttype | length -%}
+              {%- set _dummy = host.update({'image': _existing_image_per_hosttype[0]}) -%}
+            {%- endif -%}
+          {%- endfor %}
+          {{ cluster_hosts_target }}
+
+    - warn_str: msg="get_cluster_hosts_target | Replaced some base images to ensure consistency across hosttype. {{cluster_hosts_target | symmetric_difference(__orig_cluster_hosts_target)}}"
+      when: (cluster_hosts_target | symmetric_difference(__orig_cluster_hosts_target))
+  when: (cluster_hosts_state | json_query('[?tagslabels.lifecycle_state==\'current\']') | length)
 
 
 - name: get_cluster_hosts_target | Augment with cloud-specific parameters (if necessary)

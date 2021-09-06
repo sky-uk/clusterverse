@@ -50,9 +50,13 @@ cluster_name: "{{app_name}}-{{buildenv}}"       # Identifies the cluster within 
 
 cluster_vars:
   type: &cloud_type "gcp"
-  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210623"                     # Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#  image: "projects/ubuntu-os-cloud/global/images/centos-7-v20201216
-  region: &region "europe-west1"
+  image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"      # Latest Ubuntu Focal (20.04.x) image
+  #image: "projects/centos-cloud/global/images/centos-7-*"                  # Latest CentOS 7.x image
+  #image: "projects/almalinux-cloud/global/images/almalinux-8-*"            # Latest AlmaLinux 8.x OS image
+  #image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210702"
+  #image: "projects/centos-cloud/global/images/centos-7-v20210701"
+  #image: "projects/almalinux-cloud/global/images/almalinux-8-v20210701"
+  region: &region "europe-west4"
   dns_cloud_internal_domain: "c.{{ (_gcp_service_account_rawtext | string | from_json).project_id }}.internal"         # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone ""                                                    # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_user_domain: "{%- if _dns_nameserver_zone -%}{{_cloud_type}}-{{_region}}.{{app_class}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
@@ -90,9 +94,9 @@ cluster_vars:
       description: "Prometheus instances attached to {{cluster_name}}-nwtag can access the exporter port(s)."
   sandbox:
     hosttype_vars:
-      sys: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sys_version | default('''')}}', auto_volumes: []}
-      sysdisks2: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sysdisks_version | default('''')}}', rootvol_size: '25', auto_volumes: [{auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc, fstype: ext4, perms: {owner: root, group: root, mode: '775'}}, {auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc2, fstype: ext4}]}
-      sysdisks3: {vms_by_az: {d: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sysdisks_version | default('''')}}', auto_volumes: [{auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc, fstype: ext4}, {auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc2, fstype: ext4}, {auto_delete: true, interface: SCSI, volume_size: 3, mountpoint: /media/mysvc3, fstype: ext4}]}
+      sys: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sys_version | default('''')}}', auto_volumes: []}
+      sysdisks2: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sysdisks_version | default('''')}}', rootvol_size: '25', auto_volumes: [{auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc, fstype: ext4, perms: {owner: root, group: root, mode: '775'}}, {auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc2, fstype: ext4}]}
+      sysdisks3: {vms_by_az: {a: 1, b: 1, c: 0}, flavor: e2-micro, version: '{{sysdisks_version | default('''')}}', auto_volumes: [{auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc, fstype: ext4}, {auto_delete: true, interface: SCSI, volume_size: 1, mountpoint: /media/mysvc2, fstype: ext4}, {auto_delete: true, interface: SCSI, volume_size: 3, mountpoint: /media/mysvc3, fstype: ext4}]}
     gcp_service_account_rawtext: &gcp_service_account_rawtext !vault |
       $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310

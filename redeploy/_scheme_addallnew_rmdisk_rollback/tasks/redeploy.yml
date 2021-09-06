@@ -1,5 +1,8 @@
 ---
 
+- name: argv
+  debug: msg="{{ argv }}"
+
 - name: canary==start or canary==none
   block:
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - There must be no machines not in the 'current' lifecycle_state.  [non_current_hosts | join(',')]"  }
