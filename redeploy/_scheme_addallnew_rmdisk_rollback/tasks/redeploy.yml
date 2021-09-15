@@ -18,7 +18,7 @@
         new_state: "retiring"
 
     - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --skip-tags=clusterverse_readiness"    #TODO: add this at some point, maybe.  Needs setting at a level above this (the whole file should apply to the selected myhosttype)  -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': {{cluster_hosts_target_to_redeploy | to_json}}}'"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | extravars_from_dict }} --skip-tags=clusterverse_readiness"    #TODO: add this at some point, maybe.  Needs setting at a level above this (the whole file should apply to the selected myhosttype)  -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': {{cluster_hosts_target_to_redeploy | to_json}}}'"
       register: r__mainclusteryml
       no_log: True
       ignore_errors: yes
@@ -60,7 +60,7 @@
     - assert: { that: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - There are no machines in the 'retiring' state." }
 
     - name: "Run {{mainclusteryml}} to perform readiness steps on new cluster (maintenance_mode, CNAME)"
-      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+      shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
       register: r__mainclusteryml
       no_log: True
       ignore_errors: yes
