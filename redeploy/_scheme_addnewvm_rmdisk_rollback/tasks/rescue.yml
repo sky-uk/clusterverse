@@ -37,7 +37,7 @@
     name: clusterverse/cluster_hosts
 
 - name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (maintenance_mode, CNAME).  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' {{ redeploy_extra_vars | extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
   vars:
     _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state=='current'].name\") }}"
     _cluster_hosts_target_prev: "{{ cluster_hosts_target | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"

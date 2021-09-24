@@ -23,7 +23,7 @@
             server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             record: "{{item.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
-            value:  "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+            value: "{{item.name}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.?' + cluster_vars.dns_nameserver_zone, '\\1')}}"
             type: CNAME
             state: absent
           with_items: "{{ hosts_to_clean }}"

@@ -16,7 +16,7 @@
     hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del.hostname + \"`]\") }}"
 
 - name: "Run {{mainclusteryml}} to fix cluster"
-  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }}"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | extravars_from_dict }}"
   register: r__mainclusteryml
   no_log: True
   ignore_errors: yes

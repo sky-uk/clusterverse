@@ -1,44 +1,56 @@
 #!groovy
 import groovy.json.JsonOutput
 
-pipeline {
-  agent any
-  parameters {
-    string(name: 'NEW_VERSION', defaultValue: "", description: "Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version.")
-  }
-  stages {
-    stage('Create Release') {
-      environment {
-        GIT_TOKEN = credentials("GITHUB_SVC_USER")
-      }
-      steps {
-        script {
-          def new_version = params.NEW_VERSION
-          if (new_version == "") {
-            error "NEW_VERSION parameter not specified.  Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."
-          } else {
-            def apiUrl = "https://api.github.com/repos/sky-uk/clusterverse/releases"
-            def latestReleaseQuery = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X GET ${apiUrl}/latest").trim()
-            def latestRelease = readJSON text: "${latestReleaseQuery}"
-            if (new_version == "next") {
-              String version = latestRelease.tag_name
-              String minor = version.substring(version.lastIndexOf('.') + 1)
-              int m = minor.toInteger() + 1
-              int index = version.lastIndexOf('.') + 1
-              String major = version.substring(0, version.lastIndexOf('.') + 1)
-              new_version = "${major}${m}"
+def PROJECT_URL_DEFAULT = "https://github.com/sky-uk/clusterverse"
+def PROJECT_BRANCH_DEFAULT = "master"       //Set the default git branch to use if we're not running an SCM job (e.g. if we're copying/pasting into a pipeline script)
+
+properties([
+        parameters([
+                string(name: 'NEW_VERSION', defaultValue: "", description: "Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."),
+                credentials(name: 'GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false)
+        ])
+])
+
+node {
+    if (params.NEW_VERSION != "") {
+        stage('Setup Environment') {
+            sh 'printenv | sort'
+            echo "Params: $params"
+
+            println("Checkout from SCM, or default if not a pipeline job")
+            try {
+                checkout scm
+            } catch (Exception e) {
+                println("scm not available: " + e.toString() + ", so checking out manually.")
+                checkout([$class: 'GitSCM', branches: [[name: "${PROJECT_BRANCH_DEFAULT}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: params.GIT_CREDS ? params.GIT_CREDS : '', url: PROJECT_URL_DEFAULT]]])
             }
-            def body = sh(returnStdout: true, script: "git log ${latestRelease.tag_name}..HEAD --pretty=format:\"<li> %H - %s</li>\"").trim()
-            if (body != "") {
-              def payload = JsonOutput.toJson(["tag_name": new_version, "name": new_version, "body": "${body}"])
-              def response = sh(returnStdout: true, script: "curl -s -H \"Authorization: Token ${env.GIT_TOKEN_PSW}\" -H \"Accept: application/json\" -H \"Content-type: application/json\" -X POST -d '${payload}' ${apiUrl}").trim()
-              echo "${new_version} is now created"
-            } else {
-              error "No change since last release"
-            }
-          }
         }
-      }
+
+        stage('Create new version') {
+            withCredentials([usernamePassword(credentialsId: params.GIT_CREDS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                def new_tag_version = params.NEW_VERSION
+                def apiUrlReleases = "https://api.github.com/repos/" + PROJECT_URL_DEFAULT.replaceFirst("^(http[s]?://[^/]+/)", "") + "/releases"
+                def latestReleaseQuery = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "GET", "${apiUrlReleases}/latest"].execute().text.trim()
+                def latestRelease = readJSON text: "${latestReleaseQuery}"
+                if (params.NEW_VERSION == "next") {
+                    String full_ver_str = latestRelease.tag_name ? latestRelease.tag_name : "v0.0.0"
+                    String major_minor = full_ver_str.substring(0, full_ver_str.lastIndexOf('.') + 1)
+                    String patch = full_ver_str.substring(full_ver_str.lastIndexOf('.') + 1)
+                    new_tag_version = "${major_minor}${patch.toInteger() + 1}"
+                }
+                String tag_range = latestRelease.tag_name ? "${latestRelease.tag_name}..HEAD" : ""
+                new_tag_body = sh(returnStdout: true, script: "git log ${tag_range} --pretty=format:'<li>%H - %s</li>'").trim()
+                if (new_tag_body != "") {
+                    def payload = JsonOutput.toJson(["tag_name": new_tag_version, "name": new_tag_version, "body": new_tag_body])
+                    def _dummyresponse = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "POST", "-d", payload, apiUrlReleases].execute().text.trim()
+                    echo "${new_tag_version} is now created"
+                } else {
+                    currentBuild.result = 'ABORTED'
+                    println("No change since last release")
+                }
+            }
+        }
+    } else {
+        error "NEW_VERSION parameter not specified.  Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."
     }
-  }
 }
