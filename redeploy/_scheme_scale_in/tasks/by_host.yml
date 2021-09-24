@@ -1,0 +1,29 @@
+---
+
+- debug: msg="Attempting to redeploy {{host_to_del}}"
+
+- name: run predeleterole role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del + \"`]\") }}"
+  when: predeleterole is defined and predeleterole != ""
+
+- include_role:
+    name: clusterverse/clean
+    tasks_from: "{{cluster_vars.type}}.yml"
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?name==`\" + host_to_del + \"`]\") }}"
+
+- name: "Run {{mainclusteryml}} to fix cluster"
+  shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | extravars_from_dict }}"
+  register: r__mainclusteryml
+  no_log: True
+  ignore_errors: yes
+- debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
+  failed_when: r__mainclusteryml is failed
+  when: r__mainclusteryml is failed  or  (debug_nested_log_output is defined and debug_nested_log_output|bool)
+
+- name: re-acquire the dynamic inventory
+  include_role:
+    name: clusterverse/dynamic_inventory
