@@ -18,7 +18,6 @@
       vars:
         hosts_to_powerchange: "{{ hosts_to_change }}"
         powerchange_new_state: "stop"
-
   vars:
     _host_to_redeploy_nosuffix: "{{host_to_redeploy.hostname | regex_replace('-(?!.*-).*')}}"   #Remove the cluster_suffix from the hostname
     hosts_to_change: "{{ cluster_hosts_state | to_json | from_json | json_query(\"[?tagslabels.lifecycle_state!='current' && starts_with(name, '\" + _host_to_redeploy_nosuffix + \"')]\") }}"

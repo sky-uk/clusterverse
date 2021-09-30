@@ -1,0 +1,63 @@
+---
+
+- name: Preflight check
+  block:
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(', ')}}]" }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+    - block:
+        - name: Change lifecycle_state label from 'current' to 'retiring'
+          include_role:
+            name: clusterverse/redeploy/__common
+            tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+          vars:
+            hosts_to_relabel: "{{ cluster_hosts_state_to_del }}"
+            new_state: "retiring"
+          when: (canary=="start" or canary=="none")
+
+        - name: re-acquire cluster_hosts_target and cluster_hosts_state
+          import_role:
+            name: clusterverse/cluster_hosts
+
+        - name: Run redeploy per hosttype.  Delete hosts in cluster_hosts_state that are not in cluster_hosts_target
+          include_tasks: redeploy_by_hosttype.yml
+          with_items: "{{ myhosttypes_array }}"
+          loop_control:
+            loop_var: hosttype
+          vars:
+            cluster_hosts_state_by_hosttype: "{{cluster_hosts_state_to_del | default([]) | dict_agg('tagslabels.hosttype') }}"
+            myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_state_by_hosttype.keys() | list }} {%- endif -%}"
+      vars:
+        cluster_hosts_state_to_del: |
+          {%- set cluster_hosts_state_to_del = [] -%}
+          {%- for chs_host in cluster_hosts_state -%}
+            {%- if chs_host.name | regex_replace('-(?!.*-).*') not in cluster_hosts_target | json_query('[].hostname') | map('regex_replace', '-(?!.*-).*') | list -%}
+              {%- set _ = cluster_hosts_state_to_del.append(chs_host) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{cluster_hosts_state_to_del}}
+  when: canary!="tidy"
+
+
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
+  block:
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: dns.yml
+      when: (hosts_to_clean | length)  and  (cluster_vars.dns_server is defined and cluster_vars.dns_server != "") and (cluster_vars.dns_user_domain is defined and cluster_vars.dns_user_domain != "")
+
+    - include_role:
+        name: clusterverse/clean
+        tasks_from: "{{cluster_vars.type}}.yml"
+      when: (hosts_to_clean | length)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
+      when: hosts_to_clean | length == 0
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.hosttype)) ]\") }}"
+  when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

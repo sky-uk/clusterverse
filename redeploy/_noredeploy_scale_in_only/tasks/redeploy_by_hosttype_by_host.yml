@@ -1,19 +1,28 @@
----
 
-- debug: msg="Attempting to redeploy {{host_to_del}}"
+- debug: msg="Removing {{host_to_del}}"
 
-- name: run predeleterole role
+- name: Change lifecycle_state label from 'current' to 'retiring'
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+  vars:
+    hosts_to_relabel: "{{ [host_to_del] }}"
+    new_state: "retiring"
+
+- name: by_hosttype_by_host | run predeleterole role
   include_role:
     name: "{{predeleterole}}"
   vars:
     hosts_to_remove: "{{ [host_to_del] }}"
   when: predeleterole is defined and predeleterole != ""
 
-- include_role:
-    name: clusterverse/clean
-    tasks_from: "{{cluster_vars.type}}.yml"
+- name: by_hosttype_by_host | Power off old VM
+  include_role:
+    name: clusterverse/redeploy/__common
+    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
   vars:
-    hosts_to_clean: "{{ [host_to_del] }}"
+    hosts_to_powerchange: "{{ [host_to_del] }}"
+    powerchange_new_state: "stop"
 
 - name: "Run {{mainclusteryml}} to fix cluster"
   shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | extravars_from_dict }}"
