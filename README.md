@@ -188,7 +188,7 @@ The role is designed to run in two modes:
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
       + This is a very basic rolling redeployment of the cluster.  
-      + _Supports redploying to bigger, but not smaller clusters_
+      + _Supports redploying to bigger or smaller clusters (where **no recovery** is possible)_.
       + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is _no rollback_ in case of failure.**
       + For each node in the cluster:
         + Run `predeleterole`
@@ -232,3 +232,9 @@ The role is designed to run in two modes:
       + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
       + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
       + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+  + **_noredeploy_scale_in_only**
+    + A special 'not-redeploy' scheme, which scales-in a cluster without needing to redeploy every node.
+    + For each node in the cluster:
+      + Run `predeleterole` on the node
+      + Shut down the node.
+    + If `canary=start`, only the first node is shut-down.  If `canary=finish`, only the remaining (non-first), nodes are shutdown.  If `canary=none`, all nodes are shut-down.

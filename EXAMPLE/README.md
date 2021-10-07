@@ -65,7 +65,6 @@ The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful
 ```
 ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 -e clusterid=test --vault-id=sandbox@.vaultpass-client.py -e canary=none
 ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
-ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py -e canary=filter -e canary_filter_regex='^.*-test-sysdisks.*$'
 ```
 ### GCP:
 ```
@@ -75,10 +74,10 @@ ansible-playbook redeploy.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --v
 
 ### Mandatory command-line variables:
 + `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
-+ `-e canary=['start', 'finish', 'filter', 'none', 'tidy']` - Specify whether to start, finish or filter a canary deploy, or 'none' deploy
++ `-e canary=['start', 'finish', 'filter', 'none', 'tidy']` - Specify whether to start, finish or filter a canary redeploy (or 'none', to redeploy the whole cluster in one command).  See below (`-e canary_filter_regex`) for `canary=filter`.
 
 ### Extra variables:
 + `-e redeploy_scheme=<subrole_name>` - The scheme corresponds to one defined in `roles/clusterverse/redeploy`
 + `-e canary_tidy_on_success=[true|false]` - Whether to run the tidy (remove the replaced VMs and DNS) on successful redeploy 
-+ `-e canary_filter_regex=regex` - Mandatory when using `canary=filter` and sets the regex pattern used to filter the target hosts by their hostnames
++ `-e canary_filter_regex='^.*-test-sysdisks.*$'` - Sets the regex pattern used to filter the target hosts by their hostnames - mandatory when using `canary=filter`
 + `-e myhosttypes="master,slave"`- In redeployment you can define which host type you like to redeploy. If not defined it will redeploy all host types

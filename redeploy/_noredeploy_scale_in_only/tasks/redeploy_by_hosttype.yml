@@ -16,12 +16,12 @@
   set_fact: hosts_to_del={{(cluster_hosts_state_by_hosttype[hosttype] | sort(attribute='name'))}}
   when: (canary is defined and canary=="none")
 
-- debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_del | json_query('[].name') | join(', ')}}]"
+- debug: msg="Canary redeploy ({{canary}}) selected; stopping [{{hosts_to_del | json_query('[].name') | join(', ')}}]"
   when: (canary is defined)
 
 
-- name: Run redeploy per host.  Delete one at a time, then reprovision.
-  include_tasks: by_hosttype_by_host.yml
+- name: Run redeploy per host.  Stop one at a time.
+  include_tasks: redeploy_by_hosttype_by_host.yml
   with_items: "{{ hosts_to_del }}"
   loop_control:
     loop_var: host_to_del

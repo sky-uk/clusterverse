@@ -1,11 +1,12 @@
 ---
 
-redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback']
+redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback', '_noredeploy_scale_in_only']
 
 #redeploy_scheme: _scheme_addallnew_rmdisk_rollback
 #redeploy_scheme: _scheme_addnewvm_rmdisk_rollback
 #redeploy_scheme: _scheme_rmvm_rmdisk_only
 #redeploy_scheme: _scheme_rmvm_keepdisk_rollback
+#redeploy_scheme: _noredeploy_scale_in_only
 
 skip_dynamic_inventory_sshwait: true
 test_touch_disks: true

@@ -8,15 +8,10 @@
 
 - name: Preflight check
   block:
-    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(', ')}}]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.lifecycle_state!='current'].name\") }}"
       when: canary=="start" or canary=="none"
-
-    - assert: { that: "{{chs_hosts | difference(cht_hosts) | length==0}}", fail_msg: "Cannot use this scheme to redeploy to smaller cluster; [{{ chs_hosts | join(',') }}] > [{{ cht_hosts | join(',') }}]" }
-      vars:
-        cht_hosts: "{{ cluster_hosts_target | json_query(\"[].hostname\") | map('regex_replace', '-(?!.*-).*') | list }}"
-        chs_hosts: "{{ cluster_hosts_state | json_query(\"[].name\") | map('regex_replace', '-(?!.*-).*') | list }}"
 
 - name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
   include_tasks: by_hosttype.yml
@@ -24,5 +19,5 @@
   loop_control:
     loop_var: hosttype
   vars:
-    cluster_hosts_dict: "{{cluster_hosts_target | dict_agg('hosttype')}}"
-    myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_dict.keys() | list }} {%- endif -%}"
+    cluster_hosts_state_by_hosttype: "{{cluster_hosts_state | default([]) | dict_agg('tagslabels.hosttype') }}"
+    myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_state_by_hosttype.keys() | list }} {%- endif -%}"
