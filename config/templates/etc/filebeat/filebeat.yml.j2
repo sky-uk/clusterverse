@@ -258,3 +258,9 @@ logging.json: true
 
 # This allows to enable 6.7 migration aliases
 #migration.6_to_7.enabled: true
+
+#=========================== External Inputs ===================================
+filebeat.config.inputs:
+  enabled: true
+  path: inputs.d/*.yml
+
