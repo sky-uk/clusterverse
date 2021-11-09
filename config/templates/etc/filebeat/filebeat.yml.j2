@@ -30,7 +30,7 @@ filebeat.inputs:
     - /var/log/messages
     - /var/log/secure
     - /var/log/dmesg
-{% if beats_config.filebeat.extra_logs_paths %}
+{% if beats_config.filebeat.extra_logs_paths is defined %}
 {% for logpath in beats_config.filebeat.extra_logs_paths %}
     - {{ logpath }}
 {% endfor %}
