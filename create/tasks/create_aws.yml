@@ -33,7 +33,7 @@
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
 
     - name: create/aws | Create EC2 VMs asynchronously
-      ec2:
+      amazon.aws.ec2:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{cluster_vars.region}}"
@@ -73,6 +73,7 @@
       poll: 0
       register: r__ec2
 
+    - pause:
     - name: create/aws | Wait for aws instance creation to complete
       async_status: { jid: "{{ item.ansible_job_id }}" }
       register: r__async_status__ec2
