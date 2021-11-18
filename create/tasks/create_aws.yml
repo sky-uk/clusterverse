@@ -21,6 +21,14 @@
   register: r__ec2_group
   when: cluster_vars.secgroup_new | length > 0
 
+- plugin: aws_ec2
+  regions: 
+    - us-west-2
+  register: r__ec2_inventory
+
+- debug:
+    msg: "{{r__ec2_inventory}}"
+
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
     - name: create/aws | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
@@ -31,15 +39,6 @@
         id: "{{item.auto_volume.src.volume_id}}"
         instance: None
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
-
-    - name: Gather EC2 Inventory Source 
-      plugin: aws_ec2
-        regions: 
-          - us-west-2
-      register: r__ec2_inventory
-
-    - debug:
-        msg: "{{r__ec2_inventory}}"
 
     - name: create/aws | Create EC2 VMs asynchronously
       ec2:
