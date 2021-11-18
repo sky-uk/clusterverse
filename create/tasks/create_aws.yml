@@ -34,7 +34,8 @@
 
     - name: Gather EC2 Inventory Source 
       plugin: aws_ec2
-        regions: "{{cluster_vars.region}}"
+        regions: 
+          - us-west-2
       register: r__ec2_inventory
 
     - debug:
