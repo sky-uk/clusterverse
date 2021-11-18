@@ -21,13 +21,10 @@
   register: r__ec2_group
   when: cluster_vars.secgroup_new | length > 0
 
-- plugin: aws_ec2
-  regions: 
-    - us-west-2
-  register: r__ec2_inventory
+plugin: aws_ec2
+regions: 
+  - us-west-2
 
-- debug:
-    msg: "{{r__ec2_inventory}}"
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
