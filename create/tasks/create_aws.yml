@@ -21,9 +21,11 @@
   register: r__ec2_group
   when: cluster_vars.secgroup_new | length > 0
 
-- plugin: aws_ec2
-  regions: 
-    - us-west-2
+- name: Gather EC2 Inventory Source
+  amazon.aws.aws_ec2:
+    region: 
+      - us-west-2
+  register: r__ec2_inventory
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
