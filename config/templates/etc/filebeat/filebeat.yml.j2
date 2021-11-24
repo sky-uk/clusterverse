@@ -30,7 +30,7 @@ filebeat.inputs:
     - /var/log/messages
     - /var/log/secure
     - /var/log/dmesg
-{% if beats_config.filebeat.extra_logs_paths %}
+{% if beats_config.filebeat.extra_logs_paths is defined %}
 {% for logpath in beats_config.filebeat.extra_logs_paths %}
     - {{ logpath }}
 {% endfor %}
@@ -258,3 +258,8 @@ logging.json: true
 
 # This allows to enable 6.7 migration aliases
 #migration.6_to_7.enabled: true
+
+#=========================== External Inputs ===================================
+filebeat.config.inputs:
+  enabled: {{ beats_config.filebeat.enable_external_inputs | default('false') }}
+  path: inputs.d/*.yml
