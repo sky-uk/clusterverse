@@ -78,6 +78,8 @@
         that: "'{%- for hosttype in cluster_vars[buildenv].hosttype_vars | dict2items -%}{%- if ('lvmparams' not in hosttype.value and (hosttype.value.auto_volumes | length) == (hosttype.value.auto_volumes | map(attribute='mountpoint') | list | unique | count))  or  ('lvmparams' in hosttype.value and (hosttype.value.auto_volumes | selectattr('mountpoint', '!=', '/') | map(attribute='mountpoint') | list | unique | count == 1)) -%}{%- else -%}{{hosttype.key}}{%- endif -%}{%- endfor -%}' == ''"
         fail_msg: "All non-root volume mountpoints must either be all different (in which case 'lvmparams' must not be set), or all the same (in which case, 'lvmparams' must be set)"
 
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
+      when: cluster_vars.type == "aws"
 
 - name: Create gcp service account contents file from cluster_vars[buildenv].gcp_service_account_rawtext (unless already defined by user)
   block:

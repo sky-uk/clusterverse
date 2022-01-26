@@ -43,7 +43,7 @@ cluster_vars:
         auto_volumes:
           - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, iops: 100, encrypted: True, delete_on_termination: true }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: t4g.nano
 #        image: "ami-0c28049fa5618bca4"              # eu-west-1 20.04 arm64 hvm-ssd 20210820.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
@@ -61,7 +61,7 @@ cluster_vars:
         auto_volumes:
           - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true, perms: { owner: "root", group: "root", mode: "775" } }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "gp2", volume_size: 1, iops: 100, encrypted: True, delete_on_termination: true }
         flavor: t3a.nano
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
@@ -69,7 +69,7 @@ cluster_vars:
       sysdiskslvm:
         auto_volumes:
           - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, iops: 100, encrypted: True, delete_on_termination: true }
           - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: t3a.nano
@@ -85,7 +85,7 @@ cluster_vars:
 
       hostnvme-multi:
         auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp2", volume_size: 8, iops: 100, encrypted: True, delete_on_termination: true }
           - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
           - { device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", volume_type: "gp2", volume_size: 1, encrypted: True, delete_on_termination: true }

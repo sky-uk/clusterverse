@@ -100,6 +100,7 @@
         encrypted: "{{item.auto_volume.encrypted}}"
         volume_size: "{%- if 'src' in item.auto_volume -%}{{omit}}{%- else -%}{{item.auto_volume.volume_size}}{%- endif -%}"
         volume_type: "{{item.auto_volume.volume_type}}"
+        iops: "{{item.auto_volume.iops | default(omit)}}"
         delete_on_termination: yes
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
       async: 7200
