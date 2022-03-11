@@ -55,7 +55,7 @@
           with_items: "{{r__route53.results}}"
           delegate_to: localhost
 
-# Introducing rescue on A records creation in AWS (route53) to cope with the error below (this is most frequent when creating 15 nodes + clusters)
+# Introducing rescue on A records creation in AWS (route53) to cope with the error below (this is most frequent when creating 15+ nodes clusters)
 # "Timeout waiting for resource records changes to be applied: Waiter ResourceRecordSetsChanged failed: Rate exceeded"
       rescue:
         - name: config/dns/a/route53 | Resubmit A records in AWS (route53) which failed the previous step
