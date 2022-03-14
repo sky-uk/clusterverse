@@ -43,15 +43,38 @@
       register: r__route53
 
     - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
-      async_status:
-        jid: "{{ item.ansible_job_id }}"
-      register: route53_jobs
-      until: route53_jobs.finished
-      delay: 1
-      retries: 300
-      run_once: true
-      with_items: "{{r__route53.results}}"
-      delegate_to: localhost
+      block:
+        - name: config/dns/a/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
+          async_status:
+            jid: "{{ item.ansible_job_id }}"
+          register: route53_jobs
+          until: route53_jobs.finished
+          delay: 1
+          retries: 300
+          run_once: true
+          with_items: "{{r__route53.results}}"
+          delegate_to: localhost
+
+# Introducing rescue on A records creation in AWS (route53) to cope with the error below (this is most frequent when creating 15+ nodes clusters)
+# "Timeout waiting for resource records changes to be applied: Waiter ResourceRecordSetsChanged failed: Rate exceeded"
+      rescue:
+        - name: config/dns/a/route53 | Resubmit A records in AWS (route53) which failed the previous step
+          route53:
+            aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+            aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            state: present
+            zone: "{{cluster_vars.dns_nameserver_zone}}"
+            record: "{{item.invocation.module_args.record}}"
+            type: A
+            ttl: 60
+            value: "{{ item.invocation.module_args.value }}"
+            private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
+            overwrite: true
+            wait: yes
+          become: false
+          delegate_to: localhost
+          run_once: true
+          with_items: "{{route53_jobs.results | json_query(\"[?failed==`true`]\")}}"
   when: cluster_vars.dns_server=="route53"
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
