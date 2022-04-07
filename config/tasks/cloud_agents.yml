@@ -86,12 +86,63 @@
 
 - name: cloud_agents | Tenable Nessus cloud agent
   block:
-    - name: cloud_agents | Download and install Tenable Nessus cloud agent pkg
+    - name: cloud_agents | Retrieve Tenable Nessus agents from github
+      uri:
+        url: "{{ cloud_agent.tenable.github_release }}"
+        force_basic_auth: yes
+        url_username: "{{ environment_credentials[buildenv].github_username }}"
+        url_password: "{{ environment_credentials[buildenv].github_token }}"
+        headers:
+          Accept: "application/vnd.github.v3+json"
+      register: github_list_tenable
+
+    - name: cloud_agents | Get latest Tenable Nessus agent
+      uri:
+        url: "{{ github_list_tenable | json_query('json[].assets[?name==`'+ cloud_agent.tenable.debpackage +'`].url[] | [0]') }}"
+        follow_redirects: none
+        status_code: 302
+        return_content: no
+        force_basic_auth: yes
+        url_username: "{{ environment_credentials[buildenv].github_username }}"
+        url_password: "{{ environment_credentials[buildenv].github_token }}"
+        headers:
+          Accept: "application/octet-stream"
+      register: tenable_release_file
+
+    - name: cloud_agents | Download Tenable Nessus agents to tmp directory
+      get_url:
+        url: "{{ tenable_release_file.location }}"
+        dest: "/tmp/{{ cloud_agent.tenable.debpackage }}"
+        mode: 0755
+
+    - name: cloud_agents | Remove existing Tenable Nessus cloud agent pkg Debian
       become: yes
       apt:
-        deb: "{{ cloud_agent.tenable.debpackage }}"
-        state: present
+        name: "{{ cloud_agent.tenable.service }}"
+        state: absent
+      when: ansible_os_family == 'Debian'
 
+    - name: cloud_agents | Download and install Tenable Nessus cloud agent pkg Debian
+      become: yes
+      apt:
+        deb: "/tmp/{{ cloud_agent.tenable.debpackage }}"
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: cloud_agents | Remove existing Tenable Nessus cloud agent pkg RedHat
+      become: yes
+      yum:
+        name: "{{ cloud_agent.tenable.service }}"
+        state: absent
+      when: ansible_os_family == 'RedHat'
+
+    - name: cloud_agents | Download and install Tenable Nessus cloud agent pkg RedHat
+      become: yes
+      yum:
+        name: "{{ cloud_agent.tenable.rpmpackage }}"
+        state: present
+      when: ansible_os_family == 'RedHat'
+      
     - name: cloud_agents | link Tenable Nessus cloud agent (with proxy if applicable)
       become: yes
       shell: "{{ cloud_agent.tenable.bin_path }}/nessuscli agent link --key={{ cloud_agent.tenable.nessus_key_id }} --groups={{ cloud_agent.tenable.nessus_group_id }} --cloud {%- if 'proxy' in cloud_agent.tenable -%} --proxy-host={{ cloud_agent.tenable.proxy.host }} --proxy-port={{ cloud_agent.tenable.proxy.port }} {%- endif -%}"
