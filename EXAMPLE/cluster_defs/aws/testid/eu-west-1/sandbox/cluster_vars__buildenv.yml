@@ -36,6 +36,7 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: t4g.nano
 #        image: "ami-0c28049fa5618bca4"              # eu-west-1 20.04 arm64 hvm-ssd 20210820.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+        instance_profile_name: "instance-profile-name" # instance_profile_namecan be specified either at cluster level or hosttype level
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 0, c: 0 }
 

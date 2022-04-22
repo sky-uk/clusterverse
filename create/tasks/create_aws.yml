@@ -39,7 +39,7 @@
         region: "{{cluster_vars.region}}"
         key_name: "{{cluster_vars[buildenv].key_name}}"
         instance_type: "{{item.flavor}}"
-        instance_profile_name: "{{cluster_vars.instance_profile_name | default(omit)}}"
+        instance_profile_name: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].instance_profile_name | default(cluster_vars.instance_profile_name | default(omit))}}"
         instance_initiated_shutdown_behavior: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].instance_initiated_shutdown_behavior | default(omit)}}"
         spot_price: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_price | default(omit)}}"
         spot_wait_timeout: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_wait_timeout | default(10800)}}"    #3 hours
