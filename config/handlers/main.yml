@@ -14,3 +14,11 @@
     name: metricbeat
     state: restarted
     enabled: yes
+
+
+- name: Chrony | Restart and enable chrony
+  become: yes
+  service:
+    name: chronyd
+    state: restarted
+    enabled: yes
