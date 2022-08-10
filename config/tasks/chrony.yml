@@ -1,0 +1,43 @@
+---
+
+- name: Chrony | Install and Configure - Ubuntu
+  block:
+    - name: Chrony | Ubuntu install
+      become: yes
+      apt:
+        name: chrony
+        update_cache: yes
+        state: present
+  when: ansible_os_family == "Debian"
+
+- name: Chrony | Install and Configure - CentOS
+  block:
+    - name: Chrony | CentOS install
+      become: yes
+      yum:
+        name: chrony
+        state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Configure Chrony
+  become: yes
+  copy:
+    dest: "/etc/{% if ansible_os_family == 'Debian'%}chrony/{% endif %}chrony.conf"
+    backup: yes
+    content: |-
+      {% for ntp_server in ntp_servers %}
+      server {{ ntp_server }}
+      {% endfor %}
+      
+      {% if ansible_os_family == 'RedHat' %}
+      keyfile /etc/chrony.keys
+      {% else %}
+      keyfile /etc/chrony/chrony.keys
+      {% endif %}
+      
+      driftfile /var/lib/chrony/chrony.drift
+      logdir /var/log/chrony
+      rtcsync
+      makestep 1 3
+  notify:
+    - Chrony | Restart and enable chrony
