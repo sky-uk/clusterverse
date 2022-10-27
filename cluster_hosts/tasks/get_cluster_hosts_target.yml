@@ -44,7 +44,7 @@
 
     - warn_str: msg="get_cluster_hosts_target | Replaced some base images to ensure consistency across hosttype. {{cluster_hosts_target | symmetric_difference(__orig_cluster_hosts_target)}}"
       when: (cluster_hosts_target | symmetric_difference(__orig_cluster_hosts_target))
-  when: (cluster_hosts_state | json_query('[?tagslabels.lifecycle_state==\'current\']') | length)
+  when: (cluster_hosts_state | json_query('[?tagslabels.lifecycle_state==\'current\']') | length and not override_deprecated_ami | bool)
 
 
 - name: get_cluster_hosts_target | Augment with cloud-specific parameters (if necessary)
