@@ -1,5 +1,7 @@
 ---
 
+override_deprecated_ami: true # If set true will prevent the playbook to fail in case any of the existing VM has a deprecated AMI.
+
 redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback', '_noredeploy_scale_in_only']
 
 #redeploy_scheme: _scheme_addallnew_rmdisk_rollback
