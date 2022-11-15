@@ -56,6 +56,7 @@
         volumes: "{{ item.auto_volumes | selectattr('src', 'undefined') | list | default([]) }}"
         count_tag: { Name: "{{item.hostname}}" }
         exact_count: 1
+        ec2_url: "{{ aws_endpoint_url | default(omit) }}"
       vars:
         _instance_tags:
           Name: "{{item.hostname}}"
