@@ -165,12 +165,14 @@ setup.kibana:
 output.elasticsearch:
   # Array of hosts to connect to.
   hosts: {{ beats_config.filebeat.output_elasticsearch_hosts | default(beats_target_hosts) }}
-{% endif %}
+
   # Optional protocol and basic auth credentials.
   #protocol: "https"
-  #username: "elastic"
-  #password: "changeme"
-
+{% if es_username is defined and es_password is defined %}
+  username: "{{ es_username }}"
+  password: "{{ es_password }}"
+{% endif %}
+{% endif %}
 #----------------------------- Logstash output --------------------------------
 {% if (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.filebeat.output_logstash_hosts is defined and (beats_config.filebeat.output_logstash_hosts | length)) %}
 output.logstash:
