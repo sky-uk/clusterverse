@@ -101,6 +101,15 @@ output.elasticsearch:
   username: "{{ beats_config.filebeat.es_username }}"
   password: "{{ beats_config.filebeat.es_password }}"
 {% endif %}
+
+{% if beats_config.filebeat.ssl_enabled is defined %}
+  ssl.enabled: "{{ beats_config.filebeat.ssl_enabled }}"
+{% endif %}
+
+{% if beats_config.filebeat.ssl_verification_mode is defined %}
+  ssl.enabled: "{{ beats_config.filebeat.ssl_verification_mode }}"
+{% endif %}
+
 {% endif %}
 #----------------------------- Logstash output --------------------------------
 {% if (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.metricbeat.output_logstash_hosts is defined and (beats_config.metricbeat.output_logstash_hosts | length)) %}
