@@ -103,11 +103,11 @@ output.elasticsearch:
 {% endif %}
 
 {% if beats_config.filebeat.ssl_enabled is defined %}
-  ssl.enabled: "{{ beats_config.filebeat.ssl_enabled }}"
+  ssl.enabled: {{ beats_config.filebeat.ssl_enabled }}
 {% endif %}
 
 {% if beats_config.filebeat.ssl_verification_mode is defined %}
-  ssl.enabled: "{{ beats_config.filebeat.ssl_verification_mode }}"
+  ssl.verification_mode: {{ beats_config.filebeat.ssl_verification_mode }}
 {% endif %}
 
 {% endif %}
