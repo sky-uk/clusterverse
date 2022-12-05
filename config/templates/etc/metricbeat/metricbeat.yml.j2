@@ -97,9 +97,9 @@ output.elasticsearch:
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
-{% if es_username is defined and es_password is defined %}
-  username: "{{ es_username }}"
-  password: "{{ es_password }}"
+{% if beats_config.filebeat.es_username is defined and beats_config.filebeat.es_password is defined %}
+  username: "{{ beats_config.filebeat.es_username }}"
+  password: "{{ beats_config.filebeat.es_password }}"
 {% endif %}
 {% endif %}
 #----------------------------- Logstash output --------------------------------
