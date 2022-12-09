@@ -28,4 +28,4 @@ cluster_vars:
 
 # Some of the regions are not available for aws module boto.ec2. If the region definitely exists, you may need to upgrade boto or extend with endpoints_path
 # Adding the below to ec2 invocation fixes the issue
-aws_endpoint_url: https://ec2.{{region}}.amazonaws.com
+  aws_endpoint_url: https://ec2.{{region}}.amazonaws.com
