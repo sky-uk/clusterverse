@@ -43,4 +43,4 @@
 
     - deprecate_str: { msg: "beats_target_hosts is deprecated.  Please use beats_config.metricbeat.output_logstash_hosts in future", version: "6" }
       when: (beats_target_hosts is defined and (beats_target_hosts | length))
-  when: (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.metricbeat.output_logstash_hosts is defined and (beats_config.metricbeat.output_logstash_hosts | length))
+  when: (beats_target_hosts is defined and (beats_target_hosts | length)) or (beats_config.metricbeat.output_logstash_hosts is defined and (beats_config.metricbeat.output_logstash_hosts | length)) or (beats_config.filebeat.output_elasticsearch_hosts is defined and (beats_config.filebeat.output_elasticsearch_hosts | length))
