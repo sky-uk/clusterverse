@@ -2,28 +2,16 @@
 
 - name: Chrony | Install and Configure - Ubuntu
   block:
-    - name: Chrony | Ubuntu - Ensure NTP is not installed
-      become: yes
-      apt:
-        name: ntp
-        state: absent
-        purge: yes
-  
     - name: Chrony | Ubuntu install
       become: yes
       apt:
         name: chrony
+        update_cache: yes
         state: present
   when: ansible_os_family == "Debian"
 
 - name: Chrony | Install and Configure - CentOS
   block:
-    - name: Chrony | CentOS - Ensure NTP is not installed
-      become: yes
-      yum:
-        name: ntpd
-        state: absent
-  
     - name: Chrony | CentOS install
       become: yes
       yum:
@@ -31,23 +19,25 @@
         state: present
   when: ansible_os_family == "RedHat"
 
-- name: Set NTP servers - AWS
-  set_fact:
-    ntp_servers:
-      - "169.254.169.123 prefer iburst minpoll 4 maxpoll 4"
-  when: cluster_vars.type == 'aws'
-
-- name: Set NTP servers - GCP
-  set_fact:
-    ntp_servers:
-      - "metadata.google.internal"
-  when: cluster_vars.type == 'gcp'
-
 - name: Configure Chrony
   become: yes
-  template:
-    src: etc/chrony/chrony.conf.j2
+  copy:
     dest: "/etc/{% if ansible_os_family == 'Debian'%}chrony/{% endif %}chrony.conf"
     backup: yes
+    content: |-
+      {% for ntp_server in ntp_servers %}
+      server {{ ntp_server }}
+      {% endfor %}
+
+      {% if ansible_os_family == 'RedHat' %}
+      keyfile /etc/chrony.keys
+      {% else %}
+      keyfile /etc/chrony/chrony.keys
+      {% endif %}
+
+      driftfile /var/lib/chrony/chrony.drift
+      logdir /var/log/chrony
+      rtcsync
+      makestep 1 3
   notify:
     - Chrony | Restart and enable chrony
