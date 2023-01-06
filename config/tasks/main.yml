@@ -85,9 +85,9 @@
   include_tasks: cloud_agents.yml
   when: (cloud_agent is defined and cloud_agent)
 
-- name: Install chrony
+- name: Install chrony (NTP client)
   include_tasks: chrony.yml
-  when: cluster_vars.type in ["aws", "gcp"]
+  when: chrony_install|bool
 
 - name: Update packages (when pkgupdate is defined)
   include_tasks: pkgupdate.yml
