@@ -1,6 +1,6 @@
 #!groovy
 
-node {
+node('docker') {
     stage('Call clusterverse/clusterverse-release-tag') {
         build job: 'clusterverse/clusterverse-release-tag', parameters: [string(name: 'NEW_VERSION', value: "next")]
     }

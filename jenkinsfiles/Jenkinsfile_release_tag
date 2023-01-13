@@ -11,7 +11,7 @@ properties([
         ])
 ])
 
-node {
+node('docker') {
     if (params.NEW_VERSION != "") {
         stage('Setup Environment') {
             sh 'printenv | sort'

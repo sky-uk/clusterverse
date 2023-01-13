@@ -40,7 +40,7 @@ def create_custom_image(image_name, params = "") {
 
 
 //This allows us to copy&paste this entire script into a pipeline job in the GUI for faster development time (don't have to commit/push to Git to test every change).
-node {
+node('docker') {
     if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
         println("Get bare clusterverse repo to obtain the version history for the RELEASE gitParameter")
         git(changelog: false, poll: false, url: DEFAULT_CLUSTERVERSE_URL)
@@ -68,7 +68,7 @@ properties([
         ])
 ])
 
-node {
+node('docker') {
     sh 'printenv | sort'
     echo "Params: $params"
 

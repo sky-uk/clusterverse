@@ -157,7 +157,7 @@ def stage_cvops(String stageLabel, cStageBuild stageBuild, Closure stageExpressi
 //                    !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
 //        },
 //        clTaskMap: { axisEnvVars ->
-//            node {
+//            node('docker') {
 //                withEnv(axisEnvVars) {
 //                    withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
 //                        env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
@@ -202,7 +202,7 @@ CVTEST_NOMYHOSTTYPES = new MatrixBuilder([
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
         },
         clTaskMap: { axisEnvVars ->
-            node {
+            node('docker') {
                 withEnv(axisEnvVars) {
                     withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
                         env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
@@ -315,7 +315,7 @@ CVTEST_MYHOSTTYPES = new MatrixBuilder([
                     !(axis['REDEPLOY_SCHEME'] == '_scheme_rmvm_keepdisk_rollback' && (axis['SCALEUPDOWN'] == 'scaledown' || axis['SCALEUPDOWN'] == 'scaleup'))    /* _scheme_rmvm_keepdisk_rollback does not support scaling */
         },
         clTaskMap: { axisEnvVars ->
-            node {
+            node('docker') {
                 withEnv(axisEnvVars) {
                     withCredentials([string(credentialsId: "VAULT_PASSWORD_${env.BUILDENV.toUpperCase()}", variable: 'VAULT_PASSWORD_BUILDENV')]) {
                         env.VAULT_PASSWORD_BUILDENV = VAULT_PASSWORD_BUILDENV
@@ -459,7 +459,7 @@ if (params.MYHOSTTYPES_TEST.split(',').contains('myhosttypes')) {
 if (params.BUILDENV != '' && params.CLUSTER_ID != '' && params.CLOUD_REGION != '') {
     // A check stage - no actual work
     stage('Check Environment') {
-        node {
+        node('docker') {
             sh 'printenv | sort'
             println(params.inspect())
         }
