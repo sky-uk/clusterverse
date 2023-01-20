@@ -3,7 +3,7 @@
 - name: clean/aws | clean vms
   block:
     - name: clean/aws | Remove instances termination protection
-      ec2:
+      ec2_instance:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{ cluster_vars.region }}"
@@ -14,7 +14,7 @@
       with_items: "{{ hosts_to_clean | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
 
     - name: clean/aws | Delete VMs
-      ec2:
+      ec2_instance:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{ cluster_vars.region }}"
