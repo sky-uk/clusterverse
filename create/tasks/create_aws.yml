@@ -129,7 +129,7 @@
       until: r__async_status__ec2_vol.finished
       delay: 3
       retries: 300
-      with_items: "{{r__ec2_instance_vol.results}}"
+      with_items: "{{r__ec2_vol.results}}"
 
 #    - name: create/aws | r__async_status__ec2_vol
 #      debug: msg={{r__async_status__ec2_vol}}
