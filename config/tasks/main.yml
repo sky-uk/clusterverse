@@ -85,6 +85,10 @@
   include_tasks: cloud_agents.yml
   when: (cloud_agent is defined and cloud_agent)
 
+- name: Install chrony (NTP client)
+  include_tasks: chrony.yml
+  when: chrony_install|bool
+
 - name: Update packages (when pkgupdate is defined)
   include_tasks: pkgupdate.yml
   when: pkgupdate is defined and (pkgupdate == 'always' or (pkgupdate == 'onCreate' and inventory_hostname in (hostvars['localhost'].cluster_hosts_created | json_query('[].hostname'))))
