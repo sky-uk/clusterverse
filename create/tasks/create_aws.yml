@@ -70,7 +70,7 @@
             {%- endif -%}
           {%- endfor %}
           {{ res }}
-        filters: { "tag:Name": "{{item.hostname}}", "instance-state-name": ["running", "pending"] }
+#        filters: { "tag:Name": "{{item.hostname}}", "instance-state-name": ["running", "pending"] }
         exact_count: 1
         ec2_url: "{{ cluster_vars.aws_endpoint_url | default(omit) }}"
       vars:
@@ -90,8 +90,8 @@
       poll: 0
       register: r__ec2
 
-    - name: ec2_instance keys debug check
-      debug: msg={{aws_access_key}}
+#    - name: ec2_instance keys debug check
+#      debug: msg={{aws_access_key}}
 
     - name: create/aws | Wait for aws instance creation to complete
       async_status: { jid: "{{ item.ansible_job_id }}" }
