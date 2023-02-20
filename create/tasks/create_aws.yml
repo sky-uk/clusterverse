@@ -33,7 +33,7 @@
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
 
     - name: create/aws | Create EC2 VMs asynchronously
-      ec2_instance:
+      amazon.aws.ec2_instance:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         region: "{{cluster_vars.region}}"
@@ -90,6 +90,9 @@
       poll: 0
       register: r__ec2
 
+    - name: ec2_instance keys debug check
+      debug: msg={{aws_access_key}}
+
     - name: create/aws | Wait for aws instance creation to complete
       async_status: { jid: "{{ item.ansible_job_id }}" }
       register: r__async_status__ec2
@@ -98,8 +101,8 @@
       retries: 300
       with_items: "{{r__ec2.results}}"
 
-#    - name: create/aws | r__async_status__ec2.results
-#      debug: msg={{r__async_status__ec2.results}}
+    - name: create/aws | r__async_status__ec2.results
+      debug: msg={{r__async_status__ec2.results}}
 
     - name: create/aws | Set a fact containing the newly-created hosts
       set_fact:
