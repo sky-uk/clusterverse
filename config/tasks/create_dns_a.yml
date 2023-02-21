@@ -2,7 +2,7 @@
 
 - block:
     - name: config/dns/a/nsupdate | create/update A records in bind (nsupdate)
-      nsupdate:
+      community.general.nsupdate:
         key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
         key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
         server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
