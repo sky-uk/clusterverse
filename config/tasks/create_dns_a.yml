@@ -2,7 +2,7 @@
 
 - block:
     - name: config/dns/a/nsupdate | create/update A records in bind (nsupdate)
-      nsupdate:
+      community.general.nsupdate:
         key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
         key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
         server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
@@ -22,7 +22,7 @@
 
 - block:
     - name: config/dns/a/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
-      route53_info:
+      community.aws.route53_info:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         query: hosted_zone
@@ -31,7 +31,7 @@
       register: r__route53_info__zones
 
     - name: config/dns/a/route53 | create/update A records for all matching zones, (public and/or private) in AWS (route53)
-      route53:
+      community.aws.route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
         state: present
@@ -76,10 +76,10 @@
           delegate_to: localhost
 
       # rescue A-record creation in AWS (route53) to cope with the error below (this is most frequent when creating 15+ nodes clusters)
-      # "Timeout waiting for resource records changes to be applied: Waiter ResourceRecordSetsChanged failed: Rate exceeded"
+      # "Timeout waiting for resource records changes to be applied: Waiter resource_record_setsChanged failed: Rate exceeded"
       rescue:
         - name: config/dns/a/route53 | Resubmit A records in AWS (route53) which failed the previous step
-          route53:
+          community.aws.route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: present
@@ -100,7 +100,7 @@
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
   block:
     - name: config/dns/a/clouddns | Gather info for pre-existing Managed Zones (public and/or private)
-      gcp_dns_managed_zone_info:
+      google.cloud.gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{cluster_vars.dns_nameserver_zone}}"
         project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
@@ -111,7 +111,7 @@
       run_once: true
 
     - name: config/dns/a/clouddns | create/update A records for all matching zones, (public and/or private) in GCP (clouddns)
-      gcp_dns_resource_record_set:
+      google.cloud.gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
           name: "{{item.1.name}}"
