@@ -21,7 +21,16 @@
   when: cluster_vars.dns_server == "nsupdate"
 
 - block:
-    - name: config/dns/a/route53 | create/update A records in AWS (route53)
+    - name: config/dns/a/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
+      route53_info:
+        aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
+        aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        query: hosted_zone
+      become: false
+      delegate_to: localhost
+      register: r__route53_info__zones
+
+    - name: config/dns/a/route53 | create/update A records for all matching zones, (public and/or private) in AWS (route53)
       route53:
         aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
         aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
@@ -30,14 +39,25 @@
         record: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
         type: A
         ttl: 60
-        value: "{{ hostvars[item.hostname]['ansible_host'] }}"
-        private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
+        value: "{{ item.ipv4 }}"
+        private_zone: "{{ item.private_zone }}"
         overwrite: true
         wait: yes
       become: false
       delegate_to: localhost
       run_once: true
-      with_items: "{{ cluster_hosts_target }}"
+      with_items: |
+        {% set res = [] -%}
+        {%- for cht_host in cluster_hosts_target -%}
+          {%- for hosted_zone in r__route53_info__zones.HostedZones | default([]) | json_query('[?Name==`' + cluster_vars.dns_nameserver_zone + '.`]') -%}
+            {%- if hosted_zone.Config.PrivateZone|bool == true and 'ipv4_private' in hostvars[cht_host.hostname] -%}
+              {%- set _ = res.append({'hostname': cht_host.hostname, 'private_zone': hosted_zone.Config.PrivateZone, 'ipv4': hostvars[cht_host.hostname]['ipv4_private']}) -%}
+            {%- elif hosted_zone.Config.PrivateZone|bool == false and 'ipv4_public' in hostvars[cht_host.hostname] -%} 
+              {%- set _ = res.append({'hostname': cht_host.hostname, 'private_zone': hosted_zone.Config.PrivateZone, 'ipv4': hostvars[cht_host.hostname]['ipv4_public']}) -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endfor -%}
+        {{res}}
       async: 7200
       poll: 0
       register: r__route53
@@ -55,8 +75,8 @@
           with_items: "{{r__route53.results}}"
           delegate_to: localhost
 
-# Introducing rescue on A records creation in AWS (route53) to cope with the error below (this is most frequent when creating 15+ nodes clusters)
-# "Timeout waiting for resource records changes to be applied: Waiter ResourceRecordSetsChanged failed: Rate exceeded"
+      # rescue A-record creation in AWS (route53) to cope with the error below (this is most frequent when creating 15+ nodes clusters)
+      # "Timeout waiting for resource records changes to be applied: Waiter ResourceRecordSetsChanged failed: Rate exceeded"
       rescue:
         - name: config/dns/a/route53 | Resubmit A records in AWS (route53) which failed the previous step
           route53:
@@ -64,11 +84,11 @@
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: present
             zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{item.invocation.module_args.record}}"
+            record: "{{item.item.item.hostname}}.{{cluster_vars.dns_user_domain}}"
             type: A
             ttl: 60
-            value: "{{ item.invocation.module_args.value }}"
-            private_zone: "{{cluster_vars.route53_private_zone | default(true)}}"
+            value: "{{item.item.item.ipv4}}"
+            private_zone: "{{item.item.item.private_zone}}"
             overwrite: true
             wait: yes
           become: false
@@ -79,7 +99,7 @@
 
 - name: config/dns/a/clouddns | create/update A records in GCP (clouddns)
   block:
-    - name: config/dns/a/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
+    - name: config/dns/a/clouddns | Gather info for pre-existing Managed Zones (public and/or private)
       gcp_dns_managed_zone_info:
         auth_kind: serviceaccount
         dns_name: "{{cluster_vars.dns_nameserver_zone}}"
@@ -90,7 +110,7 @@
       delegate_to: localhost
       run_once: true
 
-    - name: config/dns/a/clouddns | create/update A records for all matching zones, (could be multiple, e.g. public/ private) in GCP (clouddns)
+    - name: config/dns/a/clouddns | create/update A records for all matching zones, (public and/or private) in GCP (clouddns)
       gcp_dns_resource_record_set:
         auth_kind: serviceaccount
         managed_zone:
@@ -100,7 +120,7 @@
         project: "{{cluster_vars[buildenv].vpc_host_project_id}}"
         service_account_file: "{{gcp_credentials_file}}"
         state: present
-        target: "{%- if item.1.visibility == 'private' -%} {{ hostvars[item.0.hostname]['ansible_default_ipv4']['address'] }} {%- else -%} {{ hostvars[item.0.hostname]['ansible_host'] }} {%- endif -%}"
+        target: "{%- if item.1.visibility == 'private' or 'ipv4_public' not in hostvars[item.0.hostname] -%} {{ hostvars[item.0.hostname]['ipv4_private'] }} {%- else -%} {{ hostvars[item.0.hostname]['ipv4_public'] }} {%- endif -%}"
         type: A
         ttl: 60
       with_nested:

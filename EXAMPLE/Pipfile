@@ -9,7 +9,7 @@ boto3 = "*"
 boto = "*"
 botocore = "*"
 requests = "*"
-ansible = ">=2.9"
+ansible = ">=5.6"
 jmespath = "*"
 dnspython = "*"
 google-auth = "*"
@@ -20,4 +20,4 @@ apache-libcloud = "*"
 [dev-packages]
 
 [requires]
-python_version = "3"
+python_version = "3.10"
