@@ -37,7 +37,7 @@
     - name: "clean/dns/route53 | Delete DNS entries (legacy (faster) mechanism: route53(state=get)/ route53)"
       block:
         - name: clean/dns/route53 | Get A records
-          route53:
+          amazon.aws.route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "get"
@@ -54,7 +54,7 @@
           when: r__route53_a is failed
 
         - name: clean/dns/route53 | Delete A records
-          route53:
+          amazon.aws.route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "absent"
@@ -68,7 +68,7 @@
           when: item.set.value is defined
 
         - name: clean/dns/route53 | Get CNAME records
-          route53:
+          amazon.aws.route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "get"
@@ -85,7 +85,7 @@
           when: r__route53_cname is failed
 
         - name: clean/dns/route53 | Delete CNAME records
-          route53:
+          amazon.aws.route53:
             aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
             aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
             state: "absent"
