@@ -25,7 +25,7 @@
 - name: "by_hosttype_by_host | Run {{mainclusteryml}} to add {{host_to_redeploy.hostname}} to cluster"
   shell: "{{ (argv | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{host_to_redeploy | to_json}}]}' {{ redeploy_extra_vars | extravars_from_dict }}"
   register: r__mainclusteryml
-  no_log: True
+  # no_log: True
   ignore_errors: yes
 - debug: msg="{{[r__mainclusteryml.stdout_lines] + [r__mainclusteryml.stderr_lines]}}"
   failed_when: r__mainclusteryml is failed
