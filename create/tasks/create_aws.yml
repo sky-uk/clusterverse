@@ -49,7 +49,7 @@
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         network:
           assign_public_ip: "{{cluster_vars.assign_public_ip | bool}}"
-        security_groups: "{{ cluster_vars.secgroups_existing }} {%- if cluster_vars.secgroup_new | length > 0 -%} + {{ ([r__ec2_group.group_name | default()] | default())}} {%- endif -%}"
+        security_groups: "{{ cluster_vars.secgroups_existing | default([]) + ([r__ec2_group.group_name] if r__ec2_group.group_name is defined else []) }}"
         wait: yes
         state: running
         tags: "{{ _instance_tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
