@@ -61,6 +61,8 @@
         description: "{{ item.description }}"
         source_ranges: "{{ item.source_ranges | default([]) }}"
         source_tags: "{{ item.source_tags | default([]) }}"
+        direction: "{{ item.direction | default(omit) }}"
+        priority: "{{ item.priority | default(omit) }}"
         network: "{{r__gcp_compute_network_info['resources'][0]}}"
         auth_kind: "serviceaccount"
         service_account_file: "{{gcp_credentials_file}}"
