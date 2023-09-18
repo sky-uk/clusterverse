@@ -64,6 +64,7 @@
               {%- else -%}
                 {%- set _dummy = res.append({ 'device_name': vol.device_name, 'ebs': {'volume_type': vol.volume_type, 'volume_size': vol.volume_size } }) -%}
                 {%- if 'iops' in vol -%} {%- set _dummy = res[res|length-1].ebs.update({'iops': vol.iops}) -%} {%- endif -%}
+                {%- if 'throughput' in vol -%} {%- set _dummy = res[res|length-1].ebs.update({'throughput': vol.throughput}) -%} {%- endif -%}
                 {%- if 'snapshot' in vol -%} {%- set _dummy = res[res|length-1].ebs.update({'snapshot_id': vol.snapshot}) -%} {%- endif -%}
                 {%- if 'encrypted' in vol -%} {%- set _dummy = res[res|length-1].ebs.update({'encrypted': vol.encrypted}) -%} {%- endif -%}
                 {%- if 'delete_on_termination' in vol -%} {%- set _dummy = res[res|length-1].ebs.update({'delete_on_termination': vol.delete_on_termination}) -%} {%- endif -%}
@@ -119,6 +120,7 @@
         volume_size: "{%- if 'src' in item.auto_volume -%}{{omit}}{%- else -%}{{item.auto_volume.volume_size}}{%- endif -%}"
         volume_type: "{{item.auto_volume.volume_type}}"
         iops: "{{item.auto_volume.iops | default(omit)}}"
+        throughput: "{{item.auto_volume.throughput | default(omit)}}"        
         delete_on_termination: yes
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
       async: 7200

@@ -81,6 +81,9 @@
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
       when: cluster_vars.type == "aws"
 
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?throughput > `1000`] && [?starts_with(volume_type, `gp3`)]\") | length == 0", fail_msg: "Volume throughput is too high; maximum is 1000" }
+      when: cluster_vars.type == "aws"
+
 - name: Create gcp service account contents file from cluster_vars[buildenv].gcp_service_account_rawtext (unless already defined by user)
   block:
     - name: "set gcp_credentials_file fact"
