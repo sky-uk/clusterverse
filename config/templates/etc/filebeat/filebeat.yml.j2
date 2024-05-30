@@ -189,6 +189,8 @@ output.logstash:
   # "beats_target_hosts" below refers to a previous Clusterverse release variable, it will be deprecated in Clusterverse 4.0
   hosts: {{ beats_config.filebeat.output_logstash_hosts | default(beats_target_hosts) }}
 {% endif %}
+  ttl: 300s
+  pipelining: 0
   # Optional SSL. By default is off.
   # List of root certificates for HTTPS server verifications
   #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
