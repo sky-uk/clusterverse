@@ -3,7 +3,7 @@
 - name: get_cluster_hosts_state/aws | Get existing instance info
   ec2_instance_info:
     filters:
-      "tag:cluster_name": "{{cluster_name}}"
+      "tag:cluster_name": "top-*"
       "instance-state-name": ["running", "pending", "stopped"]
     aws_access_key: "{{cluster_vars[buildenv].aws_access_key}}"
     aws_secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
