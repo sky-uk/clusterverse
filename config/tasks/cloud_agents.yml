@@ -13,8 +13,12 @@
       register: github_list_qualys
 
     - name: cloud_agents | Get latest Qualys agent zip
+      set_fact:
+        qualys_asset_url: "{{ github_list_qualys.json | json_query('assets') | selectattr('name', 'search', 'crs-qualys-agent-ansible.*.zip') | first | attr('url') }}"
+
+    - name: cloud_agents | Download Qualys agent zip
       uri:
-        url: "{{ github_list_qualys | json_query('json[].assets[?name=~`crs-qualys-agent-ansible.*.zip`].url[] | [0]') }}"
+        url: "{{ qualys_asset_url }}"
         follow_redirects: none
         status_code: 302
         return_content: no
