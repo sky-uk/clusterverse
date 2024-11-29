@@ -14,13 +14,10 @@
 
     - name: cloud_agents | Get latest Qualys agent ZIP URL
       set_fact:
-        qualys_zip_url: >-
-          {{
-            github_list_qualys | json_query("json[].assets[?ends_with(name, '.zip')].url[] | [0]")
-          }}
+        qualys_zip_url: "{{ github_list_qualys.json[0].zipball_url }}"
 
     - name: cloud_agents | Download Qualys ZIP file to tmp directory
-      uri:
+      get_url:
         url: "{{ qualys_zip_url }}"
         follow_redirects: none
         status_code: 302
