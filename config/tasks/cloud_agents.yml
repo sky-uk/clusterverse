@@ -2,7 +2,7 @@
 
 - name: cloud_agents | Qualys cloud agent
   block:
-    - name: cloud_agents | Retrieve Qualys agents from github
+    - name: cloud_agents | Retrieve Qualys agents from GitHub
       uri:
         url: "{{ cloud_agent.qualys.github_release }}"
         force_basic_auth: yes
@@ -12,9 +12,16 @@
           Accept: "application/vnd.github.v3+json"
       register: github_list_qualys
 
-    - name: cloud_agents | Get latest Qualys agent
+    - name: cloud_agents | Get latest Qualys agent ZIP URL
+      set_fact:
+        qualys_zip_url: >-
+          {{
+            github_list_qualys | json_query("json[].assets[?ends_with(name, '.zip')].url[] | [0]")
+          }}
+
+    - name: cloud_agents | Download Qualys ZIP file to tmp directory
       uri:
-        url: "{{ github_list_qualys | json_query('json[].assets[?name==`'+ cloud_agent.qualys.bin_name +'`].url[] | [0]') }}"
+        url: "{{ qualys_zip_url }}"
         follow_redirects: none
         status_code: 302
         return_content: no
@@ -23,14 +30,27 @@
         url_password: "{{ environment_credentials[buildenv].github_token }}"
         headers:
           Accept: "application/octet-stream"
-      register: qualys_release_file
+      register: qualys_zip_file
 
-    - name: cloud_agents | Download Qualys agents to tmp directory
+    - name: cloud_agents | Download ZIP to local directory
       get_url:
-        url: "{{ qualys_release_file.location }}"
-        dest: "/tmp/{{ cloud_agent.qualys.bin_name }}"
+        url: "{{ qualys_zip_file.location }}"
+        dest: "/tmp/qualys-cloud-agent.zip"
         mode: 0755
         force: true
+
+    - name: cloud_agents | Extract Qualys .deb from ZIP
+      unarchive:
+        src: "/tmp/qualys-cloud-agent.zip"
+        dest: "/tmp/qualys-extracted"
+        remote_src: yes
+      register: unarchived_files
+
+    - name: cloud_agents | Locate .deb file in extracted folder
+      find:
+        paths: "/tmp/qualys-extracted"
+        patterns: "*.deb"
+      register: deb_file_location
 
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
@@ -38,12 +58,14 @@
         name: "{{ cloud_agent.qualys.service }}"
         state: absent
       when: ansible_os_family == 'Debian'
-    - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
+
+    - name: cloud_agents | Install Qualys cloud agent pkg Debian
       become: yes
       apt:
-        deb: "/tmp/{{ cloud_agent.qualys.bin_name }}"
+        deb: "{{ deb_file_location.files[0].path }}"
         state: present
       when: ansible_os_family == 'Debian'
+
     - name: cloud_agents | Remove existing Qualys cloud agent pkg RedHat
       become: yes
       yum:
