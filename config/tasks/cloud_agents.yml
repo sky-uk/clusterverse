@@ -12,9 +12,17 @@
           Accept: "application/vnd.github.v3+json"
       register: github_latest_qualys
 
-    - name: cloud_agents | Get latest Qualys agent ZIP file
+    - name: Debug GitHub release assets
+      debug:
+        msg: "{{ github_latest_qualys.json.assets }}"
+
+    - name: cloud_agents | Construct URL for latest Qualys agent ZIP file
+      set_fact:
+        qualys_zip_url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.zip"
+
+    - name: cloud_agents | Get latest Qualys agent ZIP file (with authentication)
       uri:
-        url: "{{ github_latest_qualys | json_query('json[].assets[?name==`qualys-cloud-agent.zip`].url[] | [0]') }}"
+        url: "{{ qualys_zip_url }}"
         follow_redirects: none
         status_code: 302
         return_content: no
