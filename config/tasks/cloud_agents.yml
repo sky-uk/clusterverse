@@ -59,8 +59,6 @@
         dest: "/tmp/qualys_agent"
         remote_src: yes
       become: yes
-      args:
-        executable: "/usr/bin/unzip"
 
     - name: cloud_agents | Find the correct .deb file inside the ZIP
       set_fact:
