@@ -1,86 +1,85 @@
 ---
 
-# - name: Run cloud-specific config (if defined)
-#   include: "{{ item }}"
-#   loop: "{{ query('first_found', params) }}"
-#   vars: { params: { files: ["config_{{cluster_vars.type}}.yml"], skip: true } }
+- name: Run cloud-specific config (if defined)
+  include: "{{ item }}"
+  loop: "{{ query('first_found', params) }}"
+  vars: { params: { files: ["config_{{cluster_vars.type}}.yml"], skip: true } }
 
-# - name: Disable unattended-upgrades and apt-daily services & timers. Wait for in-flight updates to finish.
-#   block:
-#     - name: Disable unattended-upgrades and apt-daily services & timers
-#       systemd:
-#         name: "{{ item }}"
-#         enabled: no
-#         state: stopped
-#         daemon_reload: yes
-#       become: true
-#       loop:
-#         - 'apt-daily.timer'
-#         - 'apt-daily.service'
-#         - 'apt-daily-upgrade.timer'
-#         - 'apt-daily-upgrade.service'
-#         - 'unattended-upgrades.service'
+- name: Disable unattended-upgrades and apt-daily services & timers. Wait for in-flight updates to finish.
+  block:
+    - name: Disable unattended-upgrades and apt-daily services & timers
+      systemd:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+        daemon_reload: yes
+      become: true
+      loop:
+        - 'apt-daily.timer'
+        - 'apt-daily.service'
+        - 'apt-daily-upgrade.timer'
+        - 'apt-daily-upgrade.service'
+        - 'unattended-upgrades.service'
 
-#     - name: Wait for in-flight updates to finish
-#       become: true
-#       shell: "while fuser /var/lib/dpkg/{{ item }} >/dev/null 2>&1; do sleep 5; done;"
-#       loop:
-#         - lock
-#         - lock-frontend
-#   when: ansible_os_family == 'Debian'
+    - name: Wait for in-flight updates to finish
+      become: true
+      shell: "while fuser /var/lib/dpkg/{{ item }} >/dev/null 2>&1; do sleep 5; done;"
+      loop:
+        - lock
+        - lock-frontend
+  when: ansible_os_family == 'Debian'
 
-# - name: Disable requiretty in sudoers to enable pipelining
-#   become: yes
-#   lineinfile:
-#     dest: /etc/sudoers
-#     regexp: '(^Defaults requiretty)$'
-#     line: '#\1",'
-#     backrefs: yes
-#   vars:
-#     ansible_ssh_pipelining: no
+- name: Disable requiretty in sudoers to enable pipelining
+  become: yes
+  lineinfile:
+    dest: /etc/sudoers
+    regexp: '(^Defaults requiretty)$'
+    line: '#\1",'
+    backrefs: yes
+  vars:
+    ansible_ssh_pipelining: no
 
-# - name: Add hostname to hosts (gives hostname resolution without calling out to DNS.  Needed on Ubuntu.)
-#   become: yes
-#   lineinfile:
-#     path: /etc/hosts
-#     regexp: '^{{ansible_default_ipv4.address}}'
-#     line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}.{{cluster_vars.dns_user_domain}} {{inventory_hostname}}'
-# #    regexp: '^127\.0\.1\.1'
-# #    line: '127.0.1.1 {{inventory_hostname}}'
-#     insertbefore: "BOF"
+- name: Add hostname to hosts (gives hostname resolution without calling out to DNS.  Needed on Ubuntu.)
+  become: yes
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^{{ansible_default_ipv4.address}}'
+    line: '{{ansible_default_ipv4.address}} {{inventory_hostname}}.{{cluster_vars.dns_user_domain}} {{inventory_hostname}}'
+#    regexp: '^127\.0\.1\.1'
+#    line: '127.0.1.1 {{inventory_hostname}}'
+    insertbefore: "BOF"
 
-# - name: Create /var/log/journal
-#   become: true
-#   file:
-#     path: "/var/log/journal"
-#     state: directory
-#     mode: 0755
-#   when: (static_journal is defined and static_journal|bool)
+- name: Create /var/log/journal
+  become: true
+  file:
+    path: "/var/log/journal"
+    state: directory
+    mode: 0755
+  when: (static_journal is defined and static_journal|bool)
 
-# - name: Create partition table, format and attach volumes - AWS, GCP or Azure
-#   include_tasks: disks_auto_cloud.yml
-#   when: cluster_vars.type in ["aws", "gcp", "azure"]
+- name: Create partition table, format and attach volumes - AWS, GCP or Azure
+  include_tasks: disks_auto_cloud.yml
+  when: cluster_vars.type in ["aws", "gcp", "azure"]
 
-# - name: Create partition table, format and attach volumes - generic
-#   include_tasks: disks_auto_generic.yml
-#   when: cluster_vars.type not in ["aws", "gcp", "azure"]
+- name: Create partition table, format and attach volumes - generic
+  include_tasks: disks_auto_generic.yml
+  when: cluster_vars.type not in ["aws", "gcp", "azure"]
 
-# - name: install prometheus node exporter daemon
-#   include_tasks: prometheus_node_exporter.yml
-#   when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install|bool)
+- name: install prometheus node exporter daemon
+  include_tasks: prometheus_node_exporter.yml
+  when: (prometheus_node_exporter_install is defined and prometheus_node_exporter_install|bool)
 
-# - name: Install elastic filebeat
-#   include_tasks: filebeat.yml
-#   when: (filebeat_install is defined and filebeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
-#   vars:
-#     hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
+- name: Install elastic filebeat
+  include_tasks: filebeat.yml
+  when: (filebeat_install is defined and filebeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
+  vars:
+    hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
 
-# - name: Install elastic metricbeat
-#   include_tasks: metricbeat.yml
-#   when: (metricbeat_install is defined and metricbeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
-#   vars:
-#     hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
-
+- name: Install elastic metricbeat
+  include_tasks: metricbeat.yml
+  when: (metricbeat_install is defined and metricbeat_install|bool and (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is undefined  or (cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install is defined and not cluster_vars[buildenv].hosttype_vars[hosttype].skip_beat_install|bool)))
+  vars:
+    hosttype: "{{cluster_hosts_target | json_query('[?hostname == `' + inventory_hostname + '`].hosttype|[0]') }}"
 - name: Install security cloud agent
   include_tasks: cloud_agents.yml
   when: (cloud_agent is defined and cloud_agent)
