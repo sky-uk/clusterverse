@@ -47,12 +47,20 @@
         mode: '0755'
       become: yes
 
+    - name: Ensure unzip utility is installed
+      become: yes
+      package:
+        name: unzip
+        state: present
+
     - name: cloud_agents | Unzip Qualys agent ZIP file
       unarchive:
         src: "/tmp/qualys-cloud-agent.zip"
         dest: "/tmp/qualys_agent"
         remote_src: yes
       become: yes
+      args:
+        executable: "/usr/bin/unzip"
 
     - name: cloud_agents | Find the correct .deb file inside the ZIP
       set_fact:
