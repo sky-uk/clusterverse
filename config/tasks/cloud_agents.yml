@@ -40,6 +40,13 @@
         mode: '0644'
         force: true
 
+    - name: cloud_agents | Ensure destination directory exists
+      file:
+        path: "/tmp/qualys_agent"
+        state: directory
+        mode: '0755'
+      become: yes
+
     - name: cloud_agents | Unzip Qualys agent ZIP file
       unarchive:
         src: "/tmp/qualys-cloud-agent.zip"
