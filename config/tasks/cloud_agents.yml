@@ -60,6 +60,10 @@
         remote_src: yes
       become: yes
 
+    - name: cloud_agents | Debug bin_name variable
+      debug:
+        msg: "{{ cloud_agent.qualys.bin_name }}"
+
     - name: cloud_agents | Find the correct .deb file inside the ZIP
       set_fact:
         qualys_deb_file: "{{ lookup('fileglob', '/tmp/qualys_agent/**/files/{{ cloud_agent.qualys.bin_name }}', wantlist=True)[0] }}"
