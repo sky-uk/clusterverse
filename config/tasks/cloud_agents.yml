@@ -12,17 +12,9 @@
           Accept: "application/vnd.github.v3+json"
       register: github_latest_qualys
 
-    - name: Debug GitHub release assets
-      debug:
-        msg: "{{ github_latest_qualys.json.assets }}"
-
-    - name: cloud_agents | Construct URL for latest Qualys agent ZIP file
-      set_fact:
-        qualys_zip_url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.zip"
-
     - name: cloud_agents | Get latest Qualys agent ZIP file (with authentication)
       uri:
-        url: "{{ qualys_zip_url }}"
+        url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.zip"
         follow_redirects: none
         status_code: 302
         return_content: no
@@ -72,7 +64,7 @@
         state: absent
       when: ansible_os_family == 'Debian'
 
-    - name: cloud_agents | Install the Qualys .deb file (Debian)
+    - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
       become: yes
       apt:
         deb: "/tmp/qualys_agent/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
