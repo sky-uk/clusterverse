@@ -60,21 +60,10 @@
         remote_src: yes
       become: yes
 
-    - name: cloud_agents | Debug bin_name variable
-      debug:
-        msg: "{{ cloud_agent.qualys.bin_name }}"
     
     - name: cloud_agents | Construct directory name from tag
       set_fact:
         qualys_dir: "crs-qualys-agent-ansible-{{ github_latest_qualys.json.tag_name | regex_replace('^v', '') }}"
-
-    - name: Debug the constructed fileglob path
-      debug:
-        msg: "/tmp/qualys_agent/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
-
-    - name: cloud_agents | Find the correct .deb file inside the ZIP
-      set_fact:
-        qualys_deb_file: "{{ lookup('fileglob', '/tmp/qualys_agent/{{ qualys_dir }}/files/qualys-cloud-agent.x86_64.deb', wantlist=True)[0] }}"
 
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
@@ -86,7 +75,7 @@
     - name: cloud_agents | Install the Qualys .deb file (Debian)
       become: yes
       apt:
-        deb: "{{ qualys_deb_file }}"
+        deb: "/tmp/qualys_agent/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
         state: present
       when: ansible_os_family == 'Debian'
 
