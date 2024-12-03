@@ -14,7 +14,7 @@
 
     - name: cloud_agents | Get latest Qualys agent ZIP file (with authentication)
       uri:
-        url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.zip"
+        url: "{{ github_latest_qualys.json.zipball_url }}"
         follow_redirects: none
         status_code: 302
         return_content: no
