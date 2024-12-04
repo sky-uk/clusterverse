@@ -12,9 +12,9 @@
           Accept: "application/vnd.github.v3+json"
       register: github_latest_qualys
 
-    - name: cloud_agents | Get latest Qualys agent ZIP file (with authentication)
+    - name: cloud_agents | Get latest Qualys agent tar file
       uri:
-        url: "{{ github_latest_qualys.json.zipball_url }}"
+        url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.tar.gz"
         follow_redirects: none
         status_code: 302
         return_content: no
@@ -23,32 +23,19 @@
         url_password: "{{ environment_credentials[buildenv].github_token }}"
         headers:
           Accept: "application/vnd.github.v3+json"
-      register: qualys_release_file_zip_metadata
+      register: qualys_release_file_tar_metadata
 
-    - name: cloud_agents | Download Qualys agent ZIP file to tmp directory
+    - name: cloud_agents | Download Qualys agent tar file to tmp directory
       get_url:
-        url: "{{ qualys_release_file_zip_metadata.location }}"
-        dest: "/tmp/qualys-cloud-agent.zip"
-        mode: '0644'
+        url: "{{ qualys_release_file_tar_metadata.location }}"
+        dest: "/tmp/qualys-cloud-agent.tar.gz"
+        mode: '0755'
         force: true
 
-    - name: cloud_agents | Ensure destination directory exists
-      file:
-        path: "/tmp/qualys_agent"
-        state: directory
-        mode: '0755'
-      become: yes
-
-    - name: Ensure unzip utility is installed
-      become: yes
-      package:
-        name: unzip
-        state: present
-
-    - name: cloud_agents | Unzip Qualys agent ZIP file
+    - name: cloud_agents | Extract Qualys agent tar file
       unarchive:
-        src: "/tmp/qualys-cloud-agent.zip"
-        dest: "/tmp/qualys_agent"
+        src: "/tmp/qualys-cloud-agent.tar.gz"
+        dest: "/tmp"
         remote_src: yes
       become: yes
 
@@ -66,7 +53,7 @@
     - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
       become: yes
       apt:
-        deb: "/tmp/qualys_agent/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
+        deb: "/tmp/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
         state: present
       when: ansible_os_family == 'Debian'
 
