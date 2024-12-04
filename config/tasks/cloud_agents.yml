@@ -14,7 +14,7 @@
 
     - name: cloud_agents | Get latest Qualys agent tar file
       uri:
-        url: "{{ github_latest_qualys.json.tarball_url }}"
+        url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.tar.gz"
         follow_redirects: none
         status_code: 302
         return_content: no
@@ -39,9 +39,9 @@
         remote_src: yes
       become: yes
 
-    # - name: cloud_agents | Construct directory name from tag
-    #   set_fact:
-    #     qualys_dir: "crs-qualys-agent-ansible-{{ github_latest_qualys.json.tag_name | regex_replace('^v', '') }}"
+    - name: cloud_agents | Construct directory name from tag
+      set_fact:
+        qualys_dir: "crs-qualys-agent-ansible-{{ github_latest_qualys.json.tag_name | regex_replace('^v', '') }}"
 
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
@@ -53,7 +53,7 @@
     - name: cloud_agents | Download and install Qualys cloud agent pkg Debian
       become: yes
       apt:
-        deb: "/tmp/sky-uk-crs-qualys-agent-ansible-*/files/{{ cloud_agent.qualys.bin_name }}"
+        deb: "/tmp/{{ qualys_dir }}/files/{{ cloud_agent.qualys.bin_name }}"
         state: present
       when: ansible_os_family == 'Debian'
 
