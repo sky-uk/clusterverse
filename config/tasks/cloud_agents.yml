@@ -29,7 +29,7 @@
       get_url:
         url: "{{ qualys_release_file_tar_metadata.location }}"
         dest: "/tmp/qualys-cloud-agent.tar.gz"
-        mode: '0755'
+        mode: 0755
         force: true
 
     - name: cloud_agents | Extract Qualys agent tar file
