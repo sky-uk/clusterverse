@@ -14,7 +14,7 @@
 
     - name: cloud_agents | Get latest Qualys agent tar file
       uri:
-        url: "{{ cloud_agent.qualys.tarball_url }}"
+        url: "{{ cloud_agent.qualys.tarball_url | replace('{{ tag_name }}', github_latest_qualys.json.tag_name) }}"
         follow_redirects: none
         status_code: 302
         return_content: no
