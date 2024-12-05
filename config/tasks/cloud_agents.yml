@@ -14,7 +14,7 @@
 
     - name: cloud_agents | Get latest Qualys agent tar file
       uri:
-        url: "https://github.com/sky-uk/crs-qualys-agent-ansible/archive/refs/tags/{{ github_latest_qualys.json.tag_name }}.tar.gz"
+        url: "{{ cloud_agent.qualys.tarball_url | replace('{{ tag_name }}', github_latest_qualys.json.tag_name) }}"
         follow_redirects: none
         status_code: 302
         return_content: no
@@ -94,6 +94,15 @@
         name: '{{ cloud_agent.qualys.service }}'
         state: started
         enabled: yes
+
+    - name: cloud_agents | Cleanup tar file and extracted directory
+      become: yes
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/qualys-cloud-agent.tar.gz"
+        - "/tmp/{{ qualys_dir }}"
   when: "'qualys' in cloud_agent"
 
 - name: cloud_agents | Tenable Nessus cloud agent
