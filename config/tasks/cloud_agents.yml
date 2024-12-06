@@ -41,7 +41,7 @@
 
     - name: cloud_agents | Construct directory name from tag
       set_fact:
-        qualys_dir: "crs-qualys-agent-ansible-{{ github_latest_qualys.json.tag_name | regex_replace('^v', '') }}"
+        qualys_dir: "crs-qualys-agent-ansible-{{ github_latest_qualys.json.tag_name[1:] }}"
 
     - name: cloud_agents | Remove existing Qualys cloud agent pkg Debian
       become: yes
