@@ -4,7 +4,7 @@
   block:
     - name: cloud_agents | Retrieve Qualys agents from github
       uri:
-        url: "{{ cloud_agent.qualys.github_release }}"
+        url: "{{ cloud_agent.qualys.github_release }}/latest"
         force_basic_auth: yes
         url_username: "{{ environment_credentials[buildenv].github_username }}"
         url_password: "{{ environment_credentials[buildenv].github_token }}"
