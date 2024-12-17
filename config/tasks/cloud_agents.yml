@@ -95,14 +95,14 @@
         state: started
         enabled: yes
 
-    - name: cloud_agents | Cleanup tar file and extracted directory
-      become: yes
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "/tmp/qualys-cloud-agent.tar.gz"
-        - "/tmp/{{ qualys_dir }}"
+    # - name: cloud_agents | Cleanup tar file and extracted directory
+    #   become: yes
+    #   file:
+    #     path: "{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - "/tmp/qualys-cloud-agent.tar.gz"
+    #     - "/tmp/{{ qualys_dir }}"
   when: "'qualys' in cloud_agent"
 
 - name: cloud_agents | Tenable Nessus cloud agent
